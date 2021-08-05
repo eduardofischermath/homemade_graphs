@@ -2,7 +2,7 @@
 # DOCUMENTATION / README
 ######################################################################
 
-# Implements classes and algorithms connected to graphs and digraphs.
+# Implements classes and algorithms related to graphs and digraphs.
 # For more information, see README.md
 
 # Copyright (C) 2021 Eduardo Fischer
@@ -17,11 +17,24 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
+# TODO:
+########################################################################
+
+# 0) Move methods around, improve some a bit, specially related to weight
+# 1) Implement classes VertexPath and VertexCycle, refactor methods to accomodate
+# 2) Move classes Edge, Arrow, Vertex outside Digraph, refactor to accomodate
+# 3) Eliminate bugs on method get_single_source_shortest_paths_via_Bellman_Fords
+# 4) Eliminate bugs on method get_all_paths_shortest_paths_via_Floyd_Warshals
+# 5) Finish writing method get_all_paths_shortest_paths_via_Johnsons
+# 6) Implement methods get_hamiltonian_path()/solve_traveling_salesman_problem()
+
+########################################################################
 # Imports
 ########################################################################
 from collections import namedtuple as collections_namedtuple
 from itertools import zip_longest as itertools_zip_longest
 from itertools import chain as itertools_chain
+from functools import cache as functools_cache
 from copy import copy as copy_copy
 from random import choices as random_choices
 from math import log2 as math_log2
@@ -29,6 +42,212 @@ from math import inf as math_inf
 from heapq import heapify as heapq_heapify
 from heapq import heappush as heapq_heappush
 from heapq import heappop as heapq_heappop
+
+########################################################################
+# Class VertexPath
+########################################################################
+
+class VertexPath(object):
+  '''
+  A VertexPath in a Digraph is a sequence of arrows in the digraph such
+  that the source of any arrow [after the first] is the target of the previous.
+  
+  Accepts a single-vertex-no-arrow path, or even a no-vertex-no-arrow path.
+  '''
+  
+  def __init__(self, underlying_digraph, data, data_type, verify_on_initialization = False):
+    '''
+    Magic method. Initializes the instance.
+    '''
+    self.underlying_digraph = underlying_digraph
+    if data_type.lower() == 'vertices_and_arrows':
+      # In this case we expect data to be (vertices, arrows)
+      # For uniformization, make them lists
+      pre_vertices, pre_arrows = data
+      self.vertices = list(pre_vertices)
+      self.vertices = list(pre_arrows)
+    elif data_type.lower() == 'arrows':
+      # If data_type is 'arrows', they are pretty much what we need
+      # We expect a list, but we can do with any iterable
+      self.arrows = list(data)
+      # The vertices can be easily derived from the arrows
+      if not self.arrows:
+        self.vertices = []
+      else:
+        self.vertices = []
+        # We add the source of the first arrow, and then the targets of all arrows
+        #(including the first)
+        self.vertices.append(self.arrows[0].source)
+        for arrow in self.arrows:
+          self.vertices.append(self.arrow.target)
+    elif data_type.lower() == 'vertices':
+      # In this case the vertices are ready, and we need to get the arrows
+      # We use get_shortest_arrow_between_vertices
+      # If there are multiple (meaning the digraph is not simple), it will
+      #produce the shortest. If there are none, an exception will be raised,
+      #because in this case it is not a real path
+      self.vertices = list(data)
+      if not self.vertices:
+        self.arrows = []
+      else:
+        self.arrows = []
+        for idx in range(len(self.vertices) - 1):
+          # Form the arrows the only possible way
+          # There will be one fewer arrows than vertices
+          self.arrows.append(self.underlying_graph.get_shortest_arrow_between_vertices(
+              source = self.vertices[idx], target = self.vertices[idx+1],
+              skip_checks = False))
+    else:
+      raise ValueError('Option not recognized')
+    if verify_on_initialization:
+      self.verify_coherence()
+    else:
+      pass
+
+  def __bool__(self):
+    '''
+    Magic method. Returns the boolean value of self.
+    '''
+    # Our convention: true if there is at least one vertex
+    # False only if it's the path with no vertices
+    return bool(self.vertices)
+    
+  def __len__(self):
+    '''
+    Magic method. Returns the size of self.
+    '''
+    # No convention yet. Could be either number of vertices or of arrows.
+    # Or even the sum of the weights of the arrows, if they're weighted
+    raise NotImplementedError
+
+  def __repr__(self):
+    '''
+    Magic method. Returns faithful representation of instance.
+    '''
+    return f'{type(self)}(underlying_digraph = {self.underlying_digraph},\
+         data = {self.arrows}, data_type = \'arrows\', verify_coherence = True)'
+    
+  def __str__(self):
+    '''
+    Magic method. Returns user-friendly representation for instance.
+    '''
+    # Note we don't mention the graph the instance comes from
+    if isinstance(self, VertexCycle):
+      single_name = 'Cycle'
+    else:
+      single_name = 'Path'
+    return f'{single_name} with vertices {self.vertices}\nand arrows {self.arrows}'
+    
+  def verify_coherence(self):
+    '''
+    Verifies that instance represents a path in digraph.
+    '''
+    # First we ensure vertices and arrows do belong to the digraph
+    for vertex in self.vertices:
+      assert vertex in self.underlying_digraph
+    for arrow in self.arrows:
+      # To facilitate searching for the arrow, we use the self._neighbors_out
+      assert arrow in self.underlying_digraph.get_arrows_out(arrow.source)
+    # We verify it is indeed a path, and that the vertices match with the arrows
+    # Part of this is automatically set during __init__, but not all.
+    # Also, if data_type == 'vertices_and_arrows' on __init__, nothing is
+    # We need to excise the no-vertex path
+    if not self.vertices: # Measuring length
+      assert len(self.arrows) == 0, 'Without vertices there should be no arrows'
+    else:
+      assert len(self.arrows) = len(self.vertices) - 1, 'There should be one more vertex than arrow'
+      for idx, arrow in enumerate(self.arrows):
+        assert arrow.source == self.vertices[idx], 'Incoherent vertices and arrows'
+        assert arrow.target == self.vertices[idx+1], 'Incoherent vertices and arrows'
+      # To ensure we have a cycle if VertexCycle
+      if isinstance(self, VertexCycle):
+        assert self.vertices[0] == self.vertices[-1], 'Need path to be a cycle'
+      
+  def get_total_weight(self):
+    '''
+    Returns the total weight/length of the path, which is the result of
+    adding the weights of the arrows.
+    
+    If arrows are unweighted, returns None.
+    
+    If instance has no arrows, returns 0.
+    '''
+    # Note that if one arrow is weighted, all are.
+    try:
+      return sum(arrow.weight for arrow in self.arrows)
+      # This will produce TypeError if trying to sum even a single None
+    except TypeError:
+      return None
+
+  def is_hamiltonian_path(self):
+    '''
+    Returns whether path is a Hamiltonian path.
+    '''
+    # First we check lengths which is easy
+    length_underlying_graph = len(self.underlying_graph)
+    if len(self.vertices) != length_underlying_graph:
+      return False
+    # We now check the vertices in self.vertices are distinct using set()
+    if len(self.vertices) != len(set(self.vertices)):
+      return False
+    # If passed the two tests, it is a Hamiltonian path
+    return True
+
+  def is_hamiltonian_cycle(self):
+    '''
+    Returns whether path or cycle is a Hamiltonian cycle.
+    '''
+    # Adapted from is_hamiltonian_path, with a few differences
+    # A Hamiltonian cycle becomes a Hamiltonian path without its first vertex
+    # Also, it needs to be a cycle
+    if self.vertices[0] != self.vertices[-1]:
+      return False
+    length_underlying_graph = len(self.underlying_graph)
+    vertices_except_first = self.vertices[1:]
+    if len(vertices_except_first) != length_underlying_graph:
+      return False
+    if len(vertices_except_first) != len(set(vertices_except_first)):
+      return False
+    # Survived all tests, thus is Hamiltonian cycle
+    return True
+
+########################################################################
+# Class VertexCycle
+########################################################################
+
+class VertexCycle(VertexPath):
+  '''
+  A VertexCycle is a VertexPath which starts and ends on the same vertex.
+  '''
+  
+  def rebase_cycle(self, base_vertex, modify_self = False):
+    '''
+    Returns the same cycle but with vertices rotated so requested vertex
+    is the first and last of the cycle.
+    
+    Can either modify self [returning None] or return a new instance.
+    '''
+    # We get the index of the base_vertex in the cycle
+    # In case base_vertex isn't in the cycle, it will raise ValueError
+    # Note index returns the first occurrence of the vertex (a VertexPath
+    #or VertexCycle potentially contain self intersections)
+    base_idx = self.vertices.index(base_vertex)
+    # The first arrow will be the one with source base_vertex, that is,
+    #the arrow with index base_idx
+    # Easiest way is to use moduler arithmetic on the number of arrows
+    number_of_arrows = len(self.arrows)
+    rotated_arrows = [self.arrows[(idx + base_idx) % number_of_arrows]
+        for idx in range(number_of_arrows)]
+    # To facilitate things, we build a dict for arguments, called kwargs
+    kwargs = {'underlying_graph': self.underlying_graph,
+        data: rotated_arrows,
+        data_type: 'arrows',
+        verify_coherence: True}
+    if modify_self:
+      self.__init__(**kwargs)
+      return None
+    else:
+      return type(self)(**kwargs)
 
 ########################################################################
 # Declaration of Digraph class and of Vertex, Arrow, Edge namedtuples
@@ -1457,30 +1676,237 @@ class Digraph(object):
         return self.__class__(data = data, data_type = data_type, cast_as_class = None)
 
 ########################################################################
-# Methods for shortest paths
+# Methods implementing different algorithms in Graph Theory
 ########################################################################
 
-  ##############
-  # WORK HERE
-  # Verify if Dijkstras is only for Graphs
-  ##############
+  def get_sccs(self):
+    '''
+    Returns the strongly connected components (SCCs) of the digraph.
+    
+    INPUT:
+    self
+    
+    OUTPUT:
+    sccs: a list with lists, each representing a unique connected component
+    sccs_lengths: the amount of vertices in each of the output SCCs
+    '''
+    # We will remove the weights of self since they are not used
+    self.make_graph_unweighted()
+    # We control everything using a StateDigraphGetSCC instance
+    state = StateDigraphGetSCC(self)
+    # We also need the inverse/reversed graph
+    inverted_graph = self.get_reversed_graph()
+    # We do DFS-Loop using the inverted graph to get a new rank
+    state.manually_change_graph(inverted_graph)
+    new_rank, middle_leaders = state.dfs_outer_loop()
+    # We do DFS-Loop using the original graph, self, and the new_rank
+    # Note that the leaders don't matter in the first pass
+    # (Neither does the final_rank on the second pass.)
+    state.manually_change_vertices_ranked(new_rank)
+    state.manually_change_graph(self)
+    final_rank, final_leaders = state.dfs_outer_loop()
+    # Now the leaders give the SCCs. We will store the results in a dict
+    # The leader is the key, the value a list of those having it as a leader
+    # (That includes itself)
+    # Note many will be keys with empty lists as values, which is okay
+    state.manually_change_vertices_ranked(final_rank) # Optional
+    dict_sccs = {vertex: [] for vertex in state._vertices_ranked}
+    for vertex in state._vertices_ranked:
+      dict_sccs[final_leaders[vertex]].append(vertex)
+    # We don't return the leaders, only the SCCs and the lengths.
+    # Note that logically we should only output nonempty lists following leaders
+    sccs = [scc for scc in dict_sccs.values() if scc]
+    sccs_lengths = [len(scc) for scc in sccs]
+    return (sccs, sccs_lengths)
+
+  # Should be run (n**2)*log(n) times with different seeds
+  def find_almost_certainly_minimal_cut(self, tries = None):
+    '''
+    Returns the best cut among many tries, hopefully a minimal cut.
+    '''
+    # Problem only makes sense with at least two vertices
+    n = self.get_number_of_vertices()
+    if n <= 1:
+      raise ValueError('graph needs at least 2 vertices')
+    if tries is None:
+      # If no parameter is given, we default to (n**2)*log(n)
+      tries = round((n**2)*math_log2(n)) # round() produces an int
+    minimal_cut = None
+    for try_idx in range(tries):
+      # Note find_cut(array) is (crossing_edges, one_side, other_side)
+      cut_from_try = self.find_cut()
+      if minimal_cut is None or cut_from_try[0] < minimal_cut:
+        minimal_cut = cut_from_try[0]
+        print('Current try: {}. New minimum reached: {}'.format(try_idx, minimal_cut))
+    return minimal_cut
+
+  def k_clustering(self, k):
+    '''
+    Finds the optimal k-clustering (k >= 1) of the graph.
+    
+    Requires a complete, weighted graph.
+    
+    Note: for k = 1 it produces a minimum spanning tree vias Kruskal's algorithm.
+    '''
+    # We need a weighted, undirected, simple [i.e. non-multigraph] graph
+    # Being undirected, we have access to self._edges
+    assert self.is_digraph_undirected(), 'Need undirected graph'
+    assert self.is_digraph_weighted(), 'Need weighted graph'
+    assert self.is_digraph_simple(), 'Need simple graph (cannot be multigraph)'
+    # (We don't really require complete. When the graph is not complete,
+    #this reduces to the Kruskal algorithm, essentially)
+    n = self.get_number_of_vertices()
+    assert n >= k, 'Need at least k starting vertices to form k clusters'
+    # First we start up the clusters using a union-find structure
+    # By cluster we mean: each vertex will have a leader, and vertices
+    #of same leader belong to the same cluster
+    # But we do lazy union, so we have a parent relation, and we need to
+    #transverse it up to finder the leader
+    # Also, we do path compression, so we update one's parents to be
+    #one's leaders when given the opportunity
+    parents = {vertex:vertex for vertex in self.get_vertices()}
+    ranks = {vertex:0 for vertex in self.get_vertices()}
+    # We put all edges in a heap. We order them by weight, reordering it
+    edges_heap = [(edge.weight, edge.first, edge.second) for edge in self._edges]
+    heapq_heapify(edges_heap)
+    # We need to do n-k union-operations
+    # But we later do one special operation, which is part of the main loop
+    # So we really do n-k+1, interrupting one
+    for idx in range(n-k+1):
+      # Locate the smallest edge which is a bridge between two clusters
+      while True:
+        # If graph is not complete there might be an error in the following
+        # Nonetheless, we don't want the try/except overhead for exceptions
+        new_edge = heapq_heappop(edges_heap)
+        # Call the vertices u and v. Recall the order of the information
+        weight, u, v = new_edge
+        # Get the leaders of u and v. This is a find-operation
+        # (Do path-compression while at it)
+        local_leaders = {item:None for item in [u, v]}
+        for vertex in [u, v]:
+          # We save the path to do path compression
+          # Idea is to keep appending the parents until leader is found
+          accumulated_path = [vertex]
+          # We loop whiel the leader of the root is not found
+          while accumulated_path[-1] != parents[accumulated_path[-1]]:
+            # We don't have a leader yet, so we append the parent to the path
+            accumulated_path.append(parents[accumulated_path[-1]])
+          # Ok, now we have a full path to the leader in accumulated_path
+          # First we do path-compression
+          for item in accumulated_path:
+            parents[item] = accumulated_path[-1]       
+          # We save the result as local_leaders dict, and break
+          local_leaders[vertex] = parents[vertex]
+        # Ok, now we have local_leaders[u] and local_leaders[v]
+        # If they are in the same cluster, we discard the edge and try again
+        # Otherwise we continue with the process
+        if local_leaders[u] != local_leaders[v]:
+          break
+      # We found a good sparating edge.
+      # Now we do the union-operation, except in the last operation
+      #in which we compute a minimal separation between the clusters
+      # And don't proceed, otherwise we would over-cluster the vertices
+      if idx == n-k:
+        minimal_distance_clusters = weight
+      else:
+        # ok, we are still in the process of clustering. So we do an union
+        # We compare the ranks of the leaders.
+        if ranks[local_leaders[u]] == ranks[local_leaders[v]]:
+          # If equal, we add one tree to the other in O(1) operations
+          # Without loss of generality, let's say local_leaders[u] will lead
+          parents[local_leaders[v]] == local_leaders[u]
+          # We also adjust the rank of local_leaders[u]
+          ranks[local_leaders[u]] += 1
+        elif ranks[local_leaders[u]] < ranks[local_leaders[v]]:
+          # If different, the smaller/shallower tree is appended to the larger
+          parents[local_leaders[u]] = local_leaders[v]
+        else:
+          parents[local_leaders[v]] = local_leaders[u]
+    # Ok. Not the loop has finalized and we have k clusters (given by parents)
+    #as well as a last execution which givs the minimal distance
+    # We want to output parents (which indirectly give the clusters)
+    # But we also output the objective distance, the minimal possible distance
+    #between two points in different clusters
+    return (parents, minimal_distance_clusters)
+
+########################################################################
+# Class WeightedDigraph
+########################################################################
+
+class WeightedDigraph(Digraph):
+  '''
+  A digraph whose arrows are all weighted.
+  '''
+
+  def are_weights_nonnegative(self, require_weights_positive = False):
+    '''
+    For a weighted digraph, returns whether all weights are negative.
+    
+    Has an option to require weights to be positive and not only nonnegative.
+    '''
+    # Read straight from arrows
+    if require_weights_positive:
+      answer = all(arrow.weight > 0 for arrow in self.get_arrows())
+    else:
+      answer = all(arrow.weight >= 0 for arrow in self.get_arrows())
+    return answer
+
+  def make_digraph_unweighted(self, modify_self = False):
+    '''
+    Creates an unweighted digraph (by removing weights from all arrows).
+    
+    Can either modify self or return a new instance.
+    '''
+    # We first determine if we are in an instance of Graph
+    # If we are, not only we want our future class to be also a Graph,
+    #but we can also shorten __init__ by using edges
+    if isinstance(self, Graph):
+      selected_class = UnweightedGraph
+      data_type = 'all_vertices_and_all_edges'
+      use_edges_instead_of_arrows = True
+      original_working_data = self.get_edges()
+    else:
+      selected_class = UnweightedDigraph
+      data_type = 'all_vertices_and_all_arrows'
+      use_edges_instead_of_arrows = False
+      original_working_data = self.get_arrows()
+    # We then create the unweighted arrows/edges
+    list_new_tuplees = Digraph.remove_weight_from_arrows_or_edges(
+        tuplees = original_working_data,
+        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
+        require_namedtuple = True, output_as_generator = False)
+    # We need to keep track of the vertices too, lest they are isolated
+    list_new_vertices = self.get_vertices()
+    # We prepare for the return. This works the same way whether we had
+    #arrows or we had edges
+    data = (list_new_vertices, list_new_tuplees)
+    # We create a new instance or modify the current
+    if modify_self:
+      self.__init__(data = data, data_type = data_type,
+          cast_as_class = selected_class)
+      return None
+    else:
+      return selected_class(data = data, data_type = data_type,
+          cast_as_class = selected_class)
+
   def get_single_source_shortest_path_via_Dijkstras(self, base_vertex):
     '''
-    In a weighted undirected graph, produces the distance from a fixed vertex
-    to all others using Djikstras's Algorithm.
+    In a weighted digraph, produces the distances from a fixed source vertex
+    to all others transversing the available arrows.
+    
+    Uses Djikstras's Algorithm to compute the distances.
     
     Weights must be nonnegative for the algorithm to work.
     '''
-    # We expect the graph given to be undirected and weighted, and assert it to confirm
-    # It is also more or less assumed that it is not a multigraph, but we will ignore it
-    assert self.is_digraph_undirected(), 'Graph must be undirected for Dijkstra\'s algorithm.'
-    assert self.is_digraph_weighted(), 'Graph must be weighted for Dijkstra\'s algorithm.'
+    # We need all weights to be nonnegative.
+    assert self.are_weights_nonnegative(), 'Need weights to be nonnegative'
     # We also need base_vertex to be one of the vertices from the self
     assert base_vertex in self, 'Base vertex must be in the graph'
     # We use the algorithm from class.
     # We implement set_X and set_Y (set_X with vertices whose shortest paths have been computed)
+    # set_Y starts as all vertives (no shortest paths computed), and set_X as empty
     # Each time one shortest path is computed, we remove from set_Y and add to set_X
-    set_Y = list(self.get_vertices())
+    set_Y = self.get_vertices()
     set_X = []
     # Shortest paths are available as a dictionary (None if not yet computed)
     # Note that these are shortest paths to base_vertex, and thus will not be attributes
@@ -1491,27 +1917,33 @@ class Digraph(object):
     set_Y.remove(base_vertex)
     # Now it's time to implement algorithm
     # Each "loop of the while" correspond to one vertex being added
-    # If they don't connect, the distance will be set 1,000,000 in the Exercise
-    # (For generality, we replace 1,000,000 by sum of weight of all edges, plus 1)
-    # We make use of the following upper bound for distance: sum of all weights, plus one
-    # (We divide by 2 because each edges appears as two arrows)
-    # (Other option is to import inf from math library)
-    upper_bound_distance = 1 + (sum(arrow[2] for arrow in self._arrows) // 2)
+    # If they don't connect (there is no path from base vertex to the vertex in question),
+    #the distance of that vertex [to the base vertex] will be set to math_inf
+    # We could use of the following upper bound for distance: sum of all weights, plus one
+    # But we prefer to use inf from built-in math library because it makes it
+    #simpler to tell if a vertex cannot be reached from the base_vertex
+    upper_bound_distance = math_inf
+    # set_Y should contain, right now all vertices except base_vertex
     while set_Y:
+      # current_min_distance controls the minimum distance from X to Y this round
+      #(This is updated every loop because X and Y keep changing)
       current_min_distance = upper_bound_distance
+      # We also control the point in set X and in set Y to realize current_min_distance
       current_min_set_X = None
       current_min_set_Y = None
-      # We scan all edges from X to Y to see if there is a smaller distance
+      # We scan all arrows from X to Y to see if there is a smaller distance
       for vertex in set_Y:
-        # We check the edges
-        for edge in self._inciding_edges[vertex]:
-          # It only matters if the other point is in set_X
-          if edge[0] in set_X:
-            if distances[edge[0]] + edge[1] < current_min_distance:
-              current_min_distance = distances[edge[0]] + edge[1]
-              current_min_set_X = edge[0]
+        # We check the arrows. Since we are indexing by set_Y use get_arrows_in
+        # (That is, the vertex in set_Y is the target of the relevant arrows)
+        for arrow in self.get_arrows_in(vertex):
+          # The arrow only matters if the source is in set_X
+          if arrow.source in set_X:
+            if distances[arrow.source] + arrow.weight < current_min_distance:
+              current_min_distance = distances[arrow.source] + arrow.weight
+              current_min_set_X = arrow.source
               current_min_set_Y = vertex
       # Now we check if we found anything less than upper_bound_distance
+      # In other words, this tests connection between set_X and set_Y
       if current_min_distance < upper_bound_distance:
         # All we need to do is update the information on the current_min_set_Y
         distances[current_min_set_Y] = current_min_distance
@@ -1519,10 +1951,11 @@ class Digraph(object):
         set_X.append(current_min_set_Y)        
       else:
         # In this case set_Y and set_X are disjoint
-        # So we put distance of set_Y to be 1000000, and put them all in set_X
+        # So we put distance of set_Y to be math_inf, and put them all in set_X
+        # (After all, their distances to the base vertex have been calculated!)
         # This will end the while loop
-        for vertex in set_Y:
-          distances[vertex] = 1000000
+        for vertex in list(set_Y):
+          distances[vertex] = upper_bound_distance
           set_Y.remove(vertex)
           set_X.append(vertex)
     # Here the while loop has ended. All vertices have associated distances
@@ -1535,8 +1968,10 @@ class Digraph(object):
     Computes the length of shortest paths from one single source vertex
     to all other vertices of a directed weighted graph.
     
-    Accomodates negative arrows. If there are negative cycles, there are no
-    shortest paths; in this case, the algorithm detects and reports them.
+    Accomodates negative arrows. [By negative arrows, we mean an arrow
+    with negative length/weight.] If there are negative cycles [cycles
+    whose total length is negative], there are no shortest paths;
+    in this case, the algorithm detects and reports a negative cycle.
     
     If n is the number of vertices and m the number of edges, its time
     complexity is O(m*n).
@@ -1557,17 +1992,12 @@ class Digraph(object):
     in the requested format. If there are negative cyles, this is a negative
     cycle given by its length, its vertices or arrows.
     '''
-    # We first check we have a weighted graph
-    # (If the graph is undirected all edges counts as double arrows, it's okay)
-    # (And of course, we can always make a graph weighted by putting all weights
-    #to be 1. But in this case Djikstra's algorithm would be faster than this.)
-    assert self.is_weighted_graph(), 'Graph must be weighted'
     # Check if the vertex is indeed in the graph
     assert source_vertex in self, 'Source vertex must be in the graph'
     # At each moment, each vertex will have a number, A, and a pointer, B
     # The dict A carries information on the shortest length from the source
     # The dict B carries info on the last arrow for this shortest path
-    n = self.number_of_vertices()
+    n = self.get_number_of_vertices()
     A = {vertex:math_inf for vertex in self.get_vertices()}
     B = {vertex:None for vertex in self.get_vertices()}
     # We set the information on the source vertex
@@ -1576,18 +2006,18 @@ class Digraph(object):
     # If there is an answer, it is certainly reached after n-1 loops
     # But a n-th loop is needed to check for negative cycles
     might_there_be_negative_cycles = True
-    for __ in range(n):
+    for unused_index in range(n):
       # In each iteration, we reset the loop variable
       vertices_updated_this_loop = []
       # We process all arrows
-      for source, target, weight in self._arrows:
+      for arrow in self.get_arrows():
         # Arrows are given as tuples (source, target, weight)
         # We see if the navigating through the arrow [as last arrow]
         #provides a better result than the current one for the target vertex
-        if A[source] + weight < A[target]:
-          A[target] = A[source] + weight
-          B[target] = (source, target, weight) # i. e. the full arrow
-          vertices_updated_this_loop.append(target)
+        if A[arrow.source] + arrow.weight < A[arrow.target]:
+          A[arrow.target] = A[arrow.source] + arrow.weight
+          B[arrow.target] = arrow
+          vertices_updated_this_loop.append(arrow.target)
       # We have processed all arrows. Stop algorithm if A doesn't change
       # In this case we know there are no negative cycles
       if not vertices_updated_this_loop: # I. e. empty
@@ -1607,7 +2037,7 @@ class Digraph(object):
         shortest_paths_as_vertices = {}
         shortest_paths_as_arrows = {}
         for vertex in self.get_vertices():
-          if A[vertex] == math_inf:
+          if A[vertex] is math_inf:
             # Note: if graph is not connected some vertices will have math_inf as distance
             # That is not a problem at all, just that there are no paths
             # We put simply shortest_paths[vertex] = None
@@ -1623,7 +2053,7 @@ class Digraph(object):
             local_moving_vertex = vertex
             while local_moving_vertex != source_vertex:
               new_arrow_to_add = B[local_moving_vertex]
-              new_vertex_to_add = new_arrow_to_add[0] # The source, we go backward
+              new_vertex_to_add = new_arrow_to_add.source # We go backward
               shortest_paths_as_vertices[vertex] = [new_vertex_to_add] + shortest_paths_as_vertices[vertex]
               shortest_paths_as_arrows[vertex] = [new_arrow_to_add] + shortest_paths_as_arrows[vertex]
               local_moving_vertex = new_vertex_to_add # Closer to source
@@ -1661,7 +2091,7 @@ class Digraph(object):
       negative_cycle_example_as_vertices = [negative_cycle_starting_vertex] # Vertices here
       negative_cycle_example_as_arrows = [] # Put arrows here
       first_arrow_to_append = B[negative_cycle_starting_vertex]
-      first_vertex_to_append = first_arrow_to_append[0] # Use source, go backwards
+      first_vertex_to_append = first_arrow_to_append.source # Go backwards
       negative_cycle_example_as_vertices = [first_vertex_to_append] + negative_cycle_example_as_vertices
       negative_cycle_example_as_arrows = [first_arrow_to_append] + negative_cycle_example_as_arrows
       # We use next_vertice_in_cycle to keep track of the closure of the cycle
@@ -1670,7 +2100,7 @@ class Digraph(object):
       #while next_vertice_in_cycle != negative_cycle_starting_vertex:
       while next_vertex_in_cycle not in negative_cycle_example_as_vertices:
         arrow_to_append = B[next_vertice_in_cycle]
-        vertex_to_append = arrow_to_append[0] # Going backward
+        vertex_to_append = arrow_to_append.source # Going backward
         negative_cycle_example_as_vertices = [vertex_to_append] + negative_cycle_example_as_vertices
         negative_cycle_example_as_arrows = [arrow_to_append] + negative_cycle_example_as_arrows # Go backwards
         next_vertex_in_cycle = vertex_to_append # Go backwards
@@ -1701,7 +2131,7 @@ class Digraph(object):
         raise ValueError('request option not recognized')
     # Now we have formed requested_data for any value of is_negative_cycle_free
     return (is_negative_cycle_free, requested_data)
-      
+
   def get_all_paths_shortest_paths_via_Floyd_Warshals(self, request = 'lengths'):
     '''
     Computes the shortest paths for every pair of vertices in a directed,
@@ -1832,14 +2262,14 @@ class Digraph(object):
             raise ValueError('Invalid choice for request')
         else:
           raise ValueError('Invalid choice for request')
-    # End of inned function
+    # End of inner function
     # Now we start the method code proper
     # We confirm the graph is weighted
     # (An undirected graph is a specific case of a directed graph)
     assert self.is_weighted_graph(), 'Graph must be weighted'
     # To do less searching on the edges, we prefer a simple graph
     # If there are multiple arrows between vertices, we take the shortest ones
-    # (In the future, implement this removal of redundant edges)
+    # (In the future, we might implement this removal of redundant edges)
     # For this we need to have a specific numbering of the vertices
     # The best way is a duple correspondence with two dicts
     n = self.get_number_of_vertices()
@@ -2017,21 +2447,85 @@ class Digraph(object):
     else:
       raise ValueError('Request option not recognized.')
     # We finally return everything
-    '''# Currently algorithm may fail to produce correct requested_data
-    #if is_negative_cycle_free == False. Only remedy:
+    ###################
+    # WORK HERE
+    # Bug: Currently algorithm may fail to produce correct requested_data
+    #if is_negative_cycle_free == False. Only remedy is to not output the negative cycle
+    #butonly announce its existence
+    ###################
     if not is_negative_cycle_free:
-      requested_data = 'There is a negative cycle.' '''
+      requested_data = 'There is a negative cycle.'
     return (is_negative_cycle_free, requested_data)
 
-  def create_graph_with_super_source(self):
+  def solve_traveling_salesman_problem(self, compute_path_instead_of_cycle,
+        initial_vertex = None, output_as = None)
     '''
-    From a weighted graph, creates a new directed weighted graph which has
+    Solves the Traveling Salesman Problem. That is, produces the shortest
+    (by sum of weights of traveled arrows) path or cycle going through all
+    vertices of the Digraph.
+    
+    If no such path or cycle exists, returns None.
+    '''
+    # We use a class
+    pass
+        
+    
+
+########################################################################
+# Class UnweightedDigraph
+########################################################################
+
+class UnweightedDigraph(Digraph):
+  '''
+  A digraph whose arrows are all unweighted.
+  '''
+  
+  def make_digraph_weighted(self, modify_self = False):
+    '''
+    Creates a new digraph, one where all arrows have weight 1.
+    
+    Can either modify self or return a new instance.
+    '''
+    # We detect if we are on a Graph. If we are, we use its edges instead
+    if isinstance(self, Graph):
+      selected_class = UnweightedGraph
+      data_type = 'all_vertices_and_all_edges'
+      use_edges_instead_of_arrows = True
+      original_working_data = self.get_edges()
+    else:
+      selected_class = UnweightedDigraph
+      data_type = 'all_vertices_and_all_arrows'
+      use_edges_instead_of_arrows = False
+      original_working_data = self.get_arrows()
+    # We create the weighted arrows. Note default new weight is 1
+    # Easiest way to make them all 1 is no put new_weights = None
+    list_new_tuplees = Digraph.write_weights_into_arrows_or_edges(
+        tuplees = original_working_data,
+        use_edges_instead_of_arrows = use_edges_instead_of_arrows, new_weights = None,
+        require_namedtuple = True, output_as_generator = False)
+    # We need to keep track of the vertices too, lest they are isolated
+    list_new_vertices = self.get_vertices()
+    # We prepare for the return
+    data = (list_new_vertices, list_new_tuplees)
+    # We create a new instance or modify the current
+    if modify_self:
+      # Easiest way to reset digraph information is with __init__
+      self.__init__(data = data, data_type = data_type,
+          cast_as_class = selected_class)
+      return None
+    else:
+      return selected_class(data = data, data_type = data_type,
+          cast_as_class = selected_class)
+
+  def create_digraph_with_super_source(self):
+    '''
+    From a weighted digraph, creates a new weighted digraph which has
     all same vertices and arrows but it has one extra vertex, the "super source",
     and arrows of weight 0 from it to all other vertices.
     
-    Returns another instance of the class, as well as the name of the new vertex.
+    Returns another instance of the class, as well as the new vertex.
     
-    Needed for Johnson's algorithm.
+    This construction is needed for Johnson's algorithm.
     '''
     # First we create a name for the "super source" vertex
     name_super_source = 'super_source'
@@ -2039,22 +2533,30 @@ class Digraph(object):
     # This should not be a problem, but it won't hurt
     while name_super_source in [vertex.name for vertex in self.get_vertices()]:
       name_super_source = 's'+name_super_source
+      # We consolidate it into a Vertex
+      the_super_source = Digraph.sanitize_vertex(name_super_source, require_namedtuple = False)
     # Now we create the new arrows starting from our super source
     new_arrows = []
     for vertex in self.get_vertices():
-      new_arrows.append((name_super_source, vertex, 0))
+      new_arrows.append((the_super_source, vertex, 0))
     # We create a new graph with all those new arrows
     # (Note that if self is empty, this won't produce the desired effect.
     # Because of that, we will make it a separate case)
-    if not self.is_nonempty_digraph:
+    if not self.is_nonempty_digraph():
       # Best way to avoid name confusion after importing is to use
       #self.__class__ to denote the very class of the instance
       # We create by specifying it the "neighbors way"
-      return (name_super_source, self.__class__([[name_super_source]], 'neighbors'))
+      selected_class = type(self)
+      new_digraph = selected_class(data = [[the_super_source]], data_type = 'neighbors_out',
+          cast_as_class = None)
+      return (the_super_source, new_digraph)
     else:
       # In this case we join by the arrows
-      all_arrows = new_arrows + list(self._arrows) # self._arrows is a tuple
-      return (name_super_source, self.__class__(all_arrows, 'weighted_arrows'))
+      all_arrows = new_arrows + self.get_arrows()
+      selected_class = type(self)
+      new_digraph = selected_class(data = all_arrows, data_type = 'weighted_arrows',
+          cast_as_class = None)
+      return (the_super_source, new_digraph)
     
   def get_all_paths_shortest_paths_via_Johnsons(self, request = 'lengths'):
     '''
@@ -2073,237 +2575,56 @@ class Digraph(object):
     assert self.is_weighted_graph(), 'Graph needs to be weighted'
     # According to the algorithm, we need to execute Bellman-Fords on
     #the graph with an extra vertex (often called the "super source")
-    name_super_source, super_source_graph = self.create_graph_with_super_source()
-    # Test:
-    return super_source_graph.get_single_source_shortest_paths_via_Bellman_Fords(name_super_source)
+    # the_super_source is assumed to be a Vertex namedtuple in super_source_graph
+    the_super_source, super_source_graph = self.create_digraph_with_super_source()
+    ###############
+    # WORK HERE
+    ###############
+    return super_source_graph.get_single_source_shortest_paths_via_Bellman_Fords(the_super_source)
 
-########################################################################
-# Methods related to connected components
-########################################################################
-
-  def get_sccs(self):
+  def get_hamiltonian_cycle(self, source_vertex = None, output_as = None):
     '''
-    Returns the strongly connected components (SCCs) of the graph.
+    Returns a Hamiltonian cycle of the unweighted digraph. That is, any
+    cycle that travels through all vertices through the available arrows.
     
-    INPUT:
-    self
+    If no such cycle exists, returns None.
     
-    OUTPUT:
-    sccs: a list with lists, each representing a unique connected component
-    sccs_lengths: the amount of vertices in each of the output SCCs
-    '''
-    # We will remove the weights of self since they are not used
-    self.make_graph_unweighted()
-    # We control everything using a StateDigraphGetSCC instance
-    state = StateDigraphGetSCC(self)
-    # We also need the inverse/reversed graph
-    inverted_graph = self.get_reversed_graph()
-    # We do DFS-Loop using the inverted graph to get a new rank
-    state.manually_change_graph(inverted_graph)
-    new_rank, middle_leaders = state.dfs_outer_loop()
-    # We do DFS-Loop using the original graph, self, and the new_rank
-    # Note that the leaders don't matter in the first pass
-    # (Neither does the final_rank on the second pass.)
-    state.manually_change_vertices_ranked(new_rank)
-    state.manually_change_graph(self)
-    final_rank, final_leaders = state.dfs_outer_loop()
-    # Now the leaders give the SCCs. We will store the results in a dict
-    # The leader is the key, the value a list of those having it as a leader
-    # (That includes itself)
-    # Note many will be keys with empty lists as values, which is okay
-    state.manually_change_vertices_ranked(final_rank) # Optional
-    dict_sccs = {vertex: [] for vertex in state._vertices_ranked}
-    for vertex in state._vertices_ranked:
-      dict_sccs[final_leaders[vertex]].append(vertex)
-    # We don't return the leaders, only the SCCs and the lengths.
-    # Note that logically we should only output nonempty lists following leaders
-    sccs = [scc for scc in dict_sccs.values() if scc]
-    sccs_lengths = [len(scc) for scc in sccs]
-    return (sccs, sccs_lengths)
-
-########################################################################
-# Methods implementing other algorithms in Graph Theory
-# (Not on connected components nor on shortest paths)
-########################################################################
-
-  # Should be run (n**2)*log(n) times with different seeds
-  def find_almost_certainly_minimal_cut(self, tries = None):
-    '''
-    Returns the best cut among many tries, hopefully a minimal cut.
-    '''
-    # Problem only makes sense with at least two vertices
-    n = len(self._arrows_out)
-    if n <= 1:
-      raise ValueError('graph needs at least 2 vertices')
-    if tries is None:
-      # If no parameter is given, we default to (n**2)*log(n)
-      tries = round((n**2)*math_log2(n)) # round() produces an int
-    minimal_cut = None
-    for try_idx in range(tries):
-      # Note find_cut(array) is (crossing_edges, one_side, other_side)
-      cut_from_try = self.find_cut()
-      if minimal_cut is None or cut_from_try[0] < minimal_cut:
-        minimal_cut = cut_from_try[0]
-        print('Current try: {}. New minimum reached: {}'.format(try_idx, minimal_cut))
-    return minimal_cut
-
-  def k_clustering(self, k):
-    '''
-    Finds the optimal k-clustering (k >= 1) of the graph.
+    Accomodates a request for the cycle to start at a specific vertex,
+    even if it matter not in a cycle.
     
-    Requires a complete, weighted graph.
+    SEE ALSO: get_hamiltonian_path
+    '''
+    # Default output is Cycle (meaning VertexCycle class). Can also output
+    #arrows and vertices
+    # A Hamiltonian path is a solution to the Traveling Salesman Problem
+    #under the condition that all edges have weight/length 1 (under the TSP
+    #perspective, all cycles will have the same length; in special, the shortest
+    #one output by TSP algorithm will be a Hamiltonian cycle)
+    # Thus, we can do Hamiltonian paths with weighing
+    weighted_copy = self.make_graph_weighted(modify_self = False)
+    return weighted_copy.solve_traveling_salesman_problem(
+        compute_path_instead_of_cycle = False,
+        source_vertex = source_vertex,
+        output_as = output_as)
+
+  def get_hamiltonian_path(self, source_vertex = None, output_as = None):
+    '''
+    Returns a Hamiltonian path of the unweighted digraph. That is, a path
+    through all the vertices traveling through the available arrows.
     
-    Note: for k = 1 it produces a minimum spanning tree vias Kruskal's algorithm.
-    '''
-    # We need a weighted, undirected, simple [i.e. non-multigraph] graph
-    # Being undirected, we have access to self._edges
-    assert self.is_digraph_undirected(), 'Need undirected graph'
-    assert self.is_digraph_weighted(), 'Need weighted graph'
-    assert self.is_digraph_simple(), 'Need simple graph (cannot be multigraph)'
-    # (We don't really require complete. When the graph is not complete,
-    #this reduces to the Kruskal algorithm, essentially)
-    n = self.get_number_of_vertices()
-    assert n >= k, 'Need at least k starting vertices to form k clusters'
-    # First we start up the clusters using a union-find structure
-    # By cluster we mean: each vertex will have a leader, and vertices
-    #of same leader belong to the same cluster
-    # But we do lazy union, so we have a parent relation, and we need to
-    #transverse it up to finder the leader
-    # Also, we do path compression, so we update one's parents to be
-    #one's leaders when given the opportunity
-    parents = {vertex:vertex for vertex in self.get_vertices()}
-    ranks = {vertex:0 for vertex in self.get_vertices()}
-    # We put all edges in a heap. We order them by weight, reordering it
-    edges_heap = [(edge.weight, edge.first, edge.second) for edge in self._edges]
-    heapq_heapify(edges_heap)
-    # We need to do n-k union-operations
-    # But we later do one special operation, which is part of the main loop
-    # So we really do n-k+1, interrupting one
-    for idx in range(n-k+1):
-      # Locate the smallest edge which is a bridge between two clusters
-      while True:
-        # If graph is not complete there might be an error in the following
-        # Nonetheless, we don't want the try/except overhead for exceptions
-        new_edge = heapq_heappop(edges_heap)
-        # Call the vertices u and v. Recall the order of the information
-        weight, u, v = new_edge
-        # Get the leaders of u and v. This is a find-operation
-        # (Do path-compression while at it)
-        local_leaders = {item:None for item in [u, v]}
-        for vertex in [u, v]:
-          # We save the path to do path compression
-          # Idea is to keep appending the parents until leader is found
-          accumulated_path = [vertex]
-          # We loop whiel the leader of the root is not found
-          while accumulated_path[-1] != parents[accumulated_path[-1]]:
-            # We don't have a leader yet, so we append the parent to the path
-            accumulated_path.append(parents[accumulated_path[-1]])
-          # Ok, now we have a full path to the leader in accumulated_path
-          # First we do path-compression
-          for item in accumulated_path:
-            parents[item] = accumulated_path[-1]       
-          # We save the result as local_leaders dict, and break
-          local_leaders[vertex] = parents[vertex]
-        # Ok, now we have local_leaders[u] and local_leaders[v]
-        # If they are in the same cluster, we discard the edge and try again
-        # Otherwise we continue with the process
-        if local_leaders[u] != local_leaders[v]:
-          break
-      # We found a good sparating edge.
-      # Now we do the union-operation, except in the last operation
-      #in which we compute a minimal separation between the clusters
-      # And don't proceed, otherwise we would over-cluster the vertices
-      if idx == n-k:
-        minimal_distance_clusters = weight
-      else:
-        # ok, we are still in the process of clustering. So we do an union
-        # We compare the ranks of the leaders.
-        if ranks[local_leaders[u]] == ranks[local_leaders[v]]:
-          # If equal, we add one tree to the other in O(1) operations
-          # Without loss of generality, let's say local_leaders[u] will lead
-          parents[local_leaders[v]] == local_leaders[u]
-          # We also adjust the rank of local_leaders[u]
-          ranks[local_leaders[u]] += 1
-        elif ranks[local_leaders[u]] < ranks[local_leaders[v]]:
-          # If different, the smaller/shallower tree is appended to the larger
-          parents[local_leaders[u]] = local_leaders[v]
-        else:
-          parents[local_leaders[v]] = local_leaders[u]
-    # Ok. Not the loop has finalized and we have k clusters (given by parents)
-    #as well as a last execution which givs the minimal distance
-    # We want to output parents (which indirectly give the clusters)
-    # But we also output the objective distance, the minimal possible distance
-    #between two points in different clusters
-    return (parents, minimal_distance_clusters)
-
-########################################################################
-# Class WeightedDigraph
-########################################################################
-
-class WeightedDigraph(Digraph):
-  '''
-  A digraph whose arrows are all weighted.
-  '''
-  pass
-
-  def are_weights_positive(self):
-    '''
-    For a weighted digraph, returns whether all weights are positive.
+    Accomodates a request for the path to start at a specific vertex.
     
-    (Raises error in non-weighted graph.)
+    If no such cycle exists, returns None.
+    
+    SEE ALSO: get_hamiltonian_cycle
     '''
-    if hasattr(self, '_are_weights_positive'):
-      return self._are_weights_positive
-    else:
-      assert self.is_weighted_graph(), 'Test requires weighted graph'
-      # Arrows are given as triples (u, v, weight)
-      self._are_weights_positive = all(arrow[2] > 0 for arrow in self._arrows)
-      return self._are_weights_positive
-
-  def make_digraph_unweighted(self):
-    '''
-    Creates an unweighted digraph (by removing weights from all arrows).
-    '''
-    # We first create the unweighted arrows
-    list_new_arrows = [Digraph.remove_weight_from_arrow_or_edge(arrow,
-        use_edges_instead_of_arrows = False) for arrow in self._arrows]
-    # We need to keep track of the vertices too, lest they are isolated
-    list_new_vertices = self.get_vertices()
-    # We prepare for the return
-    data = (list_new_vertices, list_new_arrows)
-    data_type = 'all_vertices_and_all_arrows'
-    # We carefully select the class depending on the digraph being a Graph or not
-    if isinstance(self, Graph):
-      return UnweightedGraph(data, data_type)
-    else:
-      return UnweightedDigraph(data, data_type)
-
-########################################################################
-# Class UnweightedDigraph
-########################################################################
-
-class UnweightedDigraph(Digraph):
-  '''
-  A digraph whose arrows are all unweighted.
-  '''
-  
-  def make_digraph_weighted(self):
-    '''
-    Creates a new digraph, one where all arrows have weight 1.
-    '''
-    # We first create the weighted arrows. Note default new weight is 1
-    list_new_arrows = [Digraph.write_weight_into_arrow_or_edge(arrow,
-        use_edges_instead_of_arrows = False) for arrow in self._arrows]
-    # We need to keep track of the vertices too, lest they are isolated
-    list_new_vertices = self.get_vertices()
-    # We prepare for the return
-    data = (list_new_vertices, list_new_arrows)
-    data_type = 'all_vertices_and_all_arrows'
-    # We carefully select the class depending on the digraph being a Graph or not
-    if isinstance(self, Graph):
-      return UnweightedGraph(data, data_type)
-    else:
-      return UnweightedDigraph(data, data_type)
+    # Very similar to get_hamiltonian_cycle, except that we pass the
+    #instruction to solv TSP finding a path instead of a cycle
+    weighted_copy = self.make_graph_weighted(modify_self = False)
+    return weighted_copy.solve_traveling_salesman_problem(
+        compute_path_instead_of_cycle = False,
+        source_vertex = source_vertex,
+        output_as = output_as)
 
 ########################################################################
 # Class Graph
@@ -2660,7 +2981,7 @@ class StateDigraphGetSCC(object):
     '''
     self._graph = graph
     self._vertices_ranked = self._graph.get_vertices() # Lists the keys, the vertices
-    self._n = len(self._vertices_ranked)
+    self._n = len(self._vertices_ranked) # Same as self.get_number_of_vertices()
     
   def manually_change_graph(self, graph):
     '''
@@ -2820,4 +3141,180 @@ class StateGraphGetCC(object):
         self.dfs_inner_loop(other_vertex)
     # We don't return anything, only change self
 
-################################################################
+########################################################################
+# Class StateDigraphSolveTSP
+########################################################################
+
+class StateDigraphSolveTSP(object):
+  '''
+  Used to help with method solve_traveling_salesman_problem.
+  '''
+  
+  def __init__(self, digraph):
+    '''
+    Magic method. Initializes the instance.
+    '''
+    self.digraph = digraph
+    self.n = self.digraph.get_number_of_vertices()
+    # Let's create a relationship between vertices and their indices
+    self.number_by_vertex = {}
+    self.vertex_by_number = {}
+    # Note Vertex is a namedtuple and thus it is hasheable
+    for idx, vertex in enumerate(self.get_vertices()):
+      number_by_vertex[vertex] = idx
+      vertex_by_number[idx] = vertex
+  
+  # To avoid calculating something multiple times (and not calculate useless stuff)
+  # Alternative: simply store it into a table self.A
+  @functools_cache
+  def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
+      use_top_down_instead_of_bottom_up = False, skip_checks = False):
+    '''
+    Computes the minimal path length given specific parameters: given
+    initial and final vertices and a set of vertices [given by a tuple of
+    Booleans], finds minimal among paths traveling once though each vertex.
+    
+    Returns the minimal weight of such path, and also one of these minimizing paths.
+    '''
+    # Our subproblems are: Consider we have a fixed initial vertex
+    #(which might be passed as argument as source_vertex), a fixed
+    #final vertex, and a set of the vertices including those two. We want
+    #the minimal length of the paths going through each vertex once
+    #(if there are such paths), starting at initial and ending on the final
+    # We will parametrize these subproblems by initial, final, presence_set,
+    #where presence_set is a tuple of n Booleans, True meaning the corresponding
+    #vertex in its position is an element of the set (and thus part of path)
+    presence_set = args
+    initial_number = self.number_by_vertex[initial_vertex]
+    final_number = self.number_by_vertex[final_vertex]
+    if not skip_checks:
+      # Expect arg to be a tuple of Booleans with length n
+      assert len(presence_set) == self.n, 'Internal logic error'
+      # Check that initial_vertex and final_vertex are present [i. e. True]
+      assert presence_set[initial_number], 'Internal logic error'
+      assert presence_set[final_number], 'Internal logic error'
+    # We get rid of the boundary cases
+    # We impose that if the final vertex coincides with the initial vertex,
+    #the only possible path is the no-arrow path (of length 0)
+    if initial_number == final_number:
+      # Want only that vertex as True, otherwise no path (distance math_inf)
+      sought_presence_set = tuple((idx == initial_number) for idx in range(self.n))
+      if presence_set = sought_presence_set:
+        # No previous vertex, so previous path should be [] to work well later
+        return (0, [])
+      else:
+        return (math_inf, [])
+    else:
+      # We essentially recur on "previous subproblems"
+      # That is, for all arrows landing on final_vertex, we ask which
+      #could be the last one, and pick the one producing the smallest
+      #weight (assuming we solve the subproblems without this last vertex)
+      min_among_all_last_arrows = math_inf
+      whole_path_as_arrows = None
+      for arrow in self.graph.get_arrows_in(final_vertex):
+        # arrow has information arrow.source, arrow.target which is final
+        #vertex, and arrow.weight.
+        # We verify the source does belong to the presence_set
+        arrow_source_as_number = number_by_vertex[arrow.source]
+        if presence_set[arrow_source_as_number]:
+          # We "remove" arrow.source by flipping True to False
+          # We need to create a temporary mutable object first
+          presence_set_as_list = list(presence_set)
+          presence_set_as_list[arrow_source_as_number] = False
+          last_off_presence_set = tuple(presence_set_as_list)
+          # Total weight is then the solution of that problem,
+          #plus the weight of this last arrow
+          # Note that we also keep a list of arrows going back to start
+          previous_length, previous_path = self.solve_subproblem(
+              initial_vertex = initial_vertex,
+              final_vertex = arrow.source,
+              presence_set = last_off_presence_set,
+              skip_checks = skip_checks)
+          this_distance = arrow.weight + previous_length
+          if this_distance < min_among_all_last_arrows:
+            # Update the minimal distance, if this is minimal
+            # Also update the last arrow (last arrow in path)
+            min_among_all_last_arrows = this_distance
+            whole_path_as_arrows = previous_path + arrow
+      # With the loop ended, the best should be recorded
+      return (best_distance, whole_path_as_arrows)
+
+  def solve_full_problem(self, compute_path_instead_of_cycle,
+      initial_vertex = None, final_vertex = None, output_as = None):
+    '''
+    Solves the Traveling Salesman Problem for the graph.
+    '''
+    # At the moment support only for output_as = VertexPath/VertexCycle
+    # We check that there is at least one vertex
+    if not bool(self.graph):
+      # Returns path/cycle with no vertices
+      if compute_path_instead_of_cycle:
+        return VertexPath(self.graph, [], 'vertices')
+      else:
+        return VertexCycle(self.graph, [], 'vertices')
+    else:
+      # To solve the problem for a path (for a cycle it involves an extra step;
+      #we will do it at the end, and only if required), we need to use some
+      #form or recursion, or dynamic programming, which is carried out
+      #in a separate method
+      # For all vertices but the initial_vertex, we compute the possible
+      #paths starting on initial_vertex, passing through all others exactly once
+      #and ending on them
+      # To simplify:
+      all_vertices = list(self.number_by_vertex)
+      # We prepare a tuple of n Trues to be the presence set, we will need it
+      tuple_of_trues = tuple([True]*(self.n))
+      if compute_path_instead_of_cycle:
+        # In this case, if there is no initial given vertex (i. e. None),
+        #we assume we must scan through all possible initial vertices
+        # We need to ensure final_vertex is different than initial_vertex,
+        #if those are given
+        if (not initial_vertex is None) and (not final_vertex is None):
+          assert final_vertex != initial_vertex, 'Hamiltonian path cannot be a cycle'
+        # We will generate all possible paths for given initial and final vertices
+        # Note initial and final vertices cannot coincide
+        if initial_vertex is None:
+          # All are allowed. We use list on dict self.number_by_vertex
+          initial_vertices = all_vertices
+        else:
+          initial_vertices = [initial_vertex]
+        initial_and_final = []
+        for vertex in initial_vertices:
+          for another_vertex in all_vertices:
+            if vertex != another_vertex:
+              initial_and_final.append((vertex, initial_vertex))
+        # We compute all possibilities, and record the best
+        # If no path is valid, it should be math_inf, so that is how we start
+        min_distance_overall = math_inf
+        path = None
+        for pair in initial_and_final:
+          local_distance, local_path = self.solve_subproblem(
+              initial_vertex = pair[0], final_vertex = pair[1],
+              presence_set = tuple_of_trues, skip_checks = False)
+          # Note local_last_arrow is ignored... we still don't know how to
+          #build the data using the arrows
+          if local_distance < min_distance_overall:
+            min_distance_overall = local_distance
+        return min_distance_overall, 
+      else:
+        # If we want a cycle, there should be no specified final_vertex
+        # [Unless the same vertex is entered as initial_vertex, which would be allowed
+        #under certain interpretation to reinforce the request for a cycle]
+        if initial_vertex is None:
+          assert final_vertex is None, 'Cannot specify end of cycle if start is not specified'
+        else:
+          assert final_vertex == initial_vertex, 'Cycles start and end at same place'
+        # In this case, the same cycle will be generated independently
+        #of the first vertex
+        # We pick the first listed if not given as argument
+        # If passed as argument, we keep it [it doesn't really matter]
+        if initial_vertex is None:
+          initial_vertex = self.vertex_by_number[0]
+        raise NotImplementedError, 'In progress'
+        ################
+        # WORK HERE
+        ################
+      
+
+
+########################################################################
