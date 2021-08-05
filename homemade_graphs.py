@@ -34,7 +34,6 @@
 from collections import namedtuple as collections_namedtuple
 from itertools import zip_longest as itertools_zip_longest
 from itertools import chain as itertools_chain
-from functools import cache as functools_cache
 from copy import copy as copy_copy
 from random import choices as random_choices
 from math import log2 as math_log2
@@ -42,6 +41,17 @@ from math import inf as math_inf
 from heapq import heapify as heapq_heapify
 from heapq import heappush as heapq_heappush
 from heapq import heappop as heapq_heappop
+# Since cache from functools was introduced in Python version >= 3.9,
+#we check for it. If not new enough, we go with lru_cache(maxsize = None)
+#and bind the decorator to the name functools_cache
+# Alternative is try/except, but comparing versions is also ok
+from sys import version_info as sys_version_info
+if sys_version_info >= (3, 9):
+  from functools import cache as functools_cache
+else:
+  from functools import lru_cache as functools_lru_cache
+  functools_cache = functools_lru_cache(maxsize=None)
+  # In code always use functools_cache
 
 ########################################################################
 # Class VertexPath
@@ -94,7 +104,7 @@ class VertexPath(object):
         for idx in range(len(self.vertices) - 1):
           # Form the arrows the only possible way
           # There will be one fewer arrows than vertices
-          self.arrows.append(self.underlying_graph.get_shortest_arrow_between_vertices(
+          self.arrows.append(self.underlying_digraph.get_shortest_arrow_between_vertices(
               source = self.vertices[idx], target = self.vertices[idx+1],
               skip_checks = False))
     else:
@@ -116,9 +126,56 @@ class VertexPath(object):
     '''
     Magic method. Returns the size of self.
     '''
-    # No convention yet. Could be either number of vertices or of arrows.
-    # Or even the sum of the weights of the arrows, if they're weighted
-    raise NotImplementedError
+    # Convention: size/length is the number of arrows
+    # Note empty path and one-vertex path both have length 0, but the
+    #former has bool False and the second bool True
+    return self.get_number_of_arrows()
+    
+  def get_number_of_arrows(self):
+    '''
+    Returns number of arrows.
+    '''
+    return len(self.arrows)
+    
+  def get_number_of_vertices_as_path(self):
+    '''
+    Returns number of vertices of self as a path.
+    
+    [Note that, with exception of the degenerate cases, a path/cycle will
+    have one more vertex as a path than it has arrows.]
+    '''
+    return len(self.vertices)
+    
+  def get_number_of_vertices_as_cycle(self):
+    '''
+    Returns number of vertices of self as a cycle.
+    
+    Requires instance to be a cycle. In this case, we return the number of arrows.
+    '''
+    assert self.is_cycle(), 'Need to be a cycle'
+    return self.get_number_of_arrows()
+    
+  def is_degenerate(self):
+    '''
+    Returns whether path is degenerate.
+    
+    A path is degenerate if and only if either condition happens:
+    i) it has zero vertices [and thus no arrows],
+    ii) it has a self-arrow and self.vertices has a single vertex.
+    
+    [In both cases, the degenerate paths are cycles.]
+    
+    [A path with a single vertex and no arrows is not degenerate, nor is
+    a cycle with one arrow if self.vertices has two equal elements.]
+    '''
+    if self.get_number_of_vertices_as_path() == 0:
+      return True
+    elif self.get_number_of_vertices_as_path() == 1 and self.get_number_of_arrows() == 1:
+      return True
+    else:
+      # In this case we should even have that self.vertices is one element
+      #longer than self.arrows, independently of being a cycle or not
+      return False
 
   def __repr__(self):
     '''
@@ -137,7 +194,35 @@ class VertexPath(object):
     else:
       single_name = 'Path'
     return f'{single_name} with vertices {self.vertices}\nand arrows {self.arrows}'
-    
+
+  def __eq__(self, other):
+    '''
+    Magic method. Determines equality between two instances.
+    '''
+    # First we need self and other to be VertexPath (self already is)
+    if not isinstance(other, VertexPath):
+      return False
+    # To be equal, two instances must have the same underlying graph
+    elif self.underlying_digraph != other.underlying_digraph:
+      return False
+    # We then compare equality of the arrows. That is a necessary and
+    #sufficient condition
+    elif self.arrows != other.arrows:
+      return False
+    else:
+      return True
+    # (Note we don't read the class. So a VertexPath instance can be
+    #evaluated as equal to a VertexCycle instance)
+
+  def __hash__(self):
+    '''
+    Magic method. Produces a hash of the instance.
+    '''
+    # Simplest is to take self.arrows, which pretty much determines the instance
+    #(assuming the underlying vertex is fixed for out purposes), and compute hash
+    # Arrows are namedtuples. self.arrows is list but is hashable if tuplefied
+    return __hash__(tuple(self.arrows))
+
   def verify_coherence(self):
     '''
     Verifies that instance represents a path in digraph.
@@ -155,13 +240,13 @@ class VertexPath(object):
     if not self.vertices: # Measuring length
       assert len(self.arrows) == 0, 'Without vertices there should be no arrows'
     else:
-      assert len(self.arrows) = len(self.vertices) - 1, 'There should be one more vertex than arrow'
+      assert len(self.arrows) == len(self.vertices) - 1, 'There should be one more vertex than arrow'
       for idx, arrow in enumerate(self.arrows):
         assert arrow.source == self.vertices[idx], 'Incoherent vertices and arrows'
         assert arrow.target == self.vertices[idx+1], 'Incoherent vertices and arrows'
       # To ensure we have a cycle if VertexCycle
       if isinstance(self, VertexCycle):
-        assert self.vertices[0] == self.vertices[-1], 'Need path to be a cycle'
+        assert self.is_cycle(), 'Need path to be a cycle'
       
   def get_total_weight(self):
     '''
@@ -176,22 +261,99 @@ class VertexPath(object):
     try:
       return sum(arrow.weight for arrow in self.arrows)
       # This will produce TypeError if trying to sum even a single None
+      # In this case, the only possible information is the number of arrows
+      # But for clarity, we prefer to return None in this method.
     except TypeError:
       return None
+
+  @staticmethod
+  def reformat_paths(underlying_digraph, data, data_type, output_as,
+      skip_checks = False):
+    '''
+    Given data configuring an instance of the class, path or cycle,
+    returns same path or cycle given by equivalent information as requested.
+    
+    [With the exception that if the underlying digraph is a weighted multidigraph,
+    giving information by the vertices picks the arrows of least weight.
+    Nonetheless, we consider the information determines the path or cycle uniquely.]
+    
+    Options for data_type:
+    'path'
+    'cycle' [only if indeed cycle]
+    'vertices'
+    'arrows'
+    'vertices_and_arrows'
+    
+    Options for output_as:
+    [all options for data_type are acceptable for output_as]
+    'vertices_and_length'
+    'arrows_and_length'
+    'vertices_and_arrows_and_length'
+    'str'
+    'repr'
+    '''
+    # We first build an instance from the data (if not already starting with one)
+    if data_type.lower() in 'cycle':
+      as_instance = data
+      if not skip_checks:
+        assert isinstance(as_instance, VertexCycle), 'Need to be a VertexCycle'
+        assert underlying_digraph == as_instance.underlying_digraph, 'Underlying digraph must be correct'
+        as_instance.verify_coherence()
+    elif data_type.lower() in 'path':
+      as_instance = data
+      if not skip_checks:
+        assert isinstance(as_instance, VertexPath), 'Need to be a VertexPath'
+        assert underlying_digraph == as_instance.underlying_digraph, 'Underlying digraph must be correct'
+        as_instance.verify_coherence()
+    else:
+      # If output_as is cycle, we aim for VertexCyle. Otherwise, VertexPath is good enough
+      if output_as.lower() == 'cycle':
+        selected_class = VertexCycle
+      else:
+        selected_class = VertexPath
+      as_instance = selected_class(underlying_digraph = underlying_digraph)
+    # Now we have as_instance, we work into producing the requested information
+    raise NotImplementedError('In progress')
+    if output_as.lower() == 'str':
+      return str(as_instance) # as_instance.__str__()
+    elif output_as.lower() == 'repr':
+      return repr(as_instance) # as_instance.__repr__()
+    elif output_as.lower() in ['path', 'cycle']:
+      return as_instance
+    elif output_as.lower() == 'length':
+      raise NotImplementedError('In progress')
+      #############
+      # WORK HERE
+      # Decide what to return if not weighted
+      # Note length should be called weight or total, but maybe not...
+      # Also implement all other options
+      #############
+    else:
+      raise ValueError('Option not recognized')
 
   def is_hamiltonian_path(self):
     '''
     Returns whether path is a Hamiltonian path.
+    
+    [Note that every cycle is a path but, unless on a one-vertex graph,
+    a Hamiltonian path and a Hamiltonian cycle are strictly different.]
     '''
     # First we check lengths which is easy
-    length_underlying_graph = len(self.underlying_graph)
-    if len(self.vertices) != length_underlying_graph:
+    length_underlying_digraph = len(self.underlying_digraph)
+    if len(self.vertices) != length_underlying_digraph:
       return False
     # We now check the vertices in self.vertices are distinct using set()
-    if len(self.vertices) != len(set(self.vertices)):
+    elif len(self.vertices) != len(set(self.vertices)):
       return False
-    # If passed the two tests, it is a Hamiltonian path
-    return True
+    else:
+      # If passed the two tests, it is a Hamiltonian path
+      return True
+
+  def is_cycle(self):
+    '''
+    Returns whether path is a cycle.
+    '''
+    return (self.vertices[0] == self.vertices[-1])
 
   def is_hamiltonian_cycle(self):
     '''
@@ -200,16 +362,17 @@ class VertexPath(object):
     # Adapted from is_hamiltonian_path, with a few differences
     # A Hamiltonian cycle becomes a Hamiltonian path without its first vertex
     # Also, it needs to be a cycle
-    if self.vertices[0] != self.vertices[-1]:
+    if not self.is_cycle():
       return False
-    length_underlying_graph = len(self.underlying_graph)
+    length_underlying_digraph = len(self.underlying_digraph)
     vertices_except_first = self.vertices[1:]
-    if len(vertices_except_first) != length_underlying_graph:
+    if len(vertices_except_first) != length_underlying_digraph:
       return False
-    if len(vertices_except_first) != len(set(vertices_except_first)):
+    elif len(vertices_except_first) != len(set(vertices_except_first)):
       return False
-    # Survived all tests, thus is Hamiltonian cycle
-    return True
+    else:
+      # Survived all tests, thus is Hamiltonian cycle
+      return True
 
 ########################################################################
 # Class VertexCycle
@@ -239,7 +402,7 @@ class VertexCycle(VertexPath):
     rotated_arrows = [self.arrows[(idx + base_idx) % number_of_arrows]
         for idx in range(number_of_arrows)]
     # To facilitate things, we build a dict for arguments, called kwargs
-    kwargs = {'underlying_graph': self.underlying_graph,
+    kwargs = {'underlying_digraph': self.underlying_digraph,
         data: rotated_arrows,
         data_type: 'arrows',
         verify_coherence: True}
@@ -2458,7 +2621,7 @@ class WeightedDigraph(Digraph):
     return (is_negative_cycle_free, requested_data)
 
   def solve_traveling_salesman_problem(self, compute_path_instead_of_cycle,
-        initial_vertex = None, output_as = None)
+        initial_vertex = None, output_as = None):
     '''
     Solves the Traveling Salesman Problem. That is, produces the shortest
     (by sum of weights of traveled arrows) path or cycle going through all
@@ -3163,19 +3326,28 @@ class StateDigraphSolveTSP(object):
     for idx, vertex in enumerate(self.get_vertices()):
       number_by_vertex[vertex] = idx
       vertex_by_number[idx] = vertex
-  
+
+  #############
+  # WORK HERE
+  # Develop memoization/tabulation (top down/bottom up) versions of algorithm
+  #############
   # To avoid calculating something multiple times (and not calculate useless stuff)
   # Alternative: simply store it into a table self.A
   @functools_cache
   def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
-      use_top_down_instead_of_bottom_up = False, skip_checks = False):
+      use_top_down_instead_of_bottom_up = False, output_as = None, skip_checks = False):
     '''
     Computes the minimal path length given specific parameters: given
     initial and final vertices and a set of vertices [given by a tuple of
     Booleans], finds minimal among paths traveling once though each vertex.
     
     Returns the minimal weight of such path, and also one of these minimizing paths.
+    
+    [Note this method is only about paths, not cycles.]
     '''
+    # Default output is 'path', meaning an instance of VertexPath
+    if output_as is None:
+      output_as = 'path'
     # Our subproblems are: Consider we have a fixed initial vertex
     #(which might be passed as argument as source_vertex), a fixed
     #final vertex, and a set of the vertices including those two. We want
@@ -3199,11 +3371,18 @@ class StateDigraphSolveTSP(object):
     if initial_number == final_number:
       # Want only that vertex as True, otherwise no path (distance math_inf)
       sought_presence_set = tuple((idx == initial_number) for idx in range(self.n))
-      if presence_set = sought_presence_set:
+      if presence_set == sought_presence_set:
         # No previous vertex, so previous path should be [] to work well later
-        return (0, [])
+        # If only lengths are asked, we produce None instead of [], for consistency
+        if output_as.lower() == 'length':
+          return (0, None)
+        else:
+          return (0, [])
       else:
-        return (math_inf, [])
+        if output_as.lower() == 'length':
+          return (math_inf, None)
+        else:
+          return (math_inf, [])
     else:
       # We essentially recur on "previous subproblems"
       # That is, for all arrows landing on final_vertex, we ask which
@@ -3225,6 +3404,7 @@ class StateDigraphSolveTSP(object):
           # Total weight is then the solution of that problem,
           #plus the weight of this last arrow
           # Note that we also keep a list of arrows going back to start
+          # It's probably easier than start a VertexPath instance every time
           previous_length, previous_path = self.solve_subproblem(
               initial_vertex = initial_vertex,
               final_vertex = arrow.source,
@@ -3233,16 +3413,30 @@ class StateDigraphSolveTSP(object):
           this_distance = arrow.weight + previous_length
           if this_distance < min_among_all_last_arrows:
             # Update the minimal distance, if this is minimal
-            # Also update the last arrow (last arrow in path)
             min_among_all_last_arrows = this_distance
-            whole_path_as_arrows = previous_path + arrow
+            if (not output_as is None) and (output_as.lower() == 'length'):
+              # Also update the last arrow (last arrow in path)
+              whole_path_as_arrows = previous_path + arrow
+            else:
+              # To save memory during execution, if we only want the minimal length
+              #we will not conserve information on how to reconstruct the path
+              # We use the very default object None for this objective
+              whole_path_as_arrows = None
       # With the loop ended, the best should be recorded
+      # (None whole_path_as_arrows contains None if output_as is 'length')
       return (best_distance, whole_path_as_arrows)
 
+  #############
+  # WORK HERE
+  # Develop memoization/tabulation (top down/bottom up) versions of algorithm
+  #############
   def solve_full_problem(self, compute_path_instead_of_cycle,
-      initial_vertex = None, final_vertex = None, output_as = None):
+      initial_vertex = None, final_vertex = None,
+      use_top_down_instead_of_bottom_up = False, output_as = None, skip_checks = False):
     '''
     Solves the Traveling Salesman Problem for the graph.
+    
+    output_as: 'path', 'vertices', 'vertices_and_arrows', 'arrows', 'length'
     '''
     # At the moment support only for output_as = VertexPath/VertexCycle
     # We check that there is at least one vertex
@@ -3280,22 +3474,29 @@ class StateDigraphSolveTSP(object):
           initial_vertices = [initial_vertex]
         initial_and_final = []
         for vertex in initial_vertices:
-          for another_vertex in all_vertices:
-            if vertex != another_vertex:
-              initial_and_final.append((vertex, initial_vertex))
+          # If final_vertex is specified, only such vertex can be final
+          # Otherwise, all (except initial_vertex; would form cycle) are allowed
+          if final_vertex is None:
+            for another_vertex in all_vertices:
+              if vertex != another_vertex:
+                initial_and_final.append((vertex, another_vertex))
+          else:
+            if vertex != final_vertex:
+              initial_and_final.append((vertex, final_vertex))
         # We compute all possibilities, and record the best
         # If no path is valid, it should be math_inf, so that is how we start
         min_distance_overall = math_inf
-        path = None
+        minimizing_path = None
         for pair in initial_and_final:
           local_distance, local_path = self.solve_subproblem(
               initial_vertex = pair[0], final_vertex = pair[1],
-              presence_set = tuple_of_trues, skip_checks = False)
+              presence_set = tuple_of_trues, skip_checks = skip_checks)
           # Note local_last_arrow is ignored... we still don't know how to
           #build the data using the arrows
           if local_distance < min_distance_overall:
             min_distance_overall = local_distance
-        return min_distance_overall, 
+        # In the moment we have no formatting according to output_as
+        return min_distance_overall, minimizing_path
       else:
         # If we want a cycle, there should be no specified final_vertex
         # [Unless the same vertex is entered as initial_vertex, which would be allowed
@@ -3304,17 +3505,46 @@ class StateDigraphSolveTSP(object):
           assert final_vertex is None, 'Cannot specify end of cycle if start is not specified'
         else:
           assert final_vertex == initial_vertex, 'Cycles start and end at same place'
+        # In any case, the variable final_vertex will be ignored
+        # We only want to raise the error to make it clearer
+        # We will even delete the variable from this scope
+        del final_vertex
         # In this case, the same cycle will be generated independently
         #of the first vertex
         # We pick the first listed if not given as argument
         # If passed as argument, we keep it [it doesn't really matter]
         if initial_vertex is None:
           initial_vertex = self.vertex_by_number[0]
-        raise NotImplementedError, 'In progress'
-        ################
-        # WORK HERE
-        ################
-      
-
+        # We consider all cycles starting at given cycle
+        # We consider all possibilities for the penultimate vertex of the cycle
+        #(the final vertex, by definition, coincides with the initial)
+        # We pick the best one after closing the cycle with the last arrow
+        #(from the penultimate to the initial/final vertex)
+        # We initiate values as math_inf, and then search for the minimum
+        # We also report the minimizing path
+        min_distance_overall = math_inf
+        minimizing_path = None
+        # Note also this penultimate cannot be the initial vertex
+        # (To read arrows ending at initial=final, we use get_arrows_in)
+        for arrow in self.get_arrows_in(initial_vertex):
+          if arrow.source != initial_vertex:
+            # Compute the paths from initial to penultimate [using the last arrow]
+            length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
+                initial_vertex = initial_vertex, final_vertex = arrow.source,
+                presence_set = tuple_of_trues, output_as = output_as,
+                skip_checks = skip_checks)
+            # Comparisons involves always the last edge, whose weight must be factored in
+            #to close the cycle
+            this_distance = length_up_to_penultimate + arrow.weight
+            if this_distance < min_distance_overall:
+              min_distance_overall = this_distance
+              # We only record the path if output_as is not 'length'
+              if output_as.lower() == 'length':
+                minimizing_path = None
+              else:
+                minimizing_path = path_up_to_penultimate + arrow
+        # By now, we have min_distance_overall and minimizing_path
+        # In the moment we have no formatting according to output_as
+        return min_distance_overall, minimizing_path
 
 ########################################################################
