@@ -51,7 +51,7 @@ if sys_version_info >= (3, 9):
 else:
   from functools import lru_cache as functools_lru_cache
   functools_cache = functools_lru_cache(maxsize=None)
-  # In code always use functools_cache
+  # In code always call it through functools_cache
 
 ########################################################################
 # Class VertexPath
@@ -63,9 +63,15 @@ class VertexPath(object):
   that the source of any arrow [after the first] is the target of the previous.
   
   Accepts a single-vertex-no-arrow path, or even a no-vertex-no-arrow path.
+  
+  Attributes:
+  underlying_digraph: a Digraph or subclass where the path comes from
+  vertices: list of Vertices
+  arrows: list of Arrows
   '''
   
-  def __init__(self, underlying_digraph, data, data_type, verify_on_initialization = False):
+  def __init__(self, underlying_digraph, data, data_type,
+      verify_validity_on_initialization = False):
     '''
     Magic method. Initializes the instance.
     '''
@@ -109,8 +115,8 @@ class VertexPath(object):
               skip_checks = False))
     else:
       raise ValueError('Option not recognized')
-    if verify_on_initialization:
-      self.verify_coherence()
+    if verify_validity_on_initialization:
+      self.verify_validity()
     else:
       pass
 
@@ -160,21 +166,39 @@ class VertexPath(object):
     Returns whether path is degenerate.
     
     A path is degenerate if and only if either condition happens:
-    i) it has zero vertices [and thus no arrows],
-    ii) it has a self-arrow and self.vertices has a single vertex.
+    Type-I: it has zero vertices [and thus no arrows]
+    Type-II: it has a self-arrow and self.vertices has a single vertex
     
     [In both cases, the degenerate paths are cycles.]
     
     [A path with a single vertex and no arrows is not degenerate, nor is
     a cycle with one arrow if self.vertices has two equal elements.]
     '''
-    if self.get_number_of_vertices_as_path() == 0:
+    if self.is_degenerate_type_i():
       return True
-    elif self.get_number_of_vertices_as_path() == 1 and self.get_number_of_arrows() == 1:
+    elif self.is_degenerate_type_ii():
       return True
     else:
       # In this case we should even have that self.vertices is one element
       #longer than self.arrows, independently of being a cycle or not
+      return False
+      
+  def is_degenerate_type_i(self):
+    '''
+    Returns whether path is degenerate Type-I: it has no vertices.
+    '''
+    if self.get_number_of_vertices_as_path() == 0:
+      return True
+    else:
+      return False
+  
+  def is_degenerate_type_ii(self):
+    '''
+    Returns whether path is degenerate Type-II: has one vertex and one self-arrow.
+    '''
+    if self.get_number_of_vertices_as_path() == 1 and self.get_number_of_arrows() == 1:
+      return True
+    else:
       return False
 
   def __repr__(self):
@@ -182,7 +206,7 @@ class VertexPath(object):
     Magic method. Returns faithful representation of instance.
     '''
     return f'{type(self)}(underlying_digraph = {self.underlying_digraph},\
-         data = {self.arrows}, data_type = \'arrows\', verify_coherence = True)'
+         data = {self.arrows}, data_type = \'arrows\', verify_validity = True)'
     
   def __str__(self):
     '''
@@ -193,7 +217,11 @@ class VertexPath(object):
       single_name = 'Cycle'
     else:
       single_name = 'Path'
-    return f'{single_name} with vertices {self.vertices}\nand arrows {self.arrows}'
+    # We want to have it slightly different if there are no vertices.
+    if bool(self):
+      return f'{single_name} with vertices {self.vertices}\nand arrows {self.arrows}'
+    else:
+      return f'Empty {single_name} with no vertices nor arrows.'
 
   def __eq__(self, other):
     '''
@@ -223,9 +251,9 @@ class VertexPath(object):
     # Arrows are namedtuples. self.arrows is list but is hashable if tuplefied
     return __hash__(tuple(self.arrows))
 
-  def verify_coherence(self):
+  def verify_validity(self):
     '''
-    Verifies that instance represents a path in digraph.
+    Verifies that instance represents a path in a digraph.
     '''
     # First we ensure vertices and arrows do belong to the digraph
     for vertex in self.vertices:
@@ -248,23 +276,27 @@ class VertexPath(object):
       if isinstance(self, VertexCycle):
         assert self.is_cycle(), 'Need path to be a cycle'
       
-  def get_total_weight(self):
+  def get_total_weight(self, request_none_if_unweighted = False):
     '''
     Returns the total weight/length of the path, which is the result of
     adding the weights of the arrows.
     
-    If arrows are unweighted, returns None.
-    
     If instance has no arrows, returns 0.
+    
+    If arrows are unweighted, arrows count as having length/weight 1, but
+    with the option to return None instead.
     '''
     # Note that if one arrow is weighted, all are.
     try:
       return sum(arrow.weight for arrow in self.arrows)
       # This will produce TypeError if trying to sum even a single None
-      # In this case, the only possible information is the number of arrows
-      # But for clarity, we prefer to return None in this method.
     except TypeError:
-      return None
+      # In this case, the only possible information is the number of arrows
+      # We can return either None or the number of arrows, depending on need
+      if request_none_if_unweighted:
+        return None
+      else:
+        return self.get_number_of_arrows()
 
   @staticmethod
   def reformat_paths(underlying_digraph, data, data_type, output_as,
@@ -286,50 +318,73 @@ class VertexPath(object):
     
     Options for output_as:
     [all options for data_type are acceptable for output_as]
-    'vertices_and_length'
-    'arrows_and_length'
-    'vertices_and_arrows_and_length'
+    'length'
+    'length_and_vertices'
+    'length_and_arrows'
+    'length_and_vertices_and_arrows'
     'str'
     'repr'
+    'nothing'
     '''
-    # We first build an instance from the data (if not already starting with one)
-    if data_type.lower() in 'cycle':
+    # We prepare the strings to have only lowercase characters
+    # This is useful as they will be evaluated multiple times
+    data_type = data_type.lower()
+    output_as = output_as.lower()
+    # We return None if asked to return nothing [it is useful to do this first]
+    if output_as == 'nothing':
+      return None
+    # We build an instance from the data (if not already starting with one)
+    if data_type == 'cycle':
       as_instance = data
       if not skip_checks:
         assert isinstance(as_instance, VertexCycle), 'Need to be a VertexCycle'
         assert underlying_digraph == as_instance.underlying_digraph, 'Underlying digraph must be correct'
-        as_instance.verify_coherence()
-    elif data_type.lower() in 'path':
+        as_instance.verify_validity()
+    elif data_type == 'path':
       as_instance = data
       if not skip_checks:
         assert isinstance(as_instance, VertexPath), 'Need to be a VertexPath'
         assert underlying_digraph == as_instance.underlying_digraph, 'Underlying digraph must be correct'
-        as_instance.verify_coherence()
+        as_instance.verify_validity()
     else:
       # If output_as is cycle, we aim for VertexCyle. Otherwise, VertexPath is good enough
-      if output_as.lower() == 'cycle':
+      if output_as == 'cycle':
         selected_class = VertexCycle
       else:
         selected_class = VertexPath
       as_instance = selected_class(underlying_digraph = underlying_digraph)
     # Now we have as_instance, we work into producing the requested information
-    raise NotImplementedError('In progress')
-    if output_as.lower() == 'str':
+    if output_as == 'str':
       return str(as_instance) # as_instance.__str__()
-    elif output_as.lower() == 'repr':
+    elif output_as == 'repr':
       return repr(as_instance) # as_instance.__repr__()
-    elif output_as.lower() in ['path', 'cycle']:
+    elif output_as in ['path', 'cycle']:
       return as_instance
-    elif output_as.lower() == 'length':
-      raise NotImplementedError('In progress')
-      #############
-      # WORK HERE
-      # Decide what to return if not weighted
-      # Note length should be called weight or total, but maybe not...
-      # Also implement all other options
-      #############
     else:
-      raise ValueError('Option not recognized')
+      # We prepare the variables according what is required
+      # Three pieces of information: length, vertices, arrows
+      pre_data = []
+      if 'length' in output_as:
+        # Note that 'lengths' will produce the same effect as 'length'
+        # (This makes the method slightly more flexible, which is good)
+        length = self.get_total_weight(request_none_if_unweighted = False)
+        pre_data.append(length)
+      if 'vertices' in output_as:
+        vertices = self.get_vertices()
+        pre_data.append(vertices)
+      if 'arrows' in output_as:
+        arrows = self.get_arrows()
+        pre_data.append(arrows)
+      # We now return the output
+      # If pre_data has 2 or more items, it is returned as a tuple
+      # If it has 1 item, we return that single item
+      # If it has 0 items, this means the request was bed
+      if len(pre_data) >= 2:
+        return tuple(pre_data)
+      elif len(pre_data) == 1:
+        return pre_data[0]
+      else:
+        raise ValueError('Option not recognized')
 
   def is_hamiltonian_path(self):
     '''
@@ -374,6 +429,91 @@ class VertexPath(object):
       # Survived all tests, thus is Hamiltonian cycle
       return True
 
+  def append_to_path(self, data, data_type, modify_self = False, skip_checks = False):
+    '''
+    Extend path by adding a vertex and an arrow to its end.
+    
+    Can either modify self (returning None) or create a new instance.
+    
+    data_type may be:
+    'vertex'
+    'arrow'
+    'vertex_and_arrow'
+    '''
+    # If object is designed as VertexCycle, we cannot proceed
+    # (It would cease to be a cycle, create confusion)
+    if isinstance(self, VertexCycle):
+      raise TypeError('Cannot append vertex/arrow to a cycle.')
+    raise NotImplementedError('WORK HERE')
+    
+  def extend_path(self, data, data_type, modify_self = False, skip_checks = False):
+    '''
+    Iterable version of appent_to_path.
+    
+    data_type may be:
+    'vertices'
+    'arrows'
+    'vertices_and_arrows'
+    'path'
+    '''
+    raise NotImplementedError('WORK HERE')
+    
+  def __add__(self, another_path, skip_checks = False):
+    '''
+    Magic method. Returns the sum of two instances.
+    
+    Merges two paths into a single one, if the first can segue into the second.
+    '''
+    # Unless overriden, we ensure another_path is also a path
+    # (If it isn't, behavior is unpredictable, and user is responsible)
+    # No other checks/verifications will be overriden by skip_checks
+    if not skip_checks:
+      try:
+        assert isinstance(another_path, VertexPath)
+      except AssertionError:
+        raise TypeError('Can only perform path addition on paths.')
+    # We cannot have VertexCycles (it would not make a lot of sense
+    #except in very specific cases), so we rule them out
+    # Note that is is_cycle is True, the instance might be a VertexPath
+    #which coincidentally starts and ends at the same vertex, but it is
+    #not really a VertexCycle. Addition is this case is permitted, and very
+    #likely is_cycle() will be False for the created instance
+    if instance(self, VertexCycle) or isinstance(another_path, VertexCycle):
+      raise TypeError('Cannot perform path addition on cycles.')
+    # We can only add if paths are from same digraph
+    elif self.underlying_digraph != another_path.underlying_digraph:
+      raise ValueError('Paths to be added should be from same digraph')
+    # We discard the anomalities/degeneracies
+    # For Type-I degeneracy, we return the other path
+    #(Even if it is also a Type-I or Type-II degeneracy!)
+    elif self.is_degenerate_type_i():
+      return another_path
+    elif another_path.is_degenerate_type_i():
+      return self
+    # If any degenerate Type-II, we cannot perform a true path addition
+    # (Exception if the other was a degeneracy Type-I)
+    elif self.is_degenerate_type_ii() or another_path.is_degenerate_type_ii():
+      raise ValueError('Cannot perform path addition with Type-II degeneracy.')
+    # From here on, no degeneracies. In particular, both self and another_path
+    #have exactly one more vertex [as path] than they have arrows
+    # We verify one path segues into the next
+    # (We don't allow this check to be skipped by skip_checks)
+    elif self.vertices[-1] != another_path.vertices[0]:
+      raise ValueError('Need first path to segue into the second.')
+    else:
+      # Here we implement the addition
+      # Since we all attributes ready, we can use them for __init__]
+      # We obtain the vertices. Note we omit the vertex uniting the paths
+      new_vertices = self.vertices + another_path.vertices[1:]
+      new_arrows = self.arrows + another_path.arrows
+      # We create a new instance (same class) and then return it
+      kwargs = {'underlying_digraph': self.underlying_digraph,
+          'data': (new_vertices, new_arrows),
+          'data_type': 'vertices_and_arrows',
+          'verify_validity_on_initiation': False}
+      new_instance = type(self)(**kwargs)
+      return new_instance
+
 ########################################################################
 # Class VertexCycle
 ########################################################################
@@ -382,7 +522,7 @@ class VertexCycle(VertexPath):
   '''
   A VertexCycle is a VertexPath which starts and ends on the same vertex.
   '''
-  
+
   def rebase_cycle(self, base_vertex, modify_self = False):
     '''
     Returns the same cycle but with vertices rotated so requested vertex
@@ -405,7 +545,7 @@ class VertexCycle(VertexPath):
     kwargs = {'underlying_digraph': self.underlying_digraph,
         data: rotated_arrows,
         data_type: 'arrows',
-        verify_coherence: True}
+        verify_validity: True}
     if modify_self:
       self.__init__(**kwargs)
       return None
@@ -413,28 +553,96 @@ class VertexCycle(VertexPath):
       return type(self)(**kwargs)
 
 ########################################################################
+# Class ImmutableVertexPath
+########################################################################
+
+class ImmutableVertexPath(VertexPath):
+  pass
+  
+  def append_to_path(self, data, data_type):
+    '''
+    Immutable version of VertexPath.append_to_path
+    '''
+    return super().append_to_path(data = data, data_type = data_type,
+        modify_self = False)
+
+  def extend_path(self, data, data_type):
+    '''
+    Immutable version of VertexPath.extend_path
+    '''
+    return super().extend_path(data = data, data_type = data_type,
+        modify_self = False)
+
+########################################################################
+# Class ImmutableVertexCycle
+########################################################################
+
+class ImmutableVertexCycle(VertexCycle, ImmutableVertexPath):
+  pass
+  
+  def rebase_cycle(self, base_vertex):
+    '''
+    VertexCycle.rebase_cycle version for immutable cycles.
+    '''
+    # Easiest is to call super(), ensuring modify_self is False
+    # Note super, in some sense, takes self as instance of a child class
+    #and returns self as instance of a base class
+    # That is why there is no need to write self
+    # (super() does take arguments but when called inside an instance method
+    #they are understood from the context, at least in Python 3)
+    return super().rebase_cycle(base_vertex, modify_self = False)
+
+########################################################################
+# Class MutableVertexPath
+########################################################################
+
+class MutableVertexPath(VertexPath):
+  pass
+  
+  # Since this is mutable (and so will be the classes inheriting from this)
+  #we should disable __hash__ which is called from VertexPath
+  # Make __hash__ return None to unvalidate it
+  # The __mro__ properties guarantee that since this inherits directly
+  #from VertexPath, the methods here will always be called earlier.
+  def __hash__(self):
+    '''
+    Magic method. Returns a hash of the instance.
+    
+    In this particular class, MutableVertexPath, there should be no hashing
+    because the instance if mutable. Thus hash() is explicitly set to None
+    to avoid inheriting the hash from the parent class VertexPath.
+    '''
+    return None
+
+########################################################################
+# Class MutableVertexCycle
+########################################################################
+
+class MutableVertexCycle(VertexCycle, MutableVertexPath):
+  pass
+
+########################################################################
 # Declaration of Digraph class and of Vertex, Arrow, Edge namedtuples
 ########################################################################
 
 class Digraph(object):
+  '''
+  Class which implements digraphs, or directed graphs. A digraph is a set
+  of points (called vertices) and a set of arrows (ordered pairs of vertices)
+  which may or may not be weighted.
+  
+  An undirected graph (also called simply graph) is also implemented as
+  a diagraph by interpreting its edges (an unordered pair of vertices)
+  as two arrows, back and forth within the pair.
+  '''
   
   # Before the class per se we create some useful objects as namedtuples
-  # Note namedtuples are immutable. If we want to manipulate them, we could
-  #either use a dataclass, use __slots__ in a class, or inherit from namedtuple
-  #via "class name(namedtuple(...)):"
-  # In all cases we could allocate a field for extra data, which would typically
-  #be None unless we want to mark the namedtuple in a specific way
-  # (We decide against this extra allocation. If we do, we can use the
-  #"defaults=None" keyword argument in the namedtuple function)
-  # Name of vertex should be hashable because they are often keys of dicts
+  # Name of vertex should be preferably hashable because they are often keys of dicts
+  # On the other hand, we implement no checks for hashableness
   Vertex = collections_namedtuple('Vertex', 'name')
-  Arrow = collections_namedtuple('Arrow', 'source,target,weight', defaults = (None,))
   # Make weight to be None if unweighted (default value)
+  Arrow = collections_namedtuple('Arrow', 'source,target,weight', defaults = (None,))
   Edge = collections_namedtuple('Edge', 'first,second,weight', defaults = (None,))
-  # I'm still trying to decide if I unify the unweighted and weight arrows...
-  #UnWeightedArrow = collections_namedtuple('UnweightedArrow','source,target')
-  #WeightedEdge = collections_namedtuple('WeightedEdge', 'first,second,weight')
-  #UnWeightedEdge = collections_namedtuple('UnweightedEdge','first,second')
 
 ########################################################################
 # Static Methods for Vertex, Arrow, Edge namedtuples
@@ -2022,7 +2230,7 @@ class WeightedDigraph(Digraph):
     '''
     # We first determine if we are in an instance of Graph
     # If we are, not only we want our future class to be also a Graph,
-    #but we can also shorten __init__ by using edges
+    #but we can also greatly shorten __init__ by using edges
     if isinstance(self, Graph):
       selected_class = UnweightedGraph
       data_type = 'all_vertices_and_all_edges'
@@ -2125,8 +2333,12 @@ class WeightedDigraph(Digraph):
     # So we can output the result, the dict distances
     return distances
 
+  #################
+  # WORK HERE
+  # Use Vertex.Path to streamline this
+  #################
   def get_single_source_shortest_paths_via_Bellman_Fords(self, source_vertex,
-      request = 'lengths_and_vertices_and_arrows'):
+      output_as = 'lengths_and_vertices_and_arrows'):
     '''
     Computes the length of shortest paths from one single source vertex
     to all other vertices of a directed weighted graph.
@@ -2145,8 +2357,7 @@ class WeightedDigraph(Digraph):
     INPUT:
     self: the graph
     source_vertex: compute distances starting from this vertex
-    request: one of the eight possible combinations with 'lengths', 'vertices'
-    and 'arrows', p.ex. 'vertices_and_arrows'
+    output_as: one of the output possibilities for VertexPath.reformat_path()
     
     OUTPUT:
     is_negative_cycle_free: whether the graph is free of negative-weight cycles
