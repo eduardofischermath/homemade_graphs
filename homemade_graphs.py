@@ -27,6 +27,11 @@
 # 4) Eliminate bugs on method get_all_paths_shortest_paths_via_Floyd_Warshals
 # 5) Finish writing method get_all_paths_shortest_paths_via_Johnsons
 # 6) Implement methods get_hamiltonian_path()/solve_traveling_salesman_problem()
+# 7) Implement methods to delete arrows/edges/vertices of graph/digraph
+# 8) Implement methods to merge vertices into a single vertex (collapse vertex)
+# 9) Split classes into 4 modules: namedtuples, digraphs, path/cycles, others
+# 10) Design better way to keep track of issues/todos
+# 11) Create test suite, integrate to code
 
 ########################################################################
 # Imports
@@ -62,7 +67,8 @@ class VertexPath(object):
   A VertexPath in a Digraph is a sequence of arrows in the digraph such
   that the source of any arrow [after the first] is the target of the previous.
   
-  Accepts a single-vertex-no-arrow path, or even a no-vertex-no-arrow path.
+  Accepts a single-vertex-no-arrow path and even two "degenerate" cases:
+  a single-vertex-single-arrow path, and a no-vertex-no-arrow path.
   
   Attributes:
   underlying_digraph: a Digraph or subclass where the path comes from
@@ -352,8 +358,12 @@ class VertexPath(object):
         selected_class = VertexCycle
       else:
         selected_class = VertexPath
-      as_instance = selected_class(underlying_digraph = underlying_digraph)
-    # Now we have as_instance, we work into producing the requested information
+      # Building the instance with __init__
+      verify_validity_on_initiation = not skip_checks
+      as_instance = selected_class(underlying_digraph = underlying_digraph,
+          data = data, data_type = data_type,
+          verify_validity_on_initiation = verify_validity_on_initiation)
+    # Now that we have as_instance, we work into producing the requested information
     if output_as == 'str':
       return str(as_instance) # as_instance.__str__()
     elif output_as == 'repr':
@@ -429,6 +439,14 @@ class VertexPath(object):
       # Survived all tests, thus is Hamiltonian cycle
       return True
 
+  def shorten_path(self, number_to_shorted, modify_self = False, skip_checks = False):
+    '''
+    Removes a number of arrows and vertices from the end of path.
+    
+    Can either modify self (returning None) or create a new instance.
+    '''
+    raise NotImplementedError('WORK HERE')
+
   def append_to_path(self, data, data_type, modify_self = False, skip_checks = False):
     '''
     Extend path by adding a vertex and an arrow to its end.
@@ -440,11 +458,57 @@ class VertexPath(object):
     'arrow'
     'vertex_and_arrow'
     '''
+    data_type = data_type.lower()
     # If object is designed as VertexCycle, we cannot proceed
     # (It would cease to be a cycle, create confusion)
     if isinstance(self, VertexCycle):
       raise TypeError('Cannot append vertex/arrow to a cycle.')
-    raise NotImplementedError('WORK HERE')
+    elif self.is_degenerate():
+    # The nondegenerate cases always have one vertex more than arrows
+    # This is the context of the method. So we exclude degenerate paths
+      raise ValueError('Cannot append to degenerate path.')
+    # We also want to ensure data and data_type are what promised
+    else:
+      # We prepare the data: new_vertex and new_arrow
+      if data_type == 'vertex_and_arrow':
+        if not skip_checks:
+          assert hasattr(data, __len__), 'Need data to have length'
+          assert len(data) == 2, 'Need data to have two items'
+        new_vertice, new_arrow = data
+      elif data_type == 'vertex':
+        # We strive to have the arrow right here. This will save work in the
+        #case of modify_self = False, in which we would need to pass vertex
+        #info to __init__ and __init__ would do the job
+        new_vertex = data
+        if not skip_checks:
+          assert new_vertex in self.underlying_digraph, 'Vertex must be from underlying digraph'
+        new_arrow = self.underlying_digraph.get_shortest_arrow_between_vertices(
+            self.vertices, new_vertex)
+      elif data_type == 'arrow':
+        new_arrow = data
+        new_vertex = new_arrow.target
+      else:
+        raise ValueError('Option not recognized.')
+      # Having new_vertex and new_arrow, do optional checks
+      # [Some might be redundant depending on input]
+      if not skip_checks:
+        assert new_vertex in self.underlying_digraph, 'Vertex must be from underlying digraph'
+        assert new_arrow in self.underlying_digraph.get_arrows(), 'Arrow must be from underlying digraph'
+        assert new_arrow.source == self.vertices[-1], 'Arrow must fit after path'
+        assert new_arrow.target == new_vertex, 'Vertex and arrow information must be consistent'
+      # Having new_vertex and new_arrow, do as requested
+      if modify_self:
+        self.vertices.append(new_vertex)
+        self.arrows.append(new_arrow)
+      else:
+        new_vertices = self.vertices + new_vertex
+        new_arrows = self.arrows + new_arrow
+        data = (new_vertices, new_arrows)
+        data_type = 'vertices_and_arrows'
+        verify_validity_on_initialization = not skip_checks
+        new_instance = type(self)(data = data, data_type = data_type,
+            verify_validity_on_initialization = verify_validity_on_initialization)
+        return new_instance
     
   def extend_path(self, data, data_type, modify_self = False, skip_checks = False):
     '''
@@ -456,7 +520,59 @@ class VertexPath(object):
     'vertices_and_arrows'
     'path'
     '''
-    raise NotImplementedError('WORK HERE')
+    data_type = data_typer.lower()
+    # If modify_self, we sent the data (item by item) to append_path
+    # Otherwise, we form another_path and call self.__add__(another_path)
+    if modify_self:
+      if data_type == 'vertices':
+        vertices = data
+        for vertex in vertices:
+          self.append_to_path(data = vertex, data_type = 'vertex',
+              modify_self = True, skip_checks = skip_checks)
+      elif data_type == 'arrows':
+        arrows = data
+        for arrow in arrows:
+          self.append_to_path(data = arrow, data_type = 'arrow',
+              modify_self = True, skip_checks = skip_checks)
+      elif data_type == 'vertex_and_arrow':
+        vertices, arrows = data
+        if skip_checks:
+          # There should be equal number of arrows and vertices 
+          # This check is so important we can't skip
+          # The others can be done inside 'append_to_path
+          assert len(vertices) == len(arrows), 'Need same number of vertices and arrows'
+          # We use zip to pass arguments
+          for vertex_and_arrow in zip(vertices, arrows):
+            self.append_to_path(data = vertex_and_arrow,
+                data_type = 'vertex_and_arrow',
+                modify_self = True, skip_checks = skip_checks)
+      elif data_type == 'path':
+        another_path = data
+        # If degenerate, we won't proceed
+        if another_path.is_degenerate:
+          raise ValueError('Need nondegenerate path for path addition.')
+        # We do a basic check (which can't be done on append_to_path due
+        #to the nature of this procedure)
+        if not skip_checks:
+          assert another_path.vertices[0] == self.vertices[-1], 'First path must segue into second'
+        # For data_type == 'path' we take arrows and vertices
+        #[except first vertex to avoid repetitions]
+        arrows = another_path.arrows
+        vertices = another_path.vertices[1:]
+        # These should be lists of equal length. We use zip to pass arguments
+        for vertex_and_arrow in zip(vertices, arrows):
+          self.append_to_path(data = vertex_and_arrow,
+              data_type = 'vertex_and_arrow',
+              modify_self = True, skip_checks = skip_checks)
+    # Enter the realm where modify_self is False (i. e. return new instance)
+    else:
+      if data_type == 'path':
+        another_path = data
+      else:
+        verify_validity_on_initiation = not skip_checks
+        another_path = type(self)(data = data, data_type = data_type,
+            verify_validity_on_initiation = verify_validity_on_initiation)
+      return self.__add__(another_path = another_path, skip_checks = skip_checks)
     
   def __add__(self, another_path, skip_checks = False):
     '''
@@ -514,6 +630,14 @@ class VertexPath(object):
       new_instance = type(self)(**kwargs)
       return new_instance
 
+  def __iadd__(self, another_path):
+    '''
+    Magic method.
+    '''
+    # We are unsure on how to do this. Should we force instance to modify itself?
+    # (Compare with behaviors of __iadd__ on list and on str.)
+    raise NotImplemented('Unplanned behavior')
+
 ########################################################################
 # Class VertexCycle
 ########################################################################
@@ -538,6 +662,7 @@ class VertexCycle(VertexPath):
     # The first arrow will be the one with source base_vertex, that is,
     #the arrow with index base_idx
     # Easiest way is to use moduler arithmetic on the number of arrows
+    # (Vertices can be read straight from them during __init__)
     number_of_arrows = len(self.arrows)
     rotated_arrows = [self.arrows[(idx + base_idx) % number_of_arrows]
         for idx in range(number_of_arrows)]
@@ -558,20 +683,27 @@ class VertexCycle(VertexPath):
 
 class ImmutableVertexPath(VertexPath):
   pass
+
+  def shorten_path(self, number_to_remove, skip_checks = False):
+    '''
+    Immutable version of VertexPath.shorten_path
+    '''
+    return super().shorten_path(number_to_remove = number_to_remove,
+        modify_self = False, skip_checks = False)
   
-  def append_to_path(self, data, data_type):
+  def append_to_path(self, data, data_type, skip_checks = False):
     '''
     Immutable version of VertexPath.append_to_path
     '''
     return super().append_to_path(data = data, data_type = data_type,
-        modify_self = False)
+        modify_self = False, skip_checks = False)
 
-  def extend_path(self, data, data_type):
+  def extend_path(self, data, data_type, skip_checks = False):
     '''
     Immutable version of VertexPath.extend_path
     '''
     return super().extend_path(data = data, data_type = data_type,
-        modify_self = False)
+        modify_self = False, skip_checks = False)
 
 ########################################################################
 # Class ImmutableVertexCycle
@@ -590,7 +722,7 @@ class ImmutableVertexCycle(VertexCycle, ImmutableVertexPath):
     # That is why there is no need to write self
     # (super() does take arguments but when called inside an instance method
     #they are understood from the context, at least in Python 3)
-    return super().rebase_cycle(base_vertex, modify_self = False)
+    return super().rebase_cycle(base_vertex = base_vertex, modify_self = False)
 
 ########################################################################
 # Class MutableVertexPath
