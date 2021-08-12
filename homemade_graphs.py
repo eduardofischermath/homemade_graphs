@@ -30,8 +30,9 @@
 # 7) Implement methods to delete arrows/edges/vertices of graph/digraph
 # 8) Implement methods to merge vertices into a single vertex (collapse vertex)
 # 9) Split classes into 4 modules: namedtuples, digraphs, path/cycles, others
-# 10) Design better way to keep track of issues/todos
+# 10) Design better way to keep track of prject management (issues/todos)
 # 11) Create test suite, integrate to code
+# 12) Define good way to versioning (and integrate paradigm to Git branching)
 
 ########################################################################
 # Imports
@@ -3673,6 +3674,9 @@ class StateDigraphSolveTSP(object):
   #############
   # WORK HERE
   # Develop memoization/tabulation (top down/bottom up) versions of algorithm
+  # If can both coexist in the code, way better!
+  # Maybe use top_down_solve_subproblem = functools_cache(solve_subproblem)
+  #and use two different functions (or something like that)
   #############
   # To avoid calculating something multiple times (and not calculate useless stuff)
   # Alternative: simply store it into a table self.A
