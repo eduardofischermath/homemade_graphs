@@ -3800,11 +3800,7 @@ class StateDigraphSolveTSP(object):
       # We prepare a tuple of n Trues to be the presence set, we will need it
       tuple_of_trues = tuple([True]*(self.n))
       if compute_path_instead_of_cycle:
-        # Here: compute_path_instead_of_cycle == False
-        ##############
-        # WORK HERE
-        # bifurcate according to memoization/tabulation
-        ##############
+        # Here: compute_path_instead_of_cycle == True
         # In this case, if there is no initial given vertex (i. e. None),
         #we assume we must scan through all possible initial vertices
         # We need to ensure final_vertex is different than initial_vertex,
@@ -3951,11 +3947,17 @@ class StateDigraphSolveTSP(object):
                 minimizing_path = path_up_to_penultimate.append_to_path(
                     data = arrow, data_type = 'arrow', modify_self = False
                     skip_checks = skip_checks)
-
-          
-        # Here: compute_path_instead_of_cycle == False
-        # By now, we have min_distance_overall and minimizing_path
-        # Formatting is carried out by output_as
-        return min_distance_overall, minimizing_path
+      # This is the end of method, for paths/cycles/memoization/tabulation
+      # By now, we have min_distance_overall and minimizing_path
+      # Formatting is carried out by output_as, which offloads to reformat_paths
+      if minimizing_path is None:
+        minimizing_path = 'Minimizing path not calculated'
+      else:
+        minimizing_path = minimizing_path.reformat_paths(
+            underlying_graph = self.graph,
+            data = minimizing_path,
+            data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
+            output_as = output_as)
+      return (min_distance_overall, minimizing_path)
 
 ########################################################################
