@@ -3,7 +3,10 @@
 ######################################################################
 
 # Implements classes and algorithms related to graphs and digraphs.
-# For more information, see README.md
+
+# For more information on functionality, see README.md
+# For more information on bugs and planned features, see ISSUES.md
+# For more information on the versioning, see RELEASES.md
 
 # Copyright (C) 2021 Eduardo Fischer
 

@@ -60,4 +60,14 @@ Should be done after #0011
 
 Implement methods to delete arrows/edges/vertices of graph/digraph
 
+# ISSUE #0012 OPEN
 
+Build a Python package out of the code
+(using __init__.py files, ideally with good import statements, optionally also folders)
+
+# ISSUE #0013 OPEN
+
+Potentially release this repository as a public package.
+PyPI is an option.
+
+Should be done after #0012
