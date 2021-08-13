@@ -3656,30 +3656,20 @@ class StateDigraphSolveTSP(object):
       number_by_vertex[vertex] = idx
       vertex_by_number[idx] = vertex
 
-  #############
-  # WORK HERE
-  # Develop memoization/tabulation (top down/bottom up) versions of algorithm
-  # If can both coexist in the code, way better!
-  # Maybe use top_down_solve_subproblem = functools_cache(solve_subproblem)
-  #and use two different functions (or something like that)
-  #############
-  # To avoid calculating something multiple times (and not calculate useless stuff)
-  # Alternative: simply store it into a table self.A
   @functools_cache
   def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
-      use_top_down_instead_of_bottom_up = False, output_as = None, skip_checks = False):
+      use_top_down_instead_of_bottom_up = False, omit_minimizing_path = False, skip_checks = False):
     '''
     Computes the minimal path length given specific parameters: given
     initial and final vertices and a set of vertices [given by a tuple of
     Booleans], finds minimal among paths traveling once though each vertex.
     
-    Returns the minimal weight of such path, and also one of these minimizing paths.
+    Returns the minimal weight of such path, and also, if requested,
+    also one of these minimizing paths as VertexPath instance. (If request is
+    for its ommission, produces None as such path to fill the space.)
     
     [Note this method is only about paths, not cycles.]
     '''
-    # Default output is 'path', meaning an instance of VertexPath
-    if output_as is None:
-      output_as = 'path'
     # Our subproblems are: Consider we have a fixed initial vertex
     #(which might be passed as argument as source_vertex), a fixed
     #final vertex, and a set of the vertices including those two. We want
@@ -3704,17 +3694,21 @@ class StateDigraphSolveTSP(object):
       # Want only that vertex as True, otherwise no path (distance math_inf)
       sought_presence_set = tuple((idx == initial_number) for idx in range(self.n))
       if presence_set == sought_presence_set:
-        # No previous vertex, so previous path should be [] to work well later
+        # No previous vertex, so previous path should be the "quasi empty path" to work well later
+        # By "quasi empty path" we mean the path with initial_vertex and no arrows
+        quasi_empty_path = VertexPath(data = [initial_vertex], data_type = 'vertices',
+            verify_validity_on_initialization = not skip_checks)
+        # (This is a nondegenerate path, and works fine with arrow addition)
         # If only lengths are asked, we produce None instead of [], for consistency
-        if output_as.lower() == 'length':
+        if omit_minimizing_path:
           return (0, None)
         else:
-          return (0, [])
+          return (0, quasi_empty_path)
       else:
-        if output_as.lower() == 'length':
+        if omit_minimizing_path:
           return (math_inf, None)
         else:
-          return (math_inf, [])
+          return (math_inf, quasi_empty_path)
     else:
       # We essentially recur on "previous subproblems"
       # That is, for all arrows landing on final_vertex, we ask which
@@ -3737,23 +3731,32 @@ class StateDigraphSolveTSP(object):
           #plus the weight of this last arrow
           # Note that we also keep a list of arrows going back to start
           # It's probably easier than start a VertexPath instance every time
-          previous_length, previous_path = self.solve_subproblem(
-              initial_vertex = initial_vertex,
-              final_vertex = arrow.source,
-              presence_set = last_off_presence_set,
-              skip_checks = skip_checks)
+          if use_top_down_instead_of_bottom_up:
+            # In this case we simply call the suproblem method again
+            solution_of_smaller_subproblem = self.solve_subproblem(
+                initial_vertex = initial_vertex,
+                final_vertex = arrow.source,
+                presence_set = last_off_presence_set,
+                skip_checks = skip_checks)
+          else:
+            # In this case the result should be stored in self._table_of_results
+            solution_of_smaller_subproblem = self._table_of_results[
+                (initial_vertex, final_vertex, last_off_presence_set)]
+          previous_length, previous_path = solution_of_smaller_subproblem
           this_distance = arrow.weight + previous_length
           if this_distance < min_among_all_last_arrows:
             # Update the minimal distance, if this is minimal
             min_among_all_last_arrows = this_distance
-            if (not output_as is None) and (output_as.lower() == 'length'):
-              # Also update the last arrow (last arrow in path)
-              whole_path_as_arrows = previous_path + arrow
-            else:
+            if omit_minimizing_path:
               # To save memory during execution, if we only want the minimal length
               #we will not conserve information on how to reconstruct the path
               # We use the very default object None for this objective
               whole_path_as_arrows = None
+            else:
+              # Need to update the last arrow (last arrow in path)
+              # We will use the VertexPath method, returning a new instance
+              whole_path_as_arrows = previous_path.append_to_path(data = arrow,
+                  data_type = 'arrow', modify_self = False, skip_checks = skip_checks)
       # With the loop ended, the best should be recorded
       # (None whole_path_as_arrows contains None if output_as is 'length')
       return (best_distance, whole_path_as_arrows)
@@ -3761,6 +3764,7 @@ class StateDigraphSolveTSP(object):
   #############
   # WORK HERE
   # Develop memoization/tabulation (top down/bottom up) versions of algorithm
+  # Cycle mostly done, now do path
   #############
   def solve_full_problem(self, compute_path_instead_of_cycle,
       initial_vertex = None, final_vertex = None,
@@ -3770,7 +3774,12 @@ class StateDigraphSolveTSP(object):
     
     output_as: 'path', 'vertices', 'vertices_and_arrows', 'arrows', 'length'
     '''
-    # At the moment support only for output_as = VertexPath/VertexCycle
+    # We determine whether full determination of path is required.
+    # This is derived from output_as
+    if output_as in ['length']:
+      omit_minimizing_path = True
+    else:
+      omit_minimizing_path = False
     # We check that there is at least one vertex
     if not bool(self.graph):
       # Returns path/cycle with no vertices
@@ -3791,6 +3800,11 @@ class StateDigraphSolveTSP(object):
       # We prepare a tuple of n Trues to be the presence set, we will need it
       tuple_of_trues = tuple([True]*(self.n))
       if compute_path_instead_of_cycle:
+        # Here: compute_path_instead_of_cycle == False
+        ##############
+        # WORK HERE
+        # bifurcate according to memoization/tabulation
+        ##############
         # In this case, if there is no initial given vertex (i. e. None),
         #we assume we must scan through all possible initial vertices
         # We need to ensure final_vertex is different than initial_vertex,
@@ -3822,7 +3836,8 @@ class StateDigraphSolveTSP(object):
         for pair in initial_and_final:
           local_distance, local_path = self.solve_subproblem(
               initial_vertex = pair[0], final_vertex = pair[1],
-              presence_set = tuple_of_trues, skip_checks = skip_checks)
+              presence_set = tuple_of_trues, omit_minimizing_path = omit_minimizing_path,
+              skip_checks = skip_checks)
           # Note local_last_arrow is ignored... we still don't know how to
           #build the data using the arrows
           if local_distance < min_distance_overall:
@@ -3830,6 +3845,7 @@ class StateDigraphSolveTSP(object):
         # In the moment we have no formatting according to output_as
         return min_distance_overall, minimizing_path
       else:
+        # Here: compute_path_instead_of_cycle == False
         # If we want a cycle, there should be no specified final_vertex
         # [Unless the same vertex is entered as initial_vertex, which would be allowed
         #under certain interpretation to reinforce the request for a cycle]
@@ -3839,7 +3855,7 @@ class StateDigraphSolveTSP(object):
           assert final_vertex == initial_vertex, 'Cycles start and end at same place'
         # In any case, the variable final_vertex will be ignored
         # We only want to raise the error to make it clearer
-        # We will even delete the variable from this scope
+        # We will even delete the variable from this scope to reinforce the idea
         del final_vertex
         # In this case, the same cycle will be generated independently
         #of the first vertex
@@ -3858,25 +3874,88 @@ class StateDigraphSolveTSP(object):
         minimizing_path = None
         # Note also this penultimate cannot be the initial vertex
         # (To read arrows ending at initial=final, we use get_arrows_in)
-        for arrow in self.get_arrows_in(initial_vertex):
-          if arrow.source != initial_vertex:
-            # Compute the paths from initial to penultimate [using the last arrow]
-            length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
-                initial_vertex = initial_vertex, final_vertex = arrow.source,
-                presence_set = tuple_of_trues, output_as = output_as,
-                skip_checks = skip_checks)
-            # Comparisons involves always the last edge, whose weight must be factored in
-            #to close the cycle
+        if use_top_down_instead_of_bottom_up:
+          # Here: compute_path_instead_of_cycle == False, use_top_down_instead_of_bottom_up == False
+          # In this case a direct call does the job (but we need to search all last arrows)
+          # Note that this is easier as an algorithm, but might consume more memory
+          # (Also has the risk of breaking the default Python shell recursion limit)
+          for arrow in self.get_arrows_in(initial_vertex):
+            if arrow.source != initial_vertex:
+              # Compute the paths from initial to penultimate [using the last arrow]
+              length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
+                  initial_vertex = initial_vertex, final_vertex = arrow.source,
+                  presence_set = tuple_of_trues, omit_minimizing_path = omit_minimizing_path,
+                  skip_checks = skip_checks)
+              # Comparisons involves always the last edge, whose weight must be factored in
+              #to close the cycle
+              this_distance = length_up_to_penultimate + arrow.weight
+              if this_distance < min_distance_overall:
+                min_distance_overall = this_distance
+                # To save processing time we only record the path if required
+                if output_as.lower() == 'length':
+                  minimizing_path = None
+                else:
+                  # We create a new path instance using append_to_path
+                  minimizing_path = path_up_to_penultimate.append_to_path(
+                      data = arrow, data_type = 'arrow', modify_self = False,
+                      verify_validity_on_initiation = not skip_checks)
+        else:
+          # Here: compute_path_instead_of_cycle == True, use_top_down_instead_of_bottom_up == False
+          # In this case we must organize the variables for tabulation
+          # Note that every recurrence of the subproblem is for a path which
+          #is one vertex shorter
+          # Thus the key is working with the presence set, which should be
+          #of ever increasing length, and always include the initial_vertex
+          # We start the "table" (a dict) for the tabulation
+          self._table_of_results = {}
+          # We iterate through the arguments
+          # Recall the first is the number of vertices in path (controlled by presence_set)
+          for length_of_path in range(1, self.n):
+            # Use itertools_combinations on (True, ..., True, False, ..., False)
+            true_false_list = [number < length_of_path for number in range(self.n)]
+            right_size_presence_sets = itertools_combinations(true_false_list)
+            for presence_set in right_size_presence_sets:
+              for final_number in range(self.n):
+                # We now verify the arguments make sense
+                # Need initial and final vertex present [controlled by numbers]
+                if presence_set[initial_number] and presence_set[final_number]:
+                  # Need arrow from last to initial
+                  final_vertex = self.number_to_vertex[final_number]
+                  if final_vertex in neighbors_in_as_dict:
+                    # In this case we go ahead
+                    length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
+                        initial_vertex = initial_vertex, final_vertex = final_vertex,
+                        presence_set = presence_set, output_as = output_as,
+                        skip_checks = skip_checks)
+                    # We do the tabulation
+                    # (functools_cache would also do it, but storing in a separate variable
+                    #is more in line with the proposal of tabulation)
+                    # Note the only changing arguments here are presence_set and the last/penultimate vertex
+                    #but initial_vertex might change if the problem is about paths instead of cycles, so we include it
+                    self._table_of_results[(initial_vertex, final_vertex, presence_set)] = (length_up_to_penultimate, path_up_to_penultimate)
+          # We now look at how to close the cycle. We iterate through the possible arrows
+          # Note that unless there is a last arrow (from last to initial)
+          #it is not possible to complete the cycle (once all vertices are in, that is)
+          for arrow in self.graph.get_arrows_in(initial_vertex):
+            length_up_to_penultimate, path_up_to_penultimate = self._table_of_results[
+                (initial_vertex, arrow.source, tuple([True]*self.n))]
             this_distance = length_up_to_penultimate + arrow.weight
             if this_distance < min_distance_overall:
               min_distance_overall = this_distance
-              # We only record the path if output_as is not 'length'
-              if output_as.lower() == 'length':
+              # We only record the path if needed
+              # That comes from omit_minimining_path which is derived from output_as
+              if omit_minimining_path:
                 minimizing_path = None
               else:
-                minimizing_path = path_up_to_penultimate + arrow
+                # Create new instance using append_to_path
+                minimizing_path = path_up_to_penultimate.append_to_path(
+                    data = arrow, data_type = 'arrow', modify_self = False
+                    skip_checks = skip_checks)
+
+          
+        # Here: compute_path_instead_of_cycle == False
         # By now, we have min_distance_overall and minimizing_path
-        # In the moment we have no formatting according to output_as
+        # Formatting is carried out by output_as
         return min_distance_overall, minimizing_path
 
 ########################################################################
