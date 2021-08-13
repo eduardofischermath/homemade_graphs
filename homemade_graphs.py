@@ -17,24 +17,6 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
-# TODO:
-########################################################################
-
-# 0) Move methods around, improve some a bit, specially related to weight
-# 1) Implement classes VertexPath and VertexCycle, refactor methods to accomodate
-# 2) Move classes Edge, Arrow, Vertex outside Digraph, refactor to accomodate
-# 3) Eliminate bugs on method get_single_source_shortest_paths_via_Bellman_Fords
-# 4) Eliminate bugs on method get_all_paths_shortest_paths_via_Floyd_Warshals
-# 5) Finish writing method get_all_paths_shortest_paths_via_Johnsons
-# 6) Implement methods get_hamiltonian_path()/solve_traveling_salesman_problem()
-# 7) Implement methods to delete arrows/edges/vertices of graph/digraph
-# 8) Implement methods to merge vertices into a single vertex (collapse vertex)
-# 9) Split classes into 4 modules: namedtuples, digraphs, path/cycles, others
-# 10) Design better way to keep track of prject management (issues/todos)
-# 11) Create test suite, integrate to code
-# 12) Define good way to versioning (and integrate paradigm to Git branching)
-
-########################################################################
 # Imports
 ########################################################################
 from collections import namedtuple as collections_namedtuple
