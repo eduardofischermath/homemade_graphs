@@ -3669,7 +3669,7 @@ class StateDigraphSolveTSP(object):
     also one of these minimizing paths as VertexPath instance. (If request is
     for its ommission, produces None as such path to fill the space.)
     
-    [Note this method is only about paths, not cycles.]
+    [Note this method is only about paths without self-crossings, never cycles.]
     '''
     # Our subproblems are: Consider we have a fixed initial vertex
     #(which might be passed as argument as source_vertex), a fixed
@@ -3679,7 +3679,6 @@ class StateDigraphSolveTSP(object):
     # We will parametrize these subproblems by initial, final, presence_set,
     #where presence_set is a tuple of n Booleans, True meaning the corresponding
     #vertex in its position is an element of the set (and thus part of path)
-    presence_set = args
     initial_number = self.number_by_vertex[initial_vertex]
     final_number = self.number_by_vertex[final_vertex]
     if not skip_checks:
@@ -3717,7 +3716,7 @@ class StateDigraphSolveTSP(object):
       #weight (assuming we solve the subproblems without this last vertex)
       min_among_all_last_arrows = math_inf
       whole_path_as_arrows = None
-      for arrow in self.graph.get_arrows_in(final_vertex):
+      for arrow in self.digraph.get_arrows_in(final_vertex):
         # arrow has information arrow.source, arrow.target which is final
         #vertex, and arrow.weight.
         # We verify the source does belong to the presence_set
@@ -3738,6 +3737,7 @@ class StateDigraphSolveTSP(object):
                 initial_vertex = initial_vertex,
                 final_vertex = arrow.source,
                 presence_set = last_off_presence_set,
+                omit_minimizing_path = omit_minimizing_path,
                 skip_checks = skip_checks)
           else:
             # In this case the result should be stored in self._table_of_results
@@ -3762,11 +3762,6 @@ class StateDigraphSolveTSP(object):
       # (None whole_path_as_arrows contains None if output_as is 'length')
       return (best_distance, whole_path_as_arrows)
 
-  #############
-  # WORK HERE
-  # Develop memoization/tabulation (top down/bottom up) versions of algorithm
-  # Cycle mostly done, now do path
-  #############
   def solve_full_problem(self, compute_path_instead_of_cycle,
       initial_vertex = None, final_vertex = None,
       use_top_down_instead_of_bottom_up = False, output_as = None, skip_checks = False):
@@ -3782,12 +3777,12 @@ class StateDigraphSolveTSP(object):
     else:
       omit_minimizing_path = False
     # We check that there is at least one vertex
-    if not bool(self.graph):
+    if not bool(self.digraph):
       # Returns path/cycle with no vertices
       if compute_path_instead_of_cycle:
-        return VertexPath(self.graph, [], 'vertices')
+        return VertexPath(self.digraph, [], 'vertices')
       else:
-        return VertexCycle(self.graph, [], 'vertices')
+        return VertexCycle(self.digraph, [], 'vertices')
     else:
       # To solve the problem for a path (for a cycle it involves an extra step;
       #we will do it at the end, and only if required), we need to use some
@@ -3990,7 +3985,7 @@ class StateDigraphSolveTSP(object):
           # We now look at how to close the cycle. We iterate through the possible arrows
           # Note that unless there is a last arrow (from last to initial)
           #it is not possible to complete the cycle (once all vertices are in, that is)
-          for arrow in self.graph.get_arrows_in(initial_vertex):
+          for arrow in self.digraph.get_arrows_in(initial_vertex):
             length_up_to_penultimate, path_up_to_penultimate = self._table_of_results[
                 (initial_vertex, arrow.source, tuple_of_trues)]
             this_distance = length_up_to_penultimate + arrow.weight
@@ -4014,7 +4009,7 @@ class StateDigraphSolveTSP(object):
         min_path_overall = 'Minimizing path not calculated'
       else:
         min_path_overall = min_path_overall.reformat_paths(
-            underlying_graph = self.graph,
+            underlying_graph = self.digraph,
             data = minimizing_path,
             data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
             output_as = output_as)
