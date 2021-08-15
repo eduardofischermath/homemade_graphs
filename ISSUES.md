@@ -44,7 +44,7 @@ Eliminate bugs on method get_all_paths_shortest_paths_via_Floyd_Warshals
 
 Eliminate bugs on method get_single_source_shortest_paths_via_Bellman_Fords
 
-# ISSUE #0009 OPEN
+# ISSUE #0009 COMPLETE
 
 Implement methods get_hamiltonian_path()/solve_traveling_salesman_problem()
 Also means sorting out the methods in class StateDigraphSolveTSP
