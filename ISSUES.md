@@ -44,7 +44,7 @@ Eliminate bugs on method get_all_paths_shortest_paths_via_Floyd_Warshals
 
 Eliminate bugs on method get_single_source_shortest_paths_via_Bellman_Fords
 
-# ISSUE #009 OPEN
+# ISSUE #0009 OPEN
 
 Implement methods get_hamiltonian_path()/solve_traveling_salesman_problem()
 Also means sorting out the methods in class StateDigraphSolveTSP
@@ -71,3 +71,22 @@ Potentially release this repository as a public package.
 PyPI is an option.
 
 Should be done after #0012
+
+# ISSUE #0014 OPEN
+
+Add option require namedtuple to methods of VertexPath (to add flexibility).
+
+# ISSUE #0015 OPEN
+
+Simplify/strealine the flow of method StateDigraphSolveTSP.solve_full_problem,
+which has currently about 350 lines and many if/else's.
+Idea: se submethods to split top-down/bottom-up (memoization/tabulation) variants.
+The logic for each case discriminated by the if/else's goes into a submethod.
+Can also split into the path and the cycle variants.
+Maybe store variables in class attributes, or carry them as method arguments,
+as the operations and procedures demand.
+
+# ISSUE #0016 OPEN
+
+Consider renaming top-down/bottom-up to memoization/tabulation in
+solve_full_problem and solve_subproblem from class StateDigraphSolveTSP.
