@@ -3,7 +3,7 @@ Use this file to list and control issues/features/to-dos
 (At this moment, this repository is mirrored on GitHub, which has its own project management tools.
 At this moment, we prefer to use a ISSUES file.)
 
-Possible values for status: OPEN, COMPLETED, IGNORED
+Possible values for status: OPEN, COMPLETED, IGNORED, ONGOING
 
 # ISSUE #0001 COMPLETED
 
@@ -23,7 +23,7 @@ others (the auxiliary classes created to help with specific, complex digraph alg
 
 Should be done after #0004
 
-# ISSUE #0004 OPEN
+# ISSUE #0004 COMPLETED
 
 Move classes Edge, Arrow, Vertex outside Digraph, refactor to accomodate changes
 
