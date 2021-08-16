@@ -21,6 +21,14 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
+# External imports
+########################################################################
+
+from collections import namedtuple as collections_namedtuple
+from itertools import zip_longest as itertools_zip_longest
+from itertools import chain as itertools_chain
+
+########################################################################
 # Vertex, Arrow and Edge namedtuples
 ########################################################################
 

@@ -21,6 +21,28 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
+# External imports
+########################################################################
+
+
+
+
+
+
+
+# Since cache from functools was introduced in Python version >= 3.9,
+#we check for it. If not new enough, we go with lru_cache(maxsize = None)
+#and bind the decorator to the name functools_cache
+# Alternative is try/except, but comparing versions is also ok
+from sys import version_info as sys_version_info
+if sys_version_info >= (3, 9):
+  from functools import cache as functools_cache
+else:
+  from functools import lru_cache as functools_lru_cache
+  functools_cache = functools_lru_cache(maxsize=None)
+  # In code always call it through functools_cache
+
+########################################################################
 # Internal imports of subpackages/submodules
 ########################################################################
 

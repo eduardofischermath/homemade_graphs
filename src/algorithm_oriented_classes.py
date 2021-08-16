@@ -21,6 +21,14 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
+# External imports
+########################################################################
+
+from itertools import combinations as itertools_combinations
+from math import inf as math_inf
+
+
+########################################################################
 # Class StateDigraphGetCC
 ########################################################################
 

@@ -21,41 +21,12 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
-# External imports
-########################################################################
-
-from collections import namedtuple as collections_namedtuple
-from itertools import zip_longest as itertools_zip_longest
-from itertools import chain as itertools_chain
-from itertools import product as itertools_product
-from copy import copy as copy_copy
-from random import choices as random_choices
-from math import log2 as math_log2
-from math import inf as math_inf
-from heapq import heapify as heapq_heapify
-from heapq import heappush as heapq_heappush
-from heapq import heappop as heapq_heappop
-# Since cache from functools was introduced in Python version >= 3.9,
-#we check for it. If not new enough, we go with lru_cache(maxsize = None)
-#and bind the decorator to the name functools_cache
-# Alternative is try/except, but comparing versions is also ok
-from sys import version_info as sys_version_info
-if sys_version_info >= (3, 9):
-  from functools import cache as functools_cache
-else:
-  from functools import lru_cache as functools_lru_cache
-  functools_cache = functools_lru_cache(maxsize=None)
-  # In code always call it through functools_cache
-
-########################################################################
 # Internal imports of subpackages/submodules
 ########################################################################
 
-# __init__ of package homemade_graphs
-# Brings all the code in the package into scope
+# Brings all the source code in the package into scope
 
 from .src import *
-#from tests import *
 
 print('Testing')
 try:

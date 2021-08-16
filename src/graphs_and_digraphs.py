@@ -21,6 +21,18 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
+# External imports
+########################################################################
+
+from copy import copy as copy_copy
+from heapq import heapify as heapq_heapify
+from heapq import heappop as heapq_heappop
+from heapq import heappush as heapq_heappush
+from math import inf as math_inf
+from math import log2 as math_log2
+from random import choices as random_choices
+
+########################################################################
 # Declaration of Digraph class and initialization
 ########################################################################
 
