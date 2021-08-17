@@ -115,7 +115,21 @@ Work on method to get vertex covers: get_vertex_cover_with_limited_size
 
 ## ISSUE #0020 OPEN
 
-Work on hypohamiltonian graphs: where the graph is not hamiltonian but
-the remotion of any vertex makes the resulting graph hamiltonian.
+Work on hypohamiltonian (di)graphs: where the (di)graph is not hamiltonian but
+the remotion of any vertex makes the resulting (di)graph hamiltonian.
 
 Should be done after #0011
+
+## ISSUE #0021 OPEN
+
+Define equality of (di)graphs. To be equal, digraphs must have vertices of same
+names and the same arrows/edges (including their weight) between them.
+
+## ISSUE #0022 OPEN
+
+Design way to verify two (di)graphs are isomorphic.
+
+## ISSUE #0023 OPEN
+
+Design good ways to print a (di)graph. The solution can be a textual or a
+visual representations.
