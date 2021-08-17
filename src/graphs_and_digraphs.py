@@ -2175,7 +2175,7 @@ class Graph(Digraph):
     If removed the variable k and tried to find the smallest vertex cover,
     then we would have an NP-complete problem.
     '''
-    pass
+    raise NotImplementedError('WORK HERE')
 
 ########################################################################
 # Class WeightedGraph

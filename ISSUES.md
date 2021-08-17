@@ -13,7 +13,7 @@ Define good way to versioning (and integrate paradigm to Git branching)
 
 Create test suite, integrate to code development and production
 
-# ISSUE #0003 ONGOING
+# ISSUE #0003 COMPLETED
 
 Split classes (currently in single file) into 4 modules:
 namedtuples (Edge/Arrow/Vertex)
@@ -90,3 +90,17 @@ as the operations and procedures demand.
 
 Consider renaming top-down/bottom-up to memoization/tabulation in
 solve_full_problem and solve_subproblem from class StateDigraphSolveTSP.
+
+# ISSUE #0017 OPEN
+
+In a certain way, redo Issue 0003 to make it better and make the imports work.
+
+# ISSUE #0018
+
+Work on methods in Graph/Digraph connected to TSP problem.
+(Right now most of the work is in the class StateDigraphSolveTSP
+but that work needs to be "redirected" the right way.)
+
+# ISSUE #0019
+
+Work on method to get vertex covers: get_vertex_cover_with_limited_size
