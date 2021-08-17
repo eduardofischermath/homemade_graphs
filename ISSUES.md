@@ -3,9 +3,9 @@ Use this file to list and control issues/features/to-dos
 (At this moment, this repository is mirrored on GitHub, which has its own project management tools.
 At this moment, we prefer to use a ISSUES file.)
 
-Possible values for status: OPEN, COMPLETED, IGNORED, ONGOING
+Possible values for status: OPEN, COMPLETE, IGNORED, ONGOING
 
-# ISSUE #0001 COMPLETED
+# ISSUE #0001 COMPLETE
 
 Define good way to versioning (and integrate paradigm to Git branching)
 
@@ -13,7 +13,7 @@ Define good way to versioning (and integrate paradigm to Git branching)
 
 Create test suite, integrate to code development and production
 
-# ISSUE #0003 COMPLETED
+# ISSUE #0003 COMPLETE
 
 Split classes (currently in single file) into 4 modules:
 namedtuples (Edge/Arrow/Vertex)
@@ -23,7 +23,7 @@ others (the auxiliary classes created to help with specific, complex digraph alg
 
 Should be done after #0004
 
-# ISSUE #0004 COMPLETED
+# ISSUE #0004 COMPLETE
 
 Move classes Edge, Arrow, Vertex outside Digraph, refactor to accomodate changes
 
@@ -91,16 +91,21 @@ as the operations and procedures demand.
 Consider renaming top-down/bottom-up to memoization/tabulation in
 solve_full_problem and solve_subproblem from class StateDigraphSolveTSP.
 
-# ISSUE #0017 OPEN
+# ISSUE #0017 COMPLETE
 
 In a certain way, redo Issue 0003 to make it better and make the imports work.
+The intention is: to have each class to be referred to its name in its native module.
+For example, when calling/referring/using/creating a Vertex, use Vertex
+instead of src.vertices_arrows_and_edges.Vertex or anything like that.
+(Or being happily able to use homemade_graphs.Vertex, if using 
+"import homemade_graphs" instead of "from homemade_graphs import *".)
 
-# ISSUE #0018
+# ISSUE #0018 OPEN
 
 Work on methods in Graph/Digraph connected to TSP problem.
 (Right now most of the work is in the class StateDigraphSolveTSP
 but that work needs to be "redirected" the right way.)
 
-# ISSUE #0019
+# ISSUE #0019 OPEN
 
 Work on method to get vertex covers: get_vertex_cover_with_limited_size

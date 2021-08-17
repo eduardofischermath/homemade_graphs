@@ -28,28 +28,6 @@
 
 from .src import *
 
-print('Testing')
-try:
-  print(Vertex(name = 'lalala'))
-  print('first')
-except:
-  try:
-    print(src.Vertex(name = 'lalala'))
-    print('second')
-  except:
-    try:
-      print(vertices_arrows_and_edges.Vertex(name = 'lalala'))
-      print('third')
-    except:
-      try:
-        print(src.vertices_arrows_and_edges.Vertex(name = 'lalala'))
-        print('fourth')
-      except:
-        try:
-          print(src.vertices_arrows_and_edges.Vertex(name = 'lalala'))
-          print('fifth')
-        except:
-          print('Nothing works')
-        
-print(dir())
+########################################################################
+
 
