@@ -13,7 +13,7 @@ Define good way to versioning (and integrate paradigm to Git branching)
 
 Create test suite, integrate to code development and production
 
-# ISSUE #0003 OPEN
+# ISSUE #0003 ONGOING
 
 Split classes (currently in single file) into 4 modules:
 namedtuples (Edge/Arrow/Vertex)
