@@ -184,7 +184,7 @@ class VertexPath(object):
     
   def __str__(self):
     '''
-    Magic method. Returns user-friendly representation for instance.
+    Magic method. Returns user-friendly representation of instance.
     '''
     # Note we don't mention the graph the instance comes from
     if isinstance(self, VertexCycle):

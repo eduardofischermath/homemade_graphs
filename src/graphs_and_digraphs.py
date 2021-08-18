@@ -177,7 +177,7 @@ class Digraph(object):
       # That is, we may or may not add the edges, depending on flags
       add_as_edges = is_initiating_graph
       self._add_vertices(init_vertices, require_vertex_not_in = True,
-          require_namedtuple = False, skip_checks = False)
+          require_namedtuple = False)
       self._add_edges(init_edges, require_vertices_in = require_vertices_in,
           add_as_edges = add_as_edges, add_as_arrows = True, skip_checks = False)
     elif 'as_dict' in data_type.lower() or 'as_list' in data_type.lower():
@@ -223,7 +223,6 @@ class Digraph(object):
       else:
         raise ValueError('Option not recognized')
     else:
-      raise ValueError('Option not recognized')
       # Now we have either: vertices and edges, or vertices and arrows
       # Either way, we will add those to the digraph
       # (Note that even if they aren't namedtuple Arrows, Edges and Vertex,
@@ -231,6 +230,10 @@ class Digraph(object):
       # That is, the info will be sanitized when added
       # The weights will also be sorted (that is, if None is given as weight or
       #if they are omitted altogether, the method still does the right thing)
+      ################
+      # WORK HERE
+      # And below, double check the work
+      ################
       self._add_vertices(vertices)
       # Note that we have either only init_arrows or only init_edges available
       # Note that if we are given edges and Graph is not on __mro__
@@ -434,27 +437,40 @@ class Digraph(object):
           require_namedtuple = require_namedtuple)
 
 ########################################################################
-# Methods which represent the graph as a string
+# Methods representing the digraph as a string
 ########################################################################
 
   def __repr__(self):
     '''
-    Returns representation of self.
+    Magic method. Returns faithful representation of instance.
     '''
-    # We take the last part of the class name using split() string method
-    # We do this for proper subclassing. Note that Graph instances
-    #have their own __repr__ method which has priority over Digraph.__repr__
-    class_last_name = self.__class__.__name__.split()[-1]
-    about_instance = 'A {} with {} vertices and {} arrows.'.format(
-        class_last_name, self.get_number_of_vertices(), self.get_number_of_arrows())
-    return about_instance
+    raise NotImplementedError('WORK HERE')
     
   def __str__(self):
     '''
-    Returns representation of self.
+    Magic method. Returns user-friendly representation of instance.
     '''
-    raise NotImplementedError('Implement in the future.')
-    pass
+    # In the future, this might become a more comprehensive description,
+    #with more details, or even a visual representation.
+    # Right now, we get it from provide_short_summary
+    return self.provide_short_summary()
+    
+  def provide_short_summary(self):
+    '''
+    Returns a string summarizing the most basic information about the instance.
+    
+    For a Graph, provides number of vertices and number of edges;
+    otherwise, provides number of vertices and number of arrows.
+    '''
+    if isinstance(self, Graph):
+      object_in_one_word = 'graph'
+      relevant_components = '{} edges'.format(self.get_number_of_edges())
+    else:
+      object_in_one_word = 'digraph'
+      relevant_components = '{} arrows'.format(self.get_number_of_arrows())
+    about_instance = 'A {} with {} vertices and {}.'.format(
+        object_in_one_word, self.get_number_of_vertices(), relevant_components)
+    return about_instance
 
 ########################################################################
 # Methods to compare digraphs
@@ -2024,22 +2040,6 @@ class Graph(Digraph):
   
   Edges might or not be weighted, depending on subclassing.
   '''
-
-  def __repr__(self):
-    '''
-    Magic method. Returns faithful representation of self.
-    '''
-    # We take the last part of the class name using split() string method
-    class_last_name = self.__class__.__name__.split()[-1]
-    about_instance = 'A {} with {} vertices and {} edges.'.format(
-        class_last_name, self.get_number_of_vertices(), self.get_number_of_edges())
-    return about_instance
-    
-  def __str__(self):
-    '''
-    Magic method. Returns representation of self.
-    '''
-    pass
     
   def get_edges(self):
     '''
