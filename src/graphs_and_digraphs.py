@@ -434,7 +434,7 @@ class Digraph(object):
           require_namedtuple = require_namedtuple)
 
 ########################################################################
-# Methods which read simple information from the graph
+# Methods which represent the graph as a string
 ########################################################################
 
   def __repr__(self):
@@ -448,13 +448,49 @@ class Digraph(object):
     about_instance = 'A {} with {} vertices and {} arrows.'.format(
         class_last_name, self.get_number_of_vertices(), self.get_number_of_arrows())
     return about_instance
-
-  def provide_long_representation(self):
+    
+  def __str__(self):
     '''
-    All information about the graph in a string.
+    Returns representation of self.
     '''
     raise NotImplementedError('Implement in the future.')
     pass
+
+########################################################################
+# Methods to compare digraphs
+########################################################################
+
+  def provide_unique_representation(self):
+    '''
+    All information about the digraph.
+    '''
+    # Provides a tuple with the class, the set of vertices and the set of arrows.
+    # Idea is that two digraphs with same output are the same for all purposes.
+    # There could be shortcuts to make this faster. We opt for clarity
+    instance_class = type(self)
+    vertices = set(self.get_vertices())
+    arrows = set(self.get_vertices())
+    return (instance_class, vertices, arrows)
+    
+  def __eq__(self, other, *, require_equal_classes = False):
+    '''
+    Magic method. Returns whether two instances are the same object.
+    
+    Has an option (default False) to require the subclassing to coincide.
+    '''
+    # To reduce the number of calls (in particular avoiding forming sets
+    if require_equal_classes:
+      if type(self) != type(other):
+        return False
+    try:
+      return self.unique_representation() == other.unique_representation()
+    except AttributeError:
+      # AttributeError: other not a Digraph (most likely)
+      return False
+
+########################################################################
+# Methods which read simple information from the graph
+########################################################################
 
   def __contains__(self, vertex):
     '''
@@ -1991,13 +2027,19 @@ class Graph(Digraph):
 
   def __repr__(self):
     '''
-    Returns representation of self.
+    Magic method. Returns faithful representation of self.
     '''
     # We take the last part of the class name using split() string method
     class_last_name = self.__class__.__name__.split()[-1]
     about_instance = 'A {} with {} vertices and {} edges.'.format(
         class_last_name, self.get_number_of_vertices(), self.get_number_of_edges())
     return about_instance
+    
+  def __str__(self):
+    '''
+    Magic method. Returns representation of self.
+    '''
+    pass
     
   def get_edges(self):
     '''
