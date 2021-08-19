@@ -108,6 +108,9 @@ class Digraph(object):
         self.__class__ = cast_as_class
       except:
         raise ValueError('Cannot cast as requested class.')
+    else:
+      # If cast_as_class == None we don't interfere with the initialization
+      pass
     # Depending on the subclass calling this, it expects a few different things
     # Note that WeightedGraph, for example, inherits from Graph and WeightedDigraph
     # We can test using isinstance()
@@ -446,9 +449,13 @@ class Digraph(object):
     '''
     Magic method. Returns faithful representation of instance.
     '''
-    # Could alternatively use provide_unique_presentation to generate info
-    # We believe using arrow_out_as_dict as we do, should be better
-    raise NotImplementedError('WORK HERE')
+    # We believe using arrow_out_as_dict is the best way
+    # (Could alternatively use provide_unique_presentation to generate info)
+    instance_class = repr(type(self))
+    data = repr(self.get_arrows_out())
+    data_type = 'arrows_out_as_dict'
+    return '{}(data = {}, data_type = {}, cast_as_class = None)'.format(
+        instance_class, data, data_type)
     
   def __str__(self):
     '''
@@ -472,9 +479,8 @@ class Digraph(object):
     else:
       object_in_one_word = 'digraph'
       relevant_components = '{} arrows'.format(self.get_number_of_arrows())
-    about_instance = 'A {} with {} vertices and {}.'.format(
+    return 'A {} with {} vertices and {}.'.format(
         object_in_one_word, self.get_number_of_vertices(), relevant_components)
-    return about_instance
 
 ########################################################################
 # Methods to compare digraphs

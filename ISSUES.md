@@ -46,12 +46,12 @@ Eliminate bugs on method get_all_paths_shortest_paths_via_Floyd_Warshals
 
 Eliminate bugs on method get_single_source_shortest_paths_via_Bellman_Fords
 
-# ISSUE #0009 COMPLETE
+## ISSUE #0009 COMPLETE
 
 Implement methods get_hamiltonian_path()/solve_traveling_salesman_problem()
 Also means sorting out the methods in class StateDigraphSolveTSP
 
-# ISSUE #0010 OPEN
+## ISSUE #0010 OPEN
 
 Implement methods to merge vertices into a single vertex (collapse vertex)
 This is useful for certain algorithms
@@ -120,8 +120,7 @@ the remotion of any vertex makes the resulting (di)graph hamiltonian.
 
 Should be done after #0011
 
-## ISSUE #0021 OPEN
-
+## ISSUE #0021 COMPLETE
 Define equality of (di)graphs. To be equal, digraphs must have vertices of same
 names and the same arrows/edges (including their weight) between them.
 
