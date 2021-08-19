@@ -24,6 +24,7 @@
 # External imports
 ########################################################################
 
+from collections import Counter as collections_Counter
 from copy import copy as copy_copy
 from heapq import heapify as heapq_heapify
 from heapq import heappop as heapq_heappop
@@ -60,7 +61,8 @@ class Digraph(object):
     
     'all_arrows': self explanatory, a list [or other iterable] of arrows.
     Depending on their characteristics (i. e. the length of important information)
-    we will deduce weighted or unweighted
+    we will deduce weighted or unweighted. With this option it is impossible
+    to create an instance with an isolated vertex
     
     'some_vertices_and_all_arrows': similar to before but a tuple starting with
     a list [or iterable] of vertices, and then the iterable for all arrows
@@ -444,6 +446,8 @@ class Digraph(object):
     '''
     Magic method. Returns faithful representation of instance.
     '''
+    # Could alternatively use provide_unique_presentation to generate info
+    # We believe using arrow_out_as_dict as we do, should be better
     raise NotImplementedError('WORK HERE')
     
   def __str__(self):
@@ -478,14 +482,18 @@ class Digraph(object):
 
   def provide_unique_representation(self):
     '''
-    All information about the digraph.
+    Returns all information about the digraph.
+    
+    Returns a tuple with the class of the instance, with a set of its vertices
+    as well as a multi-set (Counter from built-in package collections)
+    of arrows.
     '''
-    # Provides a tuple with the class, the set of vertices and the set of arrows.
+    # We return the class/type and the information on vertices and arrows
     # Idea is that two digraphs with same output are the same for all purposes.
-    # There could be shortcuts to make this faster. We opt for clarity
+    # There could be shortcuts to make this faster. For example, We opt for clarity
     instance_class = type(self)
     vertices = set(self.get_vertices())
-    arrows = set(self.get_vertices())
+    arrows = collections_Counter(self.get_arrows())
     return (instance_class, vertices, arrows)
     
   def __eq__(self, other, *, require_equal_classes = False):
@@ -494,14 +502,22 @@ class Digraph(object):
     
     Has an option (default False) to require the subclassing to coincide.
     '''
-    # To reduce the number of calls (in particular avoiding forming sets
+    # To reduce the computing time (in particular avoiding forming sets/Counter)
+    #we first look at class, then only at vertices (typically their number
+    #is one order less than ), then finally at the whole "unique representation"
     if require_equal_classes:
       if type(self) != type(other):
         return False
     try:
-      return self.unique_representation() == other.unique_representation()
+      if set(self.get_vertices()) == set(other.get_vertices()):
+        if self.provide_unique_representation() == other.provide_unique_representation():
+          return True
+        else:
+          return False
+      else:
+        return False
     except AttributeError:
-      # AttributeError: other not a Digraph (most likely)
+      # AttributeError: most likely other instance not a Digraph
       return False
 
 ########################################################################

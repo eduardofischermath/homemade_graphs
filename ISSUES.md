@@ -5,7 +5,7 @@ Use this file to list and control issues/features/to-dos
 (At this moment, this repository is mirrored on GitHub, which has its own project management tools.
 At this moment, we prefer to use a ISSUES file.)
 
-Possible values for status: OPEN, COMPLETE, IGNORED, ONGOING
+Possible values for status: OPEN, COMPLETE, IGNORED, ONGOING.
 
 ## ISSUE #0001 COMPLETE
 
@@ -133,3 +133,8 @@ Design way to verify two (di)graphs are isomorphic.
 
 Design good ways to print a (di)graph. The solution can be a textual or a
 visual representations.
+
+## ISSUE #0024 OPEN
+
+Verify that initiation in Digraph works correctly when having data_type
+being "all_vertices_and_all_arrows" and variations
