@@ -1,6 +1,6 @@
-######################################################################
+########################################################################
 # DOCUMENTATION / README
-######################################################################
+########################################################################
 
 # File belonging to package "homemade_graphs"
 # Implements classes and algorithms related to graphs and digraphs.
@@ -21,18 +21,20 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
-# Internal imports of subpackages/submodules
+# External imports
 ########################################################################
 
-# Brings all the source code in the package into scope
-from .src import *
+# File to run all possible tests at once
+# Possibility: use "python -m unittest discover" on the folder/subpackage
+# Possibilities:
+#i) trigger it during import,
+#ii) trigger only on execution as script,
+#iii) define run_all_tests to be run only at the user's discretion
 
-# Bring the test suites into scope only if a special global variable exists
-#and is set to True
-if 'IS_TESTING_ENVIRONMENT' in globals():
-  if IS_TESTING_ENVIRONMENT:
-    from .tests import *
+def run_all_tests():
+  '''
+  Run all tests.
+  '''
+  pass
 
 ########################################################################
-
-

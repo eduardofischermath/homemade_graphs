@@ -1,6 +1,6 @@
-######################################################################
+########################################################################
 # DOCUMENTATION / README
-######################################################################
+########################################################################
 
 # File belonging to package "homemade_graphs"
 # Implements classes and algorithms related to graphs and digraphs.
@@ -21,18 +21,19 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
+# External imports
+########################################################################
+
+
+
+########################################################################
 # Internal imports of subpackages/submodules
 ########################################################################
 
-# Brings all the source code in the package into scope
-from .src import *
+# Bring all files to current scope
 
-# Bring the test suites into scope only if a special global variable exists
-#and is set to True
-if 'IS_TESTING_ENVIRONMENT' in globals():
-  if IS_TESTING_ENVIRONMENT:
-    from .tests import *
+from .test_digraph_initialization import *
+from .test_empty_digraph import *
+from .all_tests import *
 
 ########################################################################
-
-
