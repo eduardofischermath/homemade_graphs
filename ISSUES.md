@@ -111,7 +111,7 @@ but that work needs to be "redirected" the right way.)
 
 ## ISSUE #0019 OPEN
 
-Work on method to get vertex covers: get_vertex_cover_with_limited_size
+Work on method to get vertex covers: Digraph.get_vertex_cover_with_limited_size
 
 ## ISSUE #0020 OPEN
 
@@ -123,6 +123,7 @@ Should be done after #0011
 ## ISSUE #0021 COMPLETE
 Define equality of (di)graphs. To be equal, digraphs must have vertices of same
 names and the same arrows/edges (including their weight) between them.
+Note: always checks arrows
 
 ## ISSUE #0022 OPEN
 

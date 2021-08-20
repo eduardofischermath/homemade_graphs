@@ -451,6 +451,8 @@ class Digraph(object):
     '''
     # We believe using arrow_out_as_dict is the best way
     # (Could alternatively use provide_unique_presentation to generate info)
+    # (Note that using edges for a Graph complicated things. Better to aim
+    #for initializing always as arrows_out_as_dict in all cases)
     instance_class = repr(type(self))
     data = repr(self.get_arrows_out())
     data_type = 'arrows_out_as_dict'
