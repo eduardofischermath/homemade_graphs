@@ -11,9 +11,10 @@ Possible values for status: OPEN, COMPLETE, IGNORED, ONGOING.
 
 Define good way to versioning (and integrate paradigm to Git branching)
 
-## ISSUE #0002 OPEN
+## ISSUE #0002 ONGOING
 
 Create test suite, integrate to code development and production
+Initially using built-in package unittest.
 
 ## ISSUE #0003 COMPLETE
 
@@ -121,6 +122,7 @@ the remotion of any vertex makes the resulting (di)graph hamiltonian.
 Should be done after #0011
 
 ## ISSUE #0021 COMPLETE
+
 Define equality of (di)graphs. To be equal, digraphs must have vertices of same
 names and the same arrows/edges (including their weight) between them.
 Note: always checks arrows
