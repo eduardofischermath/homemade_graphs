@@ -1,4 +1,3 @@
-
 ########################################################################
 # DOCUMENTATION / README
 ########################################################################
@@ -33,7 +32,7 @@ from unittest import main as unittest_main
 ########################################################################
 
 # This code more or less assumes homemade_graphs package is imported
-#to the relevant context, and doesn't try to import it here
+#into the relevant context, and doesn't try to import it here
 
 ########################################################################
 # Tests
@@ -45,14 +44,8 @@ class TestDigraphInitialization(unittest_TestCase):
   different data inputs (controlled by data_type argument on __init__)
   '''
   
-  def test_initialize_empty_digraph(self):
-    '''
-    Tries to initializes the digraph with no vertices.
-    '''
-    empty_digraph = homemade_graphs.Digraph(
-        data = ([], []), data_type = 'all_vertices_and_all_arrows')
-    self.assertEqual(empty_digraph.get_number_of_vertices, 0)
-    self.assertEqual(empty_digraph.get_number_of_arrows, 0)
+  pass
+  # Initiaze many digraphs/graphs with many data-type inputs
 
 ########################################################################
 # Commands to be run on execution
