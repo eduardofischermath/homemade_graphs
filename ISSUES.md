@@ -5,7 +5,7 @@ Use this file to list and control issues/features/to-dos
 (At this moment, this repository is mirrored on GitHub, which has its own project management tools.
 At this moment, we prefer to use a ISSUES file.)
 
-Possible values for status: OPEN, COMPLETE, IGNORED, ONGOING
+Possible values for status: OPEN, COMPLETE, IGNORED, ONGOING.
 
 ## ISSUE #0001 COMPLETE
 
@@ -46,12 +46,12 @@ Eliminate bugs on method get_all_paths_shortest_paths_via_Floyd_Warshals
 
 Eliminate bugs on method get_single_source_shortest_paths_via_Bellman_Fords
 
-# ISSUE #0009 COMPLETE
+## ISSUE #0009 COMPLETE
 
 Implement methods get_hamiltonian_path()/solve_traveling_salesman_problem()
 Also means sorting out the methods in class StateDigraphSolveTSP
 
-# ISSUE #0010 OPEN
+## ISSUE #0010 OPEN
 
 Implement methods to merge vertices into a single vertex (collapse vertex)
 This is useful for certain algorithms
@@ -111,7 +111,7 @@ but that work needs to be "redirected" the right way.)
 
 ## ISSUE #0019 OPEN
 
-Work on method to get vertex covers: get_vertex_cover_with_limited_size
+Work on method to get vertex covers: Digraph.get_vertex_cover_with_limited_size
 
 ## ISSUE #0020 OPEN
 
@@ -120,10 +120,10 @@ the remotion of any vertex makes the resulting (di)graph hamiltonian.
 
 Should be done after #0011
 
-## ISSUE #0021 OPEN
-
+## ISSUE #0021 COMPLETE
 Define equality of (di)graphs. To be equal, digraphs must have vertices of same
 names and the same arrows/edges (including their weight) between them.
+Note: always checks arrows
 
 ## ISSUE #0022 OPEN
 
@@ -133,3 +133,8 @@ Design way to verify two (di)graphs are isomorphic.
 
 Design good ways to print a (di)graph. The solution can be a textual or a
 visual representations.
+
+## ISSUE #0024 OPEN
+
+Verify that initiation in Digraph works correctly when having data_type
+being "all_vertices_and_all_arrows" and variations

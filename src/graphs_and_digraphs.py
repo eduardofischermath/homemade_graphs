@@ -24,6 +24,7 @@
 # External imports
 ########################################################################
 
+from collections import Counter as collections_Counter
 from copy import copy as copy_copy
 from heapq import heapify as heapq_heapify
 from heapq import heappop as heapq_heappop
@@ -60,7 +61,8 @@ class Digraph(object):
     
     'all_arrows': self explanatory, a list [or other iterable] of arrows.
     Depending on their characteristics (i. e. the length of important information)
-    we will deduce weighted or unweighted
+    we will deduce weighted or unweighted. With this option it is impossible
+    to create an instance with an isolated vertex
     
     'some_vertices_and_all_arrows': similar to before but a tuple starting with
     a list [or iterable] of vertices, and then the iterable for all arrows
@@ -106,6 +108,9 @@ class Digraph(object):
         self.__class__ = cast_as_class
       except:
         raise ValueError('Cannot cast as requested class.')
+    else:
+      # If cast_as_class == None we don't interfere with the initialization
+      pass
     # Depending on the subclass calling this, it expects a few different things
     # Note that WeightedGraph, for example, inherits from Graph and WeightedDigraph
     # We can test using isinstance()
@@ -177,7 +182,7 @@ class Digraph(object):
       # That is, we may or may not add the edges, depending on flags
       add_as_edges = is_initiating_graph
       self._add_vertices(init_vertices, require_vertex_not_in = True,
-          require_namedtuple = False, skip_checks = False)
+          require_namedtuple = False)
       self._add_edges(init_edges, require_vertices_in = require_vertices_in,
           add_as_edges = add_as_edges, add_as_arrows = True, skip_checks = False)
     elif 'as_dict' in data_type.lower() or 'as_list' in data_type.lower():
@@ -223,7 +228,6 @@ class Digraph(object):
       else:
         raise ValueError('Option not recognized')
     else:
-      raise ValueError('Option not recognized')
       # Now we have either: vertices and edges, or vertices and arrows
       # Either way, we will add those to the digraph
       # (Note that even if they aren't namedtuple Arrows, Edges and Vertex,
@@ -231,6 +235,10 @@ class Digraph(object):
       # That is, the info will be sanitized when added
       # The weights will also be sorted (that is, if None is given as weight or
       #if they are omitted altogether, the method still does the right thing)
+      ################
+      # WORK HERE
+      # And below, double check the work
+      ################
       self._add_vertices(vertices)
       # Note that we have either only init_arrows or only init_edges available
       # Note that if we are given edges and Graph is not on __mro__
@@ -434,27 +442,95 @@ class Digraph(object):
           require_namedtuple = require_namedtuple)
 
 ########################################################################
-# Methods which read simple information from the graph
+# Methods representing the digraph as a string
 ########################################################################
 
   def __repr__(self):
     '''
-    Returns representation of self.
+    Magic method. Returns faithful representation of instance.
     '''
-    # We take the last part of the class name using split() string method
-    # We do this for proper subclassing. Note that Graph instances
-    #have their own __repr__ method which has priority over Digraph.__repr__
-    class_last_name = self.__class__.__name__.split()[-1]
-    about_instance = 'A {} with {} vertices and {} arrows.'.format(
-        class_last_name, self.get_number_of_vertices(), self.get_number_of_arrows())
-    return about_instance
+    # We believe using arrow_out_as_dict is the best way
+    # (Could alternatively use provide_unique_presentation to generate info)
+    # (Note that using edges for a Graph complicated things. Better to aim
+    #for initializing always as arrows_out_as_dict in all cases)
+    instance_class = repr(type(self))
+    data = repr(self.get_arrows_out())
+    data_type = 'arrows_out_as_dict'
+    return '{}(data = {}, data_type = {}, cast_as_class = None)'.format(
+        instance_class, data, data_type)
+    
+  def __str__(self):
+    '''
+    Magic method. Returns user-friendly representation of instance.
+    '''
+    # In the future, this might become a more comprehensive description,
+    #with more details, or even a visual representation.
+    # Right now, we get it from provide_short_summary
+    return self.provide_short_summary()
+    
+  def provide_short_summary(self):
+    '''
+    Returns a string summarizing the most basic information about the instance.
+    
+    For a Graph, provides number of vertices and number of edges;
+    otherwise, provides number of vertices and number of arrows.
+    '''
+    if isinstance(self, Graph):
+      object_in_one_word = 'graph'
+      relevant_components = '{} edges'.format(self.get_number_of_edges())
+    else:
+      object_in_one_word = 'digraph'
+      relevant_components = '{} arrows'.format(self.get_number_of_arrows())
+    return 'A {} with {} vertices and {}.'.format(
+        object_in_one_word, self.get_number_of_vertices(), relevant_components)
 
-  def provide_long_representation(self):
+########################################################################
+# Methods to compare digraphs
+########################################################################
+
+  def provide_unique_representation(self):
     '''
-    All information about the graph in a string.
+    Returns all information about the digraph.
+    
+    Returns a tuple with the class of the instance, with a set of its vertices
+    as well as a multi-set (Counter from built-in package collections)
+    of arrows.
     '''
-    raise NotImplementedError('Implement in the future.')
-    pass
+    # We return the class/type and the information on vertices and arrows
+    # Idea is that two digraphs with same output are the same for all purposes.
+    # There could be shortcuts to make this faster. For example, We opt for clarity
+    instance_class = type(self)
+    vertices = set(self.get_vertices())
+    arrows = collections_Counter(self.get_arrows())
+    return (instance_class, vertices, arrows)
+    
+  def __eq__(self, other, *, require_equal_classes = False):
+    '''
+    Magic method. Returns whether two instances are the same object.
+    
+    Has an option (default False) to require the subclassing to coincide.
+    '''
+    # To reduce the computing time (in particular avoiding forming sets/Counter)
+    #we first look at class, then only at vertices (typically their number
+    #is one order less than ), then finally at the whole "unique representation"
+    if require_equal_classes:
+      if type(self) != type(other):
+        return False
+    try:
+      if set(self.get_vertices()) == set(other.get_vertices()):
+        if self.provide_unique_representation() == other.provide_unique_representation():
+          return True
+        else:
+          return False
+      else:
+        return False
+    except AttributeError:
+      # AttributeError: most likely other instance not a Digraph
+      return False
+
+########################################################################
+# Methods which read simple information from the graph
+########################################################################
 
   def __contains__(self, vertex):
     '''
@@ -1988,16 +2064,6 @@ class Graph(Digraph):
   
   Edges might or not be weighted, depending on subclassing.
   '''
-
-  def __repr__(self):
-    '''
-    Returns representation of self.
-    '''
-    # We take the last part of the class name using split() string method
-    class_last_name = self.__class__.__name__.split()[-1]
-    about_instance = 'A {} with {} vertices and {} edges.'.format(
-        class_last_name, self.get_number_of_vertices(), self.get_number_of_edges())
-    return about_instance
     
   def get_edges(self):
     '''
