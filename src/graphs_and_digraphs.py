@@ -37,7 +37,7 @@ from random import choices as random_choices
 # Internal imports
 ########################################################################
 
-
+from ..vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 
 ########################################################################
 # Declaration of Digraph class and initialization
@@ -308,7 +308,7 @@ class Digraph(object):
     '''
     # We pass most of the formatting/checking to sanitive_vertex()
     # (That includes the detection of being a Vertex if require_namedtuple is True)
-    vertex = sanitize_vertex(vertex, require_namedtuple = require_namedtuple)
+    vertex = OperationsVAE.sanitize_vertex(vertex, require_namedtuple = require_namedtuple)
     # We determine whether the vertex is already in the graph
     if vertex in self:
       # In this case vertex is already present
@@ -341,7 +341,7 @@ class Digraph(object):
     # We verify it is a valid arrow, putting it into the right format if it makes sense
     # We don't mind if we start with a simple tuple instead of the named tuple Arrow
     # We will put it into a namedtuple Arrow, that is, a sanitized arrow
-    arrow = self.sanitize_arrow_or_edge(arrow,
+    arrow = OperationsVAE.sanitize_arrow_or_edge(arrow,
         use_edges_instead_of_arrows = False, require_namedtuple = require_namedtuple)
     # We check whether the vertices are already present
     # If require_vertices_in, we raise an error if the vertices are not
@@ -371,9 +371,9 @@ class Digraph(object):
     # If we require sanitize arrows, we do this always in this function, at once
     # We do slightly different depending on the edge formation requirement
     if also_add_formed_edges:
-      arrows, edges = sanitize_arrows_and_return_formed_edges()
+      arrows, edges = OperationsVAE.sanitize_arrows_and_return_formed_edges()
     else:
-      arrows = sanitize_arrows_or_edges(arrows, use_edges_instead_of_arrows = False,
+      arrows = OperationsVAE.sanitize_arrows_or_edges(arrows, use_edges_instead_of_arrows = False,
           require_nametuple = require_nametuple)
     # We add the arrows
     for arrow in arrows:
@@ -398,7 +398,7 @@ class Digraph(object):
     It also appears as one edge in self._edges (in Graph instance only)
     '''
     # We first put the edge into a namedtuple, if not already [sanitize it]
-    edge = sanitize_arrow_or_edge(edge, require_namedtuple = require_namedtuple)
+    edge = OperationsVAE.sanitize_arrow_or_edge(edge, require_namedtuple = require_namedtuple)
     # We check whether the vertices are already present
     if edge.first not in self:
       if require_vertices_in:
@@ -424,7 +424,7 @@ class Digraph(object):
       # We now work on the arrows: every edge also makes two arrows.
       # We call Digraph._add_arrow, skipping all checks
       # We produce two namedtuples Arrow using get_arrows_from_edge
-      two_arrows = self.get_arrows_from_edge(edge)
+      two_arrows = OperationsVAE.get_arrows_from_edge(edge)
       for arrow in two_arrows:
         # All checks done already, don't need to put any requirement
         # (Note that edges have been sanitized already.)
@@ -701,7 +701,7 @@ class Digraph(object):
     #to build, with the given arrows, a Graph [an undirected graph]
     # We use the static method get_edges_from_sanitized_arrows, which returns
     #None when the arrows cannot be used to form edges
-    new_edges = get_edges_from_sanitized_arrows(data = self,
+    new_edges = OperationsVAE.get_edges_from_sanitized_arrows(data = self,
         are_arrows_from_digraph = True, is_multiarrow_free = False)
     # We are explicit on what we're doing
     is_undirected = (new_edges is not None)
@@ -883,13 +883,13 @@ class Digraph(object):
           # Slightly differently depending on arrows or edges
           if old_und:
             # Note default weight is supposed to be 1
-            weighted_edges_or_arrows = write_weights_into_arrows_or_edges(
+            weighted_edges_or_arrows = OperationsVAE.write_weights_into_arrows_or_edges(
                 unweighted_tuples = data[1],
                 use_edges_instead_of_arrows = True,
                 new_weights = [1 for item in range(len(data[1]))],
                 require_namedtuple = True)
           else:
-            weighted_edges_or_arrows = write_weights_into_arrows_or_edges(
+            weighted_edges_or_arrows = OperationsVAE.write_weights_into_arrows_or_edges(
                 unweighted_tuples = data[1],
                 use_edges_instead_of_arrows = False,
                 new_weights = [1 for item in range(len(data[1]))],
@@ -898,12 +898,12 @@ class Digraph(object):
         elif new_unw and old_wei:
           # Possible if accept_data_loss is True, or if all have weight 1
           if old_und:
-            unweighted_edges_or_arrows = remove_weights_from_arrows_or_edges(
+            unweighted_edges_or_arrows = OperationsVAE.remove_weights_from_arrows_or_edges(
                 weighted_tuples = data[1],
                 use_edges_instead_of_arrows = True,
                 require_namedtuple = True)
           else:
-            unweighted_edges_or_arrows = remove_weights_from_arrows_or_edges(
+            unweighted_edges_or_arrows = OperationsVAE.remove_weights_from_arrows_or_edges(
                 weighted_tuples = data[1],
                 use_edges_instead_of_arrows = False,
                 require_namedtuple = True)
@@ -1096,7 +1096,7 @@ class Digraph(object):
         return copy_copy(self)
     else:
       # Easiest and cleanest way is through __init__
-      all_reversed_arrows = get_reversed_arrows(self.get_arrows(),
+      all_reversed_arrows = OperationsVAE.get_reversed_arrows(self.get_arrows(),
           require_namedtuple = True)
       data = (self.get_vertices(), all_reversed_arrows)
       data_type = 'all_vertices_and_all_arrows'
@@ -1304,7 +1304,7 @@ class WeightedDigraph(Digraph):
       use_edges_instead_of_arrows = False
       original_working_data = self.get_arrows()
     # We then create the unweighted arrows/edges
-    list_new_tuplees = remove_weight_from_arrows_or_edges(
+    list_new_tuplees = OperationsVAE.remove_weight_from_arrows_or_edges(
         tuplees = original_working_data,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         require_namedtuple = True, output_as_generator = False)
@@ -1933,7 +1933,7 @@ class UnweightedDigraph(Digraph):
       original_working_data = self.get_arrows()
     # We create the weighted arrows. Note default new weight is 1
     # Easiest way to make them all 1 is no put new_weights = None
-    list_new_tuplees = write_weights_into_arrows_or_edges(
+    list_new_tuplees = OperationsVAE.write_weights_into_arrows_or_edges(
         tuplees = original_working_data,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows, new_weights = None,
         require_namedtuple = True, output_as_generator = False)
@@ -1968,7 +1968,7 @@ class UnweightedDigraph(Digraph):
     while name_super_source in [vertex.name for vertex in self.get_vertices()]:
       name_super_source = 's'+name_super_source
       # We consolidate it into a Vertex
-      the_super_source = sanitize_vertex(name_super_source, require_namedtuple = False)
+      the_super_source = OperationsVAE.sanitize_vertex(name_super_source, require_namedtuple = False)
     # Now we create the new arrows starting from our super source
     new_arrows = []
     for vertex in self.get_vertices():

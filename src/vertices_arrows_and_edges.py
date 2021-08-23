@@ -51,8 +51,10 @@ Edge = collections_namedtuple('Edge', 'first,second,weight', defaults = (None,))
 
 # The functions are grouped in a special class (to become static methods)
 # The point: don't need to import them separately
-# (And at the same time, they are kept as namedtuples for quick operations)
-class Operations_VAE(object):
+# (And at the same time, they are kept as namedtuples for quick operations;
+#probably dataclasses cannot match their speed)
+
+class OperationsVAE(object):
   '''
   Groups all functions [static methods] on Vertex, Arrow and Edge namedtuples.
   '''
