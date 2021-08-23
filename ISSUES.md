@@ -142,7 +142,7 @@ visual representations.
 Verify that initiation in Digraph works correctly when having data_type
 being "all_vertices_and_all_arrows" and variations
 
-## ISSUE #0025 OPEN
+## ISSUE #0025 ONGOING
 
 Abandon the idea of a "flat" package (simulating a single-module package)
 and move to have relative/siblings/parents modules. Set up abbreviations

@@ -31,8 +31,7 @@ from unittest import main as unittest_main
 # Internal imports
 ########################################################################
 
-# This code more or less assumes homemade_graphs package is imported
-#into the relevant context, and doesn't try to import it here
+from homemade_graphs import graphs_and_digraphs.Digraph
 
 ########################################################################
 # Tests
@@ -49,7 +48,7 @@ class TestEmptyDigraph(unittest_TestCase):
     Initializes the empty digraph with no vertices.
     '''
     # Note this dies with the class, so there is no need for tearDownClass
-    self.empty_digraph = homemade_graphs.Digraph(
+    self.empty_digraph = Digraph(
         data = ([], []), data_type = 'all_vertices_and_all_arrows')
         
   def test_number_of_vertices(self):
