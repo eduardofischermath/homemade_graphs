@@ -27,10 +27,10 @@
 
 
 ########################################################################
-# Internal imports of subpackages/submodules
+# Internal imports
 ########################################################################
 
-# Bring all files to current scope (that is, folder becomes a subpackage)
+# Bring all functions and classes in the files into subpackage scope
 
 from .algorithm_oriented_classes import *
 from .paths_and_cycles import *

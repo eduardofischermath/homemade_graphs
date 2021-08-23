@@ -31,8 +31,7 @@ from unittest import main as unittest_main
 # Internal imports
 ########################################################################
 
-# This code more or less assumes homemade_graphs package is imported
-#into the relevant context, and doesn't try to import it here
+from homemade_graphs import *
 
 ########################################################################
 # Tests

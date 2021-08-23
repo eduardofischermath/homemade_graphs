@@ -24,15 +24,9 @@
 # Internal imports of subpackages/submodules
 ########################################################################
 
-# Brings all the source code in the package into scope
+# Brings all the source code [a subpackage] into package scope
 from .src import *
 
-# Bring the test suites into scope only if a special global variable exists
-#and is set to True
-if 'IS_TESTING_ENVIRONMENT' in globals():
-  if IS_TESTING_ENVIRONMENT:
-    from .tests import *
+# We do not import the test cases/suites into package scope
 
 ########################################################################
-
-

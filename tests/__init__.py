@@ -27,10 +27,10 @@
 
 
 ########################################################################
-# Internal imports of subpackages/submodules
+# Internal imports
 ########################################################################
 
-# Bring all files to current scope
+# Bring all functions and classes in the files into subpackage scope
 
 from .test_digraph_initialization import *
 from .test_empty_digraph import *

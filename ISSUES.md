@@ -63,10 +63,11 @@ Should be done after #0011
 
 Implement methods to delete arrows/edges/vertices of graph/digraph
 
-## ISSUE #0012 OPEN
+## ISSUE #0012 ONGOING
 
 Build a Python package out of the code
 (using __init__.py files, ideally with good import statements, optionally also folders)
+(Probably needs a setup.py file too)
 
 ## ISSUE #0013 OPEN
 
@@ -140,3 +141,11 @@ visual representations.
 
 Verify that initiation in Digraph works correctly when having data_type
 being "all_vertices_and_all_arrows" and variations
+
+## ISSUE #0025 OPEN
+
+Abandon the idea of a "flat" package (simulating a single-module package)
+and move to have relative/siblings/parents modules. Set up abbreviations
+in siblings to allow for successful call without blotting up the code.
+
+

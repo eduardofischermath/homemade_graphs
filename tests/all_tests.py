@@ -24,6 +24,13 @@
 # External imports
 ########################################################################
 
+from unittest import TestLoader as unittest_TestLoader
+from unittest import TestSuite as unittest_TestSuite
+
+########################################################################
+# 
+########################################################################
+
 # File to run all possible tests at once
 # Possibility: use "python -m unittest discover" on the folder/subpackage
 # Possibilities:
@@ -35,6 +42,7 @@ def run_all_tests():
   '''
   Run all tests.
   '''
-  pass
+  # Creates a TestSuite using unittest_TestLoader.discover
+  test_suite = unittest_TestLoader.discover(start_dir = '/../')
 
 ########################################################################
