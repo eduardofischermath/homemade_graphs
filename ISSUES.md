@@ -11,9 +11,10 @@ Possible values for status: OPEN, COMPLETE, IGNORED, ONGOING.
 
 Define good way to versioning (and integrate paradigm to Git branching)
 
-## ISSUE #0002 OPEN
+## ISSUE #0002 ONGOING
 
 Create test suite, integrate to code development and production
+Initially using built-in package unittest.
 
 ## ISSUE #0003 COMPLETE
 
@@ -62,10 +63,11 @@ Should be done after #0011
 
 Implement methods to delete arrows/edges/vertices of graph/digraph
 
-## ISSUE #0012 OPEN
+## ISSUE #0012 ONGOING
 
 Build a Python package out of the code
 (using __init__.py files, ideally with good import statements, optionally also folders)
+(Probably needs a setup.py file too)
 
 ## ISSUE #0013 OPEN
 
@@ -121,6 +123,7 @@ the remotion of any vertex makes the resulting (di)graph hamiltonian.
 Should be done after #0011
 
 ## ISSUE #0021 COMPLETE
+
 Define equality of (di)graphs. To be equal, digraphs must have vertices of same
 names and the same arrows/edges (including their weight) between them.
 Note: always checks arrows
@@ -138,3 +141,11 @@ visual representations.
 
 Verify that initiation in Digraph works correctly when having data_type
 being "all_vertices_and_all_arrows" and variations
+
+## ISSUE #0025 OPEN
+
+Abandon the idea of a "flat" package (simulating a single-module package)
+and move to have relative/siblings/parents modules. Set up abbreviations
+in siblings to allow for successful call without blotting up the code.
+
+

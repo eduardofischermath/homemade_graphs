@@ -24,17 +24,25 @@
 # External imports
 ########################################################################
 
-
+from unittest import TestLoader as unittest_TestLoader
+from unittest import TestSuite as unittest_TestSuite
 
 ########################################################################
-# Internal imports
+# 
 ########################################################################
 
-# Bring all functions and classes in the files into subpackage scope
+# File to run all possible tests at once
+# Possibility: use "python -m unittest discover" on the folder/subpackage
+# Possibilities:
+#i) trigger it during import,
+#ii) trigger only on execution as script,
+#iii) define run_all_tests to be run only at the user's discretion
 
-from .algorithm_oriented_classes import *
-from .paths_and_cycles import *
-from .graphs_and_digraphs import *
-from .vertices_arrows_and_edges import *
+def run_all_tests():
+  '''
+  Run all tests.
+  '''
+  # Creates a TestSuite using unittest_TestLoader.discover
+  test_suite = unittest_TestLoader.discover(start_dir = '/../')
 
 ########################################################################

@@ -24,10 +24,9 @@
 # Internal imports of subpackages/submodules
 ########################################################################
 
-# Brings all the source code in the package into scope
-
+# Brings all the source code [a subpackage] into package scope
 from .src import *
 
+# We do not import the test cases/suites into package scope
+
 ########################################################################
-
-

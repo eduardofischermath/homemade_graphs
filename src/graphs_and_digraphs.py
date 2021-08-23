@@ -325,8 +325,8 @@ class Digraph(object):
     Adds an iterable of vertices to self.
     '''
     for vertex in vertices:
-      _add_vertex(self, vertex, require_vertex_not_in = require_vertex_not_in,
-      require_namedtuple = require_namedtuple)
+      self._add_vertex(vertex, require_vertex_not_in = require_vertex_not_in,
+          require_namedtuple = require_namedtuple)
 
   def _add_arrow(self, arrow, require_vertices_in = False, require_namedtuple = False):
     '''

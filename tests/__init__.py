@@ -32,9 +32,8 @@
 
 # Bring all functions and classes in the files into subpackage scope
 
-from .algorithm_oriented_classes import *
-from .paths_and_cycles import *
-from .graphs_and_digraphs import *
-from .vertices_arrows_and_edges import *
+from .test_digraph_initialization import *
+from .test_empty_digraph import *
+from .all_tests import *
 
 ########################################################################
