@@ -66,8 +66,7 @@ Implement methods to delete arrows/edges/vertices of graph/digraph
 ## ISSUE #0012 ONGOING
 
 Build a Python package out of the code
-(using __init__.py files, ideally with good import statements, optionally also folders)
-(Probably needs a setup.py file too)
+Currently uses a setup.py to use with pip.
 
 ## ISSUE #0013 OPEN
 

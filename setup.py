@@ -34,11 +34,14 @@ from setuptools import find_packages as setuptools_find_packages
 # Sets the package up
 setuptools_setup(
     name='homemade_graphs',
-    path='./src/'
     version='0.2.0',
     author='Eduardo Fischer',
     author_email='eduardofischermath@gmail.com',
-    packages=setuptools_find_packages(exclude=["test*"]),
+    packages=['homemade_graphs',
+        'homemade_graphs.test'],
+    package_dir={
+        'homemade_graphs': './src',
+        'homemade_graphs.tests': './tests'},
     description='Algorithms and classes related to graphs and digraphs.',
     python_requires='>=3.2.0'
 )
