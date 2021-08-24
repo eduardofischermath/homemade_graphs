@@ -24,12 +24,21 @@
 # External imports
 ########################################################################
 
-
+from setuptools import setup as setuptools_setup
+from setuptools import find_packages as setuptools_find_packages
 
 ########################################################################
-# Internal imports
+# Setup
 ########################################################################
 
-# Nothing to be done; __init__ one level above does everything
+# Sets the package up
+setuptools_setup(
+    name='homemade_graphs',
+    version='0.2.0',
+    author='Eduardo Fischer',
+    author_email='eduardofischermath@gmail.com',
+    packages=setuptools_find_packages(exclude=["test*"]),
+    description='Algorithms and classes related to graphs and digraphs.',
+)
 
 ########################################################################

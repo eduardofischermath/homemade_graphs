@@ -31,7 +31,7 @@ from unittest import main as unittest_main
 # Internal imports
 ########################################################################
 
-from homemade_graphs import *
+from homemade_graphs import Digraph
 
 ########################################################################
 # Tests
