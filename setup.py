@@ -39,6 +39,7 @@ setuptools_setup(
     author_email='eduardofischermath@gmail.com',
     packages=setuptools_find_packages(exclude=["test*"]),
     description='Algorithms and classes related to graphs and digraphs.',
+    python_requires='>=3.2.0'
 )
 
 ########################################################################
