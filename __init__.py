@@ -21,11 +21,14 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
-# Internal imports of subpackages/submodules
+# Internal imports
 ########################################################################
 
-# Brings all the source code [a subpackage] into package scope
-from .src import *
+# Brings all the source code [technically a subpackage] into package scope
+# The order is fundamental due to dependencies
+# The user needs to respect the hierarchy at every call
+from .src import vertices_arrows_and_edges, paths_and_cycles,\
+    graphs_and_digraphs, algorithm_oriented_classes
 
 # We do not import the test cases/suites into package scope
 

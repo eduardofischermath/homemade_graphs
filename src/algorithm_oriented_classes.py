@@ -28,6 +28,7 @@ from itertools import combinations as itertools_combinations
 from math import inf as math_inf
 # Since cache from functools was introduced in Python version >= 3.9,
 #we check for it. If not new enough, we go with lru_cache(maxsize = None)
+#(available from Python 3.2 and up, the minimum for the package)
 #and bind the decorator to the name functools_cache
 # Alternative is try/except, but comparing versions is also ok
 from sys import version_info as sys_version_info
@@ -42,7 +43,7 @@ else:
 # Internal imports
 ########################################################################
 
-from ..paths_and_cycles import VertexPath, VertexCycle
+from homemade_graphs.src.paths_and_cycles import VertexPath, VertexCycle
 
 ########################################################################
 # Class StateDigraphGetCC
