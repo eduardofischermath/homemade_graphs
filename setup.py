@@ -34,6 +34,7 @@ from setuptools import find_packages as setuptools_find_packages
 # Sets the package up
 setuptools_setup(
     name='homemade_graphs',
+    path='./src/'
     version='0.2.0',
     author='Eduardo Fischer',
     author_email='eduardofischermath@gmail.com',
