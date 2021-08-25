@@ -19,10 +19,10 @@ Initially using built-in package unittest.
 ## ISSUE #0003 COMPLETE
 
 Split classes (currently in single file) into 4 modules:
-namedtuples (Edge/Arrow/Vertex)
-path/cycles (VertexPath and subclasses)
-digraphs/graphs (Digraph and subclasses)
-others (the auxiliary classes created to help with specific, complex digraph algorithms)
+vertices_arrows_and_edges (Edge/Arrow/Vertex)
+path_and_cycles (VertexPath and subclasses)
+graphs_and_digraphs (Digraph and subclasses)
+algorithm_oriented_classes (the auxiliary classes created to help with specific, complex digraph algorithms)
 
 Should be done after #0004
 
@@ -154,3 +154,8 @@ in siblings to allow for successful call without blotting up the code.
 Consider using setup.cfg which is more flexible/modern than setup.py
 A .toml file also generalizes setup.py. Consult PEP 518
 
+## ISSUE #0027 OPEN
+
+Since package name is currently homemadegraphs, consider renaming things.
+One thing that should be renamed is the header of every file, which mentions
+"homemade_graphs" instead of "homemadegraphs".
