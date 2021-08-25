@@ -30,10 +30,6 @@
 # Internal imports
 ########################################################################
 
-# Bring all functions and classes in the files into subpackage scope
-
-import test_digraph_initialization
-import test_empty_digraph
-import all_tests
+from .vertices_arrows_and_edges import *
 
 ########################################################################

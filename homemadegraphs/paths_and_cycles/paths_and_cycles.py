@@ -29,6 +29,7 @@
 # Internal imports
 ########################################################################
 
+from ..vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 
 ########################################################################
 # Class VertexPath

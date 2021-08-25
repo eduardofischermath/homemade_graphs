@@ -37,7 +37,7 @@ setuptools_setup(
     version='0.2.0',
     author='Eduardo Fischer',
     author_email='eduardofischermath@gmail.com',
-    path='./src',
+    license='AGPL 3.0',
     packages= setuptools_find_packages(),
     description='Algorithms and classes related to graphs and digraphs.',
     python_requires='>=3.2.0'

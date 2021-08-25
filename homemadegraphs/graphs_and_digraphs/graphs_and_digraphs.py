@@ -37,7 +37,7 @@ from random import choices as random_choices
 # Internal imports
 ########################################################################
 
-from homemade_graphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
+from ..vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 
 ########################################################################
 # Declaration of Digraph class and initialization
