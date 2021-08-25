@@ -63,9 +63,10 @@ Should be done after #0011
 
 Implement methods to delete arrows/edges/vertices of graph/digraph
 
-## ISSUE #0012 ONGOING
+## ISSUE #0012 COMPLETE
 
 Build a Python package out of the code
+Package is named homemadegraph - it doesn't work with the underscore.
 Currently uses a setup.py to use with pip.
 
 ## ISSUE #0013 OPEN

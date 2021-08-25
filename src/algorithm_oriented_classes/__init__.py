@@ -30,10 +30,6 @@
 # Internal imports
 ########################################################################
 
-# Bring all functions and classes in the files into subpackage scope
 
-from .test_digraph_initialization import *
-from .test_empty_digraph import *
-from .all_tests import *
 
 ########################################################################
