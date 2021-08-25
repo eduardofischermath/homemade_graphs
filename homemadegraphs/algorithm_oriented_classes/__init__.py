@@ -24,23 +24,12 @@
 # External imports
 ########################################################################
 
-from setuptools import setup as setuptools_setup
-from setuptools import find_packages as setuptools_find_packages
+
 
 ########################################################################
-# Setup
+# Internal imports
 ########################################################################
 
-# Sets the package up
-setuptools_setup(
-    name='homemadegraphs',
-    version='0.2.0',
-    author='Eduardo Fischer',
-    author_email='eduardofischermath@gmail.com',
-    license='AGPL 3.0',
-    packages= setuptools_find_packages(),
-    description='Algorithms and classes related to graphs and digraphs.',
-    python_requires='>=3.2.0'
-)
+from .algorithm_oriented_classes import *
 
 ########################################################################

@@ -24,33 +24,12 @@
 # External imports
 ########################################################################
 
-from unittest import TestCase as unittest_TestCase
-from unittest import main as unittest_main
+
 
 ########################################################################
 # Internal imports
 ########################################################################
 
-from homemade_graphs import Digraph
-
-########################################################################
-# Tests
-########################################################################
-
-class TestDigraphInitialization(unittest_TestCase):
-  '''
-  Tests Digraph.__init__ by trying it on many examples, as well as using
-  different data inputs (controlled by data_type argument on __init__)
-  '''
-  
-  pass
-  # Initiaze many digraphs/graphs with many data-type inputs
-
-########################################################################
-# Commands to be run on execution
-########################################################################
-
-if __name__ == '__main__':
-  unittest_main()
+from .paths_and_cycles import *
 
 ########################################################################

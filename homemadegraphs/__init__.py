@@ -30,10 +30,18 @@
 # Internal imports
 ########################################################################
 
-# Bring all functions and classes in the files into subpackage scope
+# Brings all the source code [technically a subpackage] into package scope
+# The order is fundamental due to dependencies
+# The user needs to respect the hierarchy at every call
+from . import vertices_arrows_and_edges
+from . import paths_and_cycles
+from . import graphs_and_digraphs
+from . import algorithm_oriented_classes
 
-from .test_digraph_initialization import *
-from .test_empty_digraph import *
-from .all_tests import *
+# The tests do not belong to the package homemadegraphs natively
+# They rather form a "separate/optional" subpackage
+# We could import them simply by including "from . import tests" in this file
+#or writing "import homemadegraphs.tests" in a Python session or in a script/module
+#(after package "homemadegraphs" is installed or the current directory is right)
 
 ########################################################################

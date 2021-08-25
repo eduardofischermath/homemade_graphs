@@ -24,44 +24,16 @@
 # External imports
 ########################################################################
 
-from unittest import TestCase as unittest_TestCase
-from unittest import main as unittest_main
+
 
 ########################################################################
 # Internal imports
 ########################################################################
 
-from homemade_graphs import graphs_and_digraphs.Digraph
+# Bring all functions and classes in the files into subpackage scope
 
-########################################################################
-# Tests
-########################################################################
-
-class TestEmptyDigraph(unittest_TestCase):
-  '''
-  Tests all (di)graph methods on the empty (di)graph, ensuring the output is
-  correct (or, if non-canonically defined, that is follows the specified convention).
-  '''
-  
-  def setUpClass(self):
-    '''
-    Initializes the empty digraph with no vertices.
-    '''
-    # Note this dies with the class, so there is no need for tearDownClass
-    self.empty_digraph = Digraph(
-        data = ([], []), data_type = 'all_vertices_and_all_arrows')
-        
-  def test_number_of_vertices(self):
-    self.assertEqual(self.empty_digraph.get_number_of_vertices(), 0)
-    
-  def test_number_of_arrows(self):
-    self.assertEqual(self.empty_digraph.get_number_of_arrows(), 0)
-
-########################################################################
-# Commands to be run on execution
-########################################################################
-
-if __name__ == '__main__':
-  unittest_main()
+from . import test_digraph_initialization
+from . import test_empty_digraph
+from . import all_tests
 
 ########################################################################

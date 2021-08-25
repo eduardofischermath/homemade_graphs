@@ -43,7 +43,7 @@ else:
 # Internal imports
 ########################################################################
 
-from homemade_graphs.paths_and_cycles import VertexPath, VertexCycle
+from ..paths_and_cycles import VertexPath, VertexCycle
 
 ########################################################################
 # Class StateDigraphGetCC

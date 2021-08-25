@@ -63,10 +63,12 @@ Should be done after #0011
 
 Implement methods to delete arrows/edges/vertices of graph/digraph
 
-## ISSUE #0012 ONGOING
+## ISSUE #0012 COMPLETE
 
 Build a Python package out of the code
 Currently uses a setup.py to use with pip.
+The package is named homemadegraph - pip doesn't work well with underscores
+The project is currently called homemade_graphs
 
 ## ISSUE #0013 OPEN
 
@@ -147,4 +149,8 @@ Abandon the idea of a "flat" package (simulating a single-module package)
 and move to have relative/siblings/parents modules. Set up abbreviations
 in siblings to allow for successful call without blotting up the code.
 
+## ISSUE #0026 OPEN
+
+Consider using setup.cfg which is more flexible/modern than setup.py
+A .toml file also generalizes setup.py. Consult PEP 518
 

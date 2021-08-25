@@ -24,19 +24,33 @@
 # External imports
 ########################################################################
 
-
+from unittest import TestCase as unittest_TestCase
+from unittest import main as unittest_main
 
 ########################################################################
 # Internal imports
 ########################################################################
 
-# Brings all the source code [technically a subpackage] into package scope
-# The order is fundamental due to dependencies
-# The user needs to respect the hierarchy at every call
-from . import vertices_arrows_and_edges, paths_and_cycles,
-    graphs_and_digraphs, algorithm_oriented_classes
+from ..graphs_and_digraphs import Digraph
 
-# The tests do not belong to the package homemade_graph.
-# (Reason: maintaineer doesn't know how to do it correctly.)
+########################################################################
+# Tests
+########################################################################
+
+class TestDigraphInitialization(unittest_TestCase):
+  '''
+  Tests Digraph.__init__ by trying it on many examples, as well as using
+  different data inputs (controlled by data_type argument on __init__)
+  '''
+  
+  pass
+  # Initiaze many digraphs/graphs with many data-type inputs
+
+########################################################################
+# Commands to be run on execution
+########################################################################
+
+if __name__ == '__main__':
+  unittest_main()
 
 ########################################################################
