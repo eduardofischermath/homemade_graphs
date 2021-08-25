@@ -31,7 +31,7 @@ from unittest import main as unittest_main
 # Internal imports
 ########################################################################
 
-from ..graphs_and_digraphs import Digraph
+from homemadegraphs.graphs_and_digraphs import Digraph
 
 ########################################################################
 # Tests
@@ -43,7 +43,8 @@ class TestEmptyDigraph(unittest_TestCase):
   correct (or, if non-canonically defined, that is follows the specified convention).
   '''
   
-  def setUpClass(self):
+  @classmethod
+  def setUpClass(cls):
     '''
     Initializes the empty digraph with no vertices.
     '''
