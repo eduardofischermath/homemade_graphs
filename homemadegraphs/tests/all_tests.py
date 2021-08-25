@@ -25,7 +25,7 @@
 ########################################################################
 
 from unittest import TestLoader as unittest_TestLoader
-from unittest import TestSuite as unittest_TestSuite
+from unittest import TextTestRunner as unittest_TextTestRunner
 
 ########################################################################
 # 
@@ -38,11 +38,25 @@ from unittest import TestSuite as unittest_TestSuite
 #ii) trigger only on execution as script,
 #iii) define run_all_tests to be run only at the user's discretion
 
-def run_all_tests():
+def discover_and_run_all_tests(start_dir = '.', pattern = 'test*.py'):
   '''
-  Run all tests.
+  Discover and runs all tests.
   '''
   # Creates a TestSuite using unittest_TestLoader.discover
-  test_suite = unittest_TestLoader.discover(start_dir = '/../')
+  # The tests don't need to be imported: unittest_TestLoader.discover does it
+  # The needed code from homemadegraphs is imported on the tests themselves
+  loader = unittest_TestLoader()
+  test_suite = loader.discover(start_dir = start_dir, pattern = pattern)
+  # Use the "standard" runner:
+  runner = unittest_TextTestRunner()
+  result = runner.run(test_suite)
+  return result
+  
+########################################################################
+# Executable
+########################################################################
+
+if __name__ == '__main__':
+  discover_and_run_all_tests()
 
 ########################################################################
