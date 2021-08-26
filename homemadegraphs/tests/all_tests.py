@@ -34,13 +34,20 @@ from unittest import TextTestRunner as unittest_TextTestRunner
 # File to run all possible tests at once
 # Possibility: use "python -m unittest discover" on the folder/subpackage
 # Possibilities:
-#i) trigger it during import,
-#ii) trigger only on execution as script,
-#iii) define run_all_tests to be run only at the user's discretion
+# i) trigger it during import,
+# ii) trigger only on execution as script,
+# iii) define run_all_tests to be run only at the user's discretion
+# iv) write a load_tests function on __init__ of subpackage tests
+#(it would take priority within unittest.TestLoader.discover())
 
-def discover_and_run_all_tests(start_dir = '.', pattern = 'test*.py'):
+def discover_and_run_all_tests(start_dir = './tests', pattern = 'test*.py', top_level_dir = '.'):
   '''
   Discover and runs all tests.
+  
+  Ideally, must be run at the main/top folder of the project. Default values are:
+  start_dir = './tests'
+  pattern = 'test*.py'
+  top_level_dir = '.'
   '''
   # Creates a TestSuite using unittest_TestLoader.discover
   # The tests don't need to be imported: unittest_TestLoader.discover does it
@@ -57,6 +64,8 @@ def discover_and_run_all_tests(start_dir = '.', pattern = 'test*.py'):
 ########################################################################
 
 if __name__ == '__main__':
-  discover_and_run_all_tests()
+  # Should be run at the main/top folder of the project
+  result = discover_and_run_all_tests()
+  print(result)
 
 ########################################################################
