@@ -169,7 +169,7 @@ class Digraph(object):
       # This work is handled by _add_arrows with an extra option
       also_add_formed_edges = is_initiating_graph
       self._add_vertices(init_vertices, require_vertex_not_in = True,
-          require_namedtuple = False, skip_checks = False)
+          require_namedtuple = False)
       self._add_arrows(init_arrows, require_vertices_in = require_vertices_in,
           also_add_formed_edges = also_add_formed_edges, skip_checks = False)
     elif 'all_edges' in data_type.lower():
@@ -241,11 +241,7 @@ class Digraph(object):
       # That is, the info will be sanitized when added
       # The weights will also be sorted (that is, if None is given as weight or
       #if they are omitted altogether, the method still does the right thing)
-      ################
-      # WORK HERE
-      # And below, double check the work
-      ################
-      self._add_vertices(vertices)
+      self._add_vertices(vertices, )
       # Note that we have either only init_arrows or only init_edges available
       # Note that if we are given edges and Graph is not on __mro__
       #(Method Resolution Order) then it won't work because the methods
