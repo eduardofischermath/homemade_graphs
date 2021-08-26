@@ -13,7 +13,7 @@ Define good way to versioning (and integrate paradigm to Git branching)
 
 ## ISSUE #0002 COMPLETE
 
-Create test suite, integrate to code development and production.
+Create test suite, aiming to integrate it into code development and production.
 Initially using built-in package unittest.
 
 ## ISSUE #0003 COMPLETE
@@ -138,7 +138,7 @@ Design way to verify two (di)graphs are isomorphic.
 Design good ways to print a (di)graph. The solution can be a textual or a
 visual representations.
 
-## ISSUE #0024 ONGOING
+## ISSUE #0024 COMPLETE
 
 Verify that initiation in Digraph works correctly when having data_type
 being "all_vertices_and_all_arrows" and variations

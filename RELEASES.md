@@ -1,6 +1,12 @@
 # RELEASES
 
-## v0.3.0
+## v0.3.0 (2021.08.26)
+
+Code now forms a package installable with PIP.
+Package name is now homemadegraphs. Project name is still homemade_graphs.
+Code now split into subpackages, submodules, with correct importing.
+One of the subpackages is for testing (although only two tests exist.)
+Little improvements in a few parts.
 
 ## v0.2.0 (2021.08.12)
 
