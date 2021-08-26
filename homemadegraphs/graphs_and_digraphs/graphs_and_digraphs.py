@@ -150,7 +150,8 @@ class Digraph(object):
     # We now do some unpacking
     # Note that even a Graph can be given by arrows, so we won't be fussy
     #in determining the type given. Rather, rely on is_initiating_graph
-    #to know how to act regarding the edges
+    #to know how to act regarding the edges (i.e. form them if and only if
+    #is_initiating_graph is True)
     if 'all_arrows' in data_type.lower():
       if data_type.lower() == 'all_arrows':
         init_vertices, init_arrows = [], data
@@ -171,7 +172,7 @@ class Digraph(object):
       self._add_vertices(init_vertices, require_vertex_not_in = True,
           require_namedtuple = False)
       self._add_arrows(init_arrows, require_vertices_in = require_vertices_in,
-          also_add_formed_edges = also_add_formed_edges, skip_checks = False)
+          also_add_formed_edges = also_add_formed_edges)
     elif 'all_edges' in data_type.lower():
       if data_type.lower() == 'all_edges':
         init_vertices, init_edges = [], data
@@ -190,7 +191,7 @@ class Digraph(object):
       self._add_vertices(init_vertices, require_vertex_not_in = True,
           require_namedtuple = False)
       self._add_edges(init_edges, require_vertices_in = require_vertices_in,
-          add_as_edges = add_as_edges, add_as_arrows = True, skip_checks = False)
+          add_as_edges = add_as_edges, add_as_arrows = True)
     elif 'as_dict' in data_type.lower() or 'as_list' in data_type.lower():
       # We need to format the information
       # First, to save time coding, we format a list (in the 'as_list' option)
@@ -216,7 +217,7 @@ class Digraph(object):
       # (Note they will go under further formatting later when being added)
       if 'arrows_out' in data_type.lower():
         # We expect the values of the dict to be lists with the arrows
-        init_arrows = get_namedtuples_from_neighbors(data_as_dict, namedtuple_choice = DigraphArrow)
+        init_arrows = get_namedtuples_from_neighbors(data_as_dict, namedtuple_choice = Arrow)
         for vertex in data_as_dict:
           init_arrows.extend(data_as_dict[vertex])
       elif 'edges' in data_type.lower():
@@ -233,19 +234,18 @@ class Digraph(object):
             output_as = 'list', namedtuple_choice = Edge)
       else:
         raise ValueError('Option not recognized')
-    else:
-      # Now we have either: vertices and edges, or vertices and arrows
+      # We return to the main trunk of the code
+      # Now we have either: init_vertices and init_edges,
+      #or init_vertices and init_arrows, and that is all data that matters
       # Either way, we will add those to the digraph
       # (Note that even if they aren't namedtuple Arrows, Edges and Vertex,
       #they will be when added to self._arrows, self._arrows_out and troupe)
       # That is, the info will be sanitized when added
       # The weights will also be sorted (that is, if None is given as weight or
       #if they are omitted altogether, the method still does the right thing)
-      self._add_vertices(vertices, )
+      self._add_vertices(init_vertices, require_vertex_not_in = require_vertex_not_in,
+          require_namedtuple = False)
       # Note that we have either only init_arrows or only init_edges available
-      # Note that if we are given edges and Graph is not on __mro__
-      #(Method Resolution Order) then it won't work because the methods
-      #involving edges are under the subclass Graph
       try:
         # First we detect the case where init_arrows may not exist
         init_arrows = init_arrows
@@ -281,7 +281,10 @@ class Digraph(object):
           # We add them as both edges and arrows or only as arrows depending on the case
           add_as_edges = is_initiating_graph
           self._add_edges(init_edges, require_vertices_in = require_vertices_in,
-              add_as_edges = add_as_edges, add_as_arrows = True, skip_checks = False)
+              add_as_edges = add_as_edges, add_as_arrows = True)
+    else:
+      # Not fitting any of the options
+      raise ValueError('Option not recognized')
 
 ########################################################################
 # Methods for adding vertices, edges, arrows, used in initialization
@@ -370,7 +373,7 @@ class Digraph(object):
       arrows, edges = OperationsVAE.sanitize_arrows_and_return_formed_edges()
     else:
       arrows = OperationsVAE.sanitize_arrows_or_edges(arrows, use_edges_instead_of_arrows = False,
-          require_nametuple = require_nametuple)
+          require_namedtuple = require_namedtuple)
     # We add the arrows
     for arrow in arrows:
       self._add_arrow(arrow, require_vertices_in = require_vertices_in,
