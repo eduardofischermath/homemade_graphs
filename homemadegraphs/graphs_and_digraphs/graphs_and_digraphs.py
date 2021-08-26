@@ -1,9 +1,13 @@
-######################################################################
+########################################################################
 # DOCUMENTATION / README
-######################################################################
+########################################################################
 
+# File belonging to package "homemade_graphs"
 # Implements classes and algorithms related to graphs and digraphs.
-# For more information, see README.md
+
+# For more information on functionality, see README.md
+# For more information on bugs and planned features, see ISSUES.md
+# For more information on the versioning, see RELEASES.md
 
 # Copyright (C) 2021 Eduardo Fischer
 
@@ -17,727 +21,26 @@
 #merchantability or fitness for a particular purpose.
 
 ########################################################################
-# Imports
+# External imports
 ########################################################################
-from collections import namedtuple as collections_namedtuple
-from itertools import zip_longest as itertools_zip_longest
-from itertools import chain as itertools_chain
+
+from collections import Counter as collections_Counter
 from copy import copy as copy_copy
-from random import choices as random_choices
-from math import log2 as math_log2
-from math import inf as math_inf
 from heapq import heapify as heapq_heapify
-from heapq import heappush as heapq_heappush
 from heapq import heappop as heapq_heappop
-# Since cache from functools was introduced in Python version >= 3.9,
-#we check for it. If not new enough, we go with lru_cache(maxsize = None)
-#and bind the decorator to the name functools_cache
-# Alternative is try/except, but comparing versions is also ok
-from sys import version_info as sys_version_info
-if sys_version_info >= (3, 9):
-  from functools import cache as functools_cache
-else:
-  from functools import lru_cache as functools_lru_cache
-  functools_cache = functools_lru_cache(maxsize=None)
-  # In code always call it through functools_cache
+from heapq import heappush as heapq_heappush
+from math import inf as math_inf
+from math import log2 as math_log2
+from random import choices as random_choices
 
 ########################################################################
-# Class VertexPath
+# Internal imports
 ########################################################################
 
-class VertexPath(object):
-  '''
-  A VertexPath in a Digraph is a sequence of arrows in the digraph such
-  that the source of any arrow [after the first] is the target of the previous.
-  
-  Accepts a single-vertex-no-arrow path and even two "degenerate" cases:
-  a single-vertex-single-arrow path, and a no-vertex-no-arrow path.
-  
-  Attributes:
-  underlying_digraph: a Digraph or subclass where the path comes from
-  vertices: list of Vertices
-  arrows: list of Arrows
-  '''
-  
-  def __init__(self, underlying_digraph, data, data_type,
-      verify_validity_on_initialization = False):
-    '''
-    Magic method. Initializes the instance.
-    '''
-    self.underlying_digraph = underlying_digraph
-    if data_type.lower() == 'vertices_and_arrows':
-      # In this case we expect data to be (vertices, arrows)
-      # For uniformization, make them lists
-      pre_vertices, pre_arrows = data
-      self.vertices = list(pre_vertices)
-      self.vertices = list(pre_arrows)
-    elif data_type.lower() == 'arrows':
-      # If data_type is 'arrows', they are pretty much what we need
-      # We expect a list, but we can do with any iterable
-      self.arrows = list(data)
-      # The vertices can be easily derived from the arrows
-      if not self.arrows:
-        self.vertices = []
-      else:
-        self.vertices = []
-        # We add the source of the first arrow, and then the targets of all arrows
-        #(including the first)
-        self.vertices.append(self.arrows[0].source)
-        for arrow in self.arrows:
-          self.vertices.append(self.arrow.target)
-    elif data_type.lower() == 'vertices':
-      # In this case the vertices are ready, and we need to get the arrows
-      # We use get_shortest_arrow_between_vertices
-      # If there are multiple (meaning the digraph is not simple), it will
-      #produce the shortest. If there are none, an exception will be raised,
-      #because in this case it is not a real path
-      self.vertices = list(data)
-      if not self.vertices:
-        self.arrows = []
-      else:
-        self.arrows = []
-        for idx in range(len(self.vertices) - 1):
-          # Form the arrows the only possible way
-          # There will be one fewer arrows than vertices
-          self.arrows.append(self.underlying_digraph.get_shortest_arrow_between_vertices(
-              source = self.vertices[idx], target = self.vertices[idx+1],
-              skip_checks = False))
-    else:
-      raise ValueError('Option not recognized')
-    if verify_validity_on_initialization:
-      self.verify_validity()
-    else:
-      pass
-
-  def __bool__(self):
-    '''
-    Magic method. Returns the boolean value of self.
-    '''
-    # Our convention: true if there is at least one vertex
-    # False only if it's the path with no vertices
-    return bool(self.vertices)
-    
-  def __len__(self):
-    '''
-    Magic method. Returns the size of self.
-    '''
-    # Convention: size/length is the number of arrows
-    # Note empty path and one-vertex path both have length 0, but the
-    #former has bool False and the second bool True
-    return self.get_number_of_arrows()
-    
-  def get_number_of_arrows(self):
-    '''
-    Returns number of arrows.
-    '''
-    return len(self.arrows)
-    
-  def get_number_of_vertices_as_path(self):
-    '''
-    Returns number of vertices of self as a path.
-    
-    [Note that, with exception of the degenerate cases, a path/cycle will
-    have one more vertex as a path than it has arrows.]
-    '''
-    return len(self.vertices)
-    
-  def get_number_of_vertices_as_cycle(self):
-    '''
-    Returns number of vertices of self as a cycle.
-    
-    Requires instance to be a cycle. In this case, we return the number of arrows.
-    '''
-    assert self.is_cycle(), 'Need to be a cycle'
-    return self.get_number_of_arrows()
-    
-  def is_degenerate(self):
-    '''
-    Returns whether path is degenerate.
-    
-    A path is degenerate if and only if either condition happens:
-    Type-I: it has zero vertices [and thus no arrows]
-    Type-II: it has a self-arrow and self.vertices has a single vertex
-    
-    [In both cases, the degenerate paths are cycles.]
-    
-    [A path with a single vertex and no arrows is not degenerate, nor is
-    a cycle with one arrow if self.vertices has two equal elements.]
-    '''
-    if self.is_degenerate_type_i():
-      return True
-    elif self.is_degenerate_type_ii():
-      return True
-    else:
-      # In this case we should even have that self.vertices is one element
-      #longer than self.arrows, independently of being a cycle or not
-      return False
-      
-  def is_degenerate_type_i(self):
-    '''
-    Returns whether path is degenerate Type-I: it has no vertices.
-    '''
-    if self.get_number_of_vertices_as_path() == 0:
-      return True
-    else:
-      return False
-  
-  def is_degenerate_type_ii(self):
-    '''
-    Returns whether path is degenerate Type-II: has one vertex and one self-arrow.
-    '''
-    if self.get_number_of_vertices_as_path() == 1 and self.get_number_of_arrows() == 1:
-      return True
-    else:
-      return False
-
-  def __repr__(self):
-    '''
-    Magic method. Returns faithful representation of instance.
-    '''
-    return f'{type(self)}(underlying_digraph = {self.underlying_digraph},\
-         data = {self.arrows}, data_type = \'arrows\', verify_validity = True)'
-    
-  def __str__(self):
-    '''
-    Magic method. Returns user-friendly representation for instance.
-    '''
-    # Note we don't mention the graph the instance comes from
-    if isinstance(self, VertexCycle):
-      single_name = 'Cycle'
-    else:
-      single_name = 'Path'
-    # We want to have it slightly different if there are no vertices.
-    if bool(self):
-      return f'{single_name} with vertices {self.vertices}\nand arrows {self.arrows}'
-    else:
-      return f'Empty {single_name} with no vertices nor arrows.'
-
-  def __eq__(self, other):
-    '''
-    Magic method. Determines equality between two instances.
-    '''
-    # First we need self and other to be VertexPath (self already is)
-    if not isinstance(other, VertexPath):
-      return False
-    # To be equal, two instances must have the same underlying graph
-    elif self.underlying_digraph != other.underlying_digraph:
-      return False
-    # We then compare equality of the arrows. That is a necessary and
-    #sufficient condition
-    elif self.arrows != other.arrows:
-      return False
-    else:
-      return True
-    # (Note we don't read the class. So a VertexPath instance can be
-    #evaluated as equal to a VertexCycle instance)
-
-  def __hash__(self):
-    '''
-    Magic method. Produces a hash of the instance.
-    '''
-    # Simplest is to take self.arrows, which pretty much determines the instance
-    #(assuming the underlying vertex is fixed for out purposes), and compute hash
-    # Arrows are namedtuples. self.arrows is list but is hashable if tuplefied
-    return __hash__(tuple(self.arrows))
-
-  def verify_validity(self):
-    '''
-    Verifies that instance represents a path in a digraph.
-    '''
-    # First we ensure vertices and arrows do belong to the digraph
-    for vertex in self.vertices:
-      assert vertex in self.underlying_digraph
-    for arrow in self.arrows:
-      # To facilitate searching for the arrow, we use the self._neighbors_out
-      assert arrow in self.underlying_digraph.get_arrows_out(arrow.source)
-    # We verify it is indeed a path, and that the vertices match with the arrows
-    # Part of this is automatically set during __init__, but not all.
-    # Also, if data_type == 'vertices_and_arrows' on __init__, nothing is
-    # We need to excise the no-vertex path
-    if not self.vertices: # Measuring length
-      assert len(self.arrows) == 0, 'Without vertices there should be no arrows'
-    else:
-      assert len(self.arrows) == len(self.vertices) - 1, 'There should be one more vertex than arrow'
-      for idx, arrow in enumerate(self.arrows):
-        assert arrow.source == self.vertices[idx], 'Incoherent vertices and arrows'
-        assert arrow.target == self.vertices[idx+1], 'Incoherent vertices and arrows'
-      # To ensure we have a cycle if VertexCycle
-      if isinstance(self, VertexCycle):
-        assert self.is_cycle(), 'Need path to be a cycle'
-      
-  def get_total_weight(self, request_none_if_unweighted = False):
-    '''
-    Returns the total weight/length of the path, which is the result of
-    adding the weights of the arrows.
-    
-    If instance has no arrows, returns 0.
-    
-    If arrows are unweighted, arrows count as having length/weight 1, but
-    with the option to return None instead.
-    '''
-    # Note that if one arrow is weighted, all are.
-    try:
-      return sum(arrow.weight for arrow in self.arrows)
-      # This will produce TypeError if trying to sum even a single None
-    except TypeError:
-      # In this case, the only possible information is the number of arrows
-      # We can return either None or the number of arrows, depending on need
-      if request_none_if_unweighted:
-        return None
-      else:
-        return self.get_number_of_arrows()
-
-  @staticmethod
-  def reformat_paths(underlying_digraph, data, data_type, output_as,
-      skip_checks = False):
-    '''
-    Given data configuring an instance of the class, path or cycle,
-    returns same path or cycle given by equivalent information as requested.
-    
-    [With the exception that if the underlying digraph is a weighted multidigraph,
-    giving information by the vertices picks the arrows of least weight.
-    Nonetheless, we consider the information determines the path or cycle uniquely.]
-    
-    Options for data_type:
-    'path'
-    'cycle' [only if indeed cycle]
-    'vertices'
-    'arrows'
-    'vertices_and_arrows'
-    
-    Options for output_as:
-    [all options for data_type are acceptable for output_as]
-    'length'
-    'length_and_vertices'
-    'length_and_arrows'
-    'length_and_vertices_and_arrows'
-    'str'
-    'repr'
-    'nothing'
-    '''
-    # We prepare the strings to have only lowercase characters
-    # This is useful as they will be evaluated multiple times
-    data_type = data_type.lower()
-    output_as = output_as.lower()
-    # We return None if asked to return nothing [it is useful to do this first]
-    if output_as == 'nothing':
-      return None
-    # We build an instance from the data (if not already starting with one)
-    if data_type == 'cycle':
-      as_instance = data
-      if not skip_checks:
-        assert isinstance(as_instance, VertexCycle), 'Need to be a VertexCycle'
-        assert underlying_digraph == as_instance.underlying_digraph, 'Underlying digraph must be correct'
-        as_instance.verify_validity()
-    elif data_type == 'path':
-      as_instance = data
-      if not skip_checks:
-        assert isinstance(as_instance, VertexPath), 'Need to be a VertexPath'
-        assert underlying_digraph == as_instance.underlying_digraph, 'Underlying digraph must be correct'
-        as_instance.verify_validity()
-    else:
-      # If output_as is cycle, we aim for VertexCyle. Otherwise, VertexPath is good enough
-      if output_as == 'cycle':
-        selected_class = VertexCycle
-      else:
-        selected_class = VertexPath
-      # Building the instance with __init__
-      verify_validity_on_initiation = not skip_checks
-      as_instance = selected_class(underlying_digraph = underlying_digraph,
-          data = data, data_type = data_type,
-          verify_validity_on_initiation = verify_validity_on_initiation)
-    # Now that we have as_instance, we work into producing the requested information
-    if output_as == 'str':
-      return str(as_instance) # as_instance.__str__()
-    elif output_as == 'repr':
-      return repr(as_instance) # as_instance.__repr__()
-    elif output_as in ['path', 'cycle']:
-      return as_instance
-    else:
-      # We prepare the variables according what is required
-      # Three pieces of information: length, vertices, arrows
-      pre_data = []
-      if 'length' in output_as:
-        # Note that 'lengths' will produce the same effect as 'length'
-        # (This makes the method slightly more flexible, which is good)
-        length = self.get_total_weight(request_none_if_unweighted = False)
-        pre_data.append(length)
-      if 'vertices' in output_as:
-        vertices = self.get_vertices()
-        pre_data.append(vertices)
-      if 'arrows' in output_as:
-        arrows = self.get_arrows()
-        pre_data.append(arrows)
-      # We now return the output
-      # If pre_data has 2 or more items, it is returned as a tuple
-      # If it has 1 item, we return that single item
-      # If it has 0 items, this means the request was bed
-      if len(pre_data) >= 2:
-        return tuple(pre_data)
-      elif len(pre_data) == 1:
-        return pre_data[0]
-      else:
-        raise ValueError('Option not recognized')
-
-  def is_hamiltonian_path(self):
-    '''
-    Returns whether path is a Hamiltonian path.
-    
-    [Note that every cycle is a path but, unless on a one-vertex graph,
-    a Hamiltonian path and a Hamiltonian cycle are strictly different.]
-    '''
-    # First we check lengths which is easy
-    length_underlying_digraph = len(self.underlying_digraph)
-    if len(self.vertices) != length_underlying_digraph:
-      return False
-    # We now check the vertices in self.vertices are distinct using set()
-    elif len(self.vertices) != len(set(self.vertices)):
-      return False
-    else:
-      # If passed the two tests, it is a Hamiltonian path
-      return True
-
-  def is_cycle(self):
-    '''
-    Returns whether path is a cycle.
-    '''
-    return (self.vertices[0] == self.vertices[-1])
-
-  def is_hamiltonian_cycle(self):
-    '''
-    Returns whether path or cycle is a Hamiltonian cycle.
-    '''
-    # Adapted from is_hamiltonian_path, with a few differences
-    # A Hamiltonian cycle becomes a Hamiltonian path without its first vertex
-    # Also, it needs to be a cycle
-    if not self.is_cycle():
-      return False
-    length_underlying_digraph = len(self.underlying_digraph)
-    vertices_except_first = self.vertices[1:]
-    if len(vertices_except_first) != length_underlying_digraph:
-      return False
-    elif len(vertices_except_first) != len(set(vertices_except_first)):
-      return False
-    else:
-      # Survived all tests, thus is Hamiltonian cycle
-      return True
-
-  def shorten_path(self, number_to_shorted, modify_self = False, skip_checks = False):
-    '''
-    Removes a number of arrows and vertices from the end of path.
-    
-    Can either modify self (returning None) or create a new instance.
-    '''
-    raise NotImplementedError('WORK HERE')
-
-  def append_to_path(self, data, data_type, modify_self = False, skip_checks = False):
-    '''
-    Extend path by adding a vertex and an arrow to its end.
-    
-    Can either modify self (returning None) or create a new instance.
-    
-    data_type may be:
-    'vertex'
-    'arrow'
-    'vertex_and_arrow'
-    '''
-    data_type = data_type.lower()
-    # If object is designed as VertexCycle, we cannot proceed
-    # (It would cease to be a cycle, create confusion)
-    if isinstance(self, VertexCycle):
-      raise TypeError('Cannot append vertex/arrow to a cycle.')
-    elif self.is_degenerate():
-    # The nondegenerate cases always have one vertex more than arrows
-    # This is the context of the method. So we exclude degenerate paths
-      raise ValueError('Cannot append to degenerate path.')
-    # We also want to ensure data and data_type are what promised
-    else:
-      # We prepare the data: new_vertex and new_arrow
-      if data_type == 'vertex_and_arrow':
-        if not skip_checks:
-          assert hasattr(data, __len__), 'Need data to have length'
-          assert len(data) == 2, 'Need data to have two items'
-        new_vertice, new_arrow = data
-      elif data_type == 'vertex':
-        # We strive to have the arrow right here. This will save work in the
-        #case of modify_self = False, in which we would need to pass vertex
-        #info to __init__ and __init__ would do the job
-        new_vertex = data
-        if not skip_checks:
-          assert new_vertex in self.underlying_digraph, 'Vertex must be from underlying digraph'
-        new_arrow = self.underlying_digraph.get_shortest_arrow_between_vertices(
-            self.vertices, new_vertex)
-      elif data_type == 'arrow':
-        new_arrow = data
-        new_vertex = new_arrow.target
-      else:
-        raise ValueError('Option not recognized.')
-      # Having new_vertex and new_arrow, do optional checks
-      # [Some might be redundant depending on input]
-      if not skip_checks:
-        assert new_vertex in self.underlying_digraph, 'Vertex must be from underlying digraph'
-        assert new_arrow in self.underlying_digraph.get_arrows(), 'Arrow must be from underlying digraph'
-        assert new_arrow.source == self.vertices[-1], 'Arrow must fit after path'
-        assert new_arrow.target == new_vertex, 'Vertex and arrow information must be consistent'
-      # Having new_vertex and new_arrow, do as requested
-      if modify_self:
-        self.vertices.append(new_vertex)
-        self.arrows.append(new_arrow)
-      else:
-        new_vertices = self.vertices + new_vertex
-        new_arrows = self.arrows + new_arrow
-        data = (new_vertices, new_arrows)
-        data_type = 'vertices_and_arrows'
-        verify_validity_on_initialization = not skip_checks
-        new_instance = type(self)(data = data, data_type = data_type,
-            verify_validity_on_initialization = verify_validity_on_initialization)
-        return new_instance
-    
-  def extend_path(self, data, data_type, modify_self = False, skip_checks = False):
-    '''
-    Iterable version of appent_to_path.
-    
-    data_type may be:
-    'vertices'
-    'arrows'
-    'vertices_and_arrows'
-    'path'
-    '''
-    data_type = data_typer.lower()
-    # If modify_self, we sent the data (item by item) to append_path
-    # Otherwise, we form another_path and call self.__add__(another_path)
-    if modify_self:
-      if data_type == 'vertices':
-        vertices = data
-        for vertex in vertices:
-          self.append_to_path(data = vertex, data_type = 'vertex',
-              modify_self = True, skip_checks = skip_checks)
-      elif data_type == 'arrows':
-        arrows = data
-        for arrow in arrows:
-          self.append_to_path(data = arrow, data_type = 'arrow',
-              modify_self = True, skip_checks = skip_checks)
-      elif data_type == 'vertex_and_arrow':
-        vertices, arrows = data
-        if skip_checks:
-          # There should be equal number of arrows and vertices 
-          # This check is so important we can't skip
-          # The others can be done inside 'append_to_path
-          assert len(vertices) == len(arrows), 'Need same number of vertices and arrows'
-          # We use zip to pass arguments
-          for vertex_and_arrow in zip(vertices, arrows):
-            self.append_to_path(data = vertex_and_arrow,
-                data_type = 'vertex_and_arrow',
-                modify_self = True, skip_checks = skip_checks)
-      elif data_type == 'path':
-        another_path = data
-        # If degenerate, we won't proceed
-        if another_path.is_degenerate:
-          raise ValueError('Need nondegenerate path for path addition.')
-        # We do a basic check (which can't be done on append_to_path due
-        #to the nature of this procedure)
-        if not skip_checks:
-          assert another_path.vertices[0] == self.vertices[-1], 'First path must segue into second'
-        # For data_type == 'path' we take arrows and vertices
-        #[except first vertex to avoid repetitions]
-        arrows = another_path.arrows
-        vertices = another_path.vertices[1:]
-        # These should be lists of equal length. We use zip to pass arguments
-        for vertex_and_arrow in zip(vertices, arrows):
-          self.append_to_path(data = vertex_and_arrow,
-              data_type = 'vertex_and_arrow',
-              modify_self = True, skip_checks = skip_checks)
-    # Enter the realm where modify_self is False (i. e. return new instance)
-    else:
-      if data_type == 'path':
-        another_path = data
-      else:
-        verify_validity_on_initiation = not skip_checks
-        another_path = type(self)(data = data, data_type = data_type,
-            verify_validity_on_initiation = verify_validity_on_initiation)
-      return self.__add__(another_path = another_path, skip_checks = skip_checks)
-    
-  def __add__(self, another_path, skip_checks = False):
-    '''
-    Magic method. Returns the sum of two instances.
-    
-    Merges two paths into a single one, if the first can segue into the second.
-    '''
-    # Unless overriden, we ensure another_path is also a path
-    # (If it isn't, behavior is unpredictable, and user is responsible)
-    # No other checks/verifications will be overriden by skip_checks
-    if not skip_checks:
-      try:
-        assert isinstance(another_path, VertexPath)
-      except AssertionError:
-        raise TypeError('Can only perform path addition on paths.')
-    # We cannot have VertexCycles (it would not make a lot of sense
-    #except in very specific cases), so we rule them out
-    # Note that is is_cycle is True, the instance might be a VertexPath
-    #which coincidentally starts and ends at the same vertex, but it is
-    #not really a VertexCycle. Addition is this case is permitted, and very
-    #likely is_cycle() will be False for the created instance
-    if instance(self, VertexCycle) or isinstance(another_path, VertexCycle):
-      raise TypeError('Cannot perform path addition on cycles.')
-    # We can only add if paths are from same digraph
-    elif self.underlying_digraph != another_path.underlying_digraph:
-      raise ValueError('Paths to be added should be from same digraph')
-    # We discard the anomalities/degeneracies
-    # For Type-I degeneracy, we return the other path
-    #(Even if it is also a Type-I or Type-II degeneracy!)
-    elif self.is_degenerate_type_i():
-      return another_path
-    elif another_path.is_degenerate_type_i():
-      return self
-    # If any degenerate Type-II, we cannot perform a true path addition
-    # (Exception if the other was a degeneracy Type-I)
-    elif self.is_degenerate_type_ii() or another_path.is_degenerate_type_ii():
-      raise ValueError('Cannot perform path addition with Type-II degeneracy.')
-    # From here on, no degeneracies. In particular, both self and another_path
-    #have exactly one more vertex [as path] than they have arrows
-    # We verify one path segues into the next
-    # (We don't allow this check to be skipped by skip_checks)
-    elif self.vertices[-1] != another_path.vertices[0]:
-      raise ValueError('Need first path to segue into the second.')
-    else:
-      # Here we implement the addition
-      # Since we all attributes ready, we can use them for __init__]
-      # We obtain the vertices. Note we omit the vertex uniting the paths
-      new_vertices = self.vertices + another_path.vertices[1:]
-      new_arrows = self.arrows + another_path.arrows
-      # We create a new instance (same class) and then return it
-      kwargs = {'underlying_digraph': self.underlying_digraph,
-          'data': (new_vertices, new_arrows),
-          'data_type': 'vertices_and_arrows',
-          'verify_validity_on_initiation': False}
-      new_instance = type(self)(**kwargs)
-      return new_instance
-
-  def __iadd__(self, another_path):
-    '''
-    Magic method.
-    '''
-    # We are unsure on how to do this. Should we force instance to modify itself?
-    # (Compare with behaviors of __iadd__ on list and on str.)
-    raise NotImplemented('Unplanned behavior')
+from ..vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 
 ########################################################################
-# Class VertexCycle
-########################################################################
-
-class VertexCycle(VertexPath):
-  '''
-  A VertexCycle is a VertexPath which starts and ends on the same vertex.
-  '''
-
-  def rebase_cycle(self, base_vertex, modify_self = False):
-    '''
-    Returns the same cycle but with vertices rotated so requested vertex
-    is the first and last of the cycle.
-    
-    Can either modify self [returning None] or return a new instance.
-    '''
-    # We get the index of the base_vertex in the cycle
-    # In case base_vertex isn't in the cycle, it will raise ValueError
-    # Note index returns the first occurrence of the vertex (a VertexPath
-    #or VertexCycle potentially contain self intersections)
-    base_idx = self.vertices.index(base_vertex)
-    # The first arrow will be the one with source base_vertex, that is,
-    #the arrow with index base_idx
-    # Easiest way is to use moduler arithmetic on the number of arrows
-    # (Vertices can be read straight from them during __init__)
-    number_of_arrows = len(self.arrows)
-    rotated_arrows = [self.arrows[(idx + base_idx) % number_of_arrows]
-        for idx in range(number_of_arrows)]
-    # To facilitate things, we build a dict for arguments, called kwargs
-    kwargs = {'underlying_digraph': self.underlying_digraph,
-        data: rotated_arrows,
-        data_type: 'arrows',
-        verify_validity: True}
-    if modify_self:
-      self.__init__(**kwargs)
-      return None
-    else:
-      return type(self)(**kwargs)
-
-########################################################################
-# Class ImmutableVertexPath
-########################################################################
-
-class ImmutableVertexPath(VertexPath):
-  pass
-
-  def shorten_path(self, number_to_remove, skip_checks = False):
-    '''
-    Immutable version of VertexPath.shorten_path
-    '''
-    return super().shorten_path(number_to_remove = number_to_remove,
-        modify_self = False, skip_checks = False)
-  
-  def append_to_path(self, data, data_type, skip_checks = False):
-    '''
-    Immutable version of VertexPath.append_to_path
-    '''
-    return super().append_to_path(data = data, data_type = data_type,
-        modify_self = False, skip_checks = False)
-
-  def extend_path(self, data, data_type, skip_checks = False):
-    '''
-    Immutable version of VertexPath.extend_path
-    '''
-    return super().extend_path(data = data, data_type = data_type,
-        modify_self = False, skip_checks = False)
-
-########################################################################
-# Class ImmutableVertexCycle
-########################################################################
-
-class ImmutableVertexCycle(VertexCycle, ImmutableVertexPath):
-  pass
-  
-  def rebase_cycle(self, base_vertex):
-    '''
-    VertexCycle.rebase_cycle version for immutable cycles.
-    '''
-    # Easiest is to call super(), ensuring modify_self is False
-    # Note super, in some sense, takes self as instance of a child class
-    #and returns self as instance of a base class
-    # That is why there is no need to write self
-    # (super() does take arguments but when called inside an instance method
-    #they are understood from the context, at least in Python 3)
-    return super().rebase_cycle(base_vertex = base_vertex, modify_self = False)
-
-########################################################################
-# Class MutableVertexPath
-########################################################################
-
-class MutableVertexPath(VertexPath):
-  pass
-  
-  # Since this is mutable (and so will be the classes inheriting from this)
-  #we should disable __hash__ which is called from VertexPath
-  # Make __hash__ return None to unvalidate it
-  # The __mro__ properties guarantee that since this inherits directly
-  #from VertexPath, the methods here will always be called earlier.
-  def __hash__(self):
-    '''
-    Magic method. Returns a hash of the instance.
-    
-    In this particular class, MutableVertexPath, there should be no hashing
-    because the instance if mutable. Thus hash() is explicitly set to None
-    to avoid inheriting the hash from the parent class VertexPath.
-    '''
-    return None
-
-########################################################################
-# Class MutableVertexCycle
-########################################################################
-
-class MutableVertexCycle(VertexCycle, MutableVertexPath):
-  pass
-
-########################################################################
-# Declaration of Digraph class and of Vertex, Arrow, Edge namedtuples
+# Declaration of Digraph class and initialization
 ########################################################################
 
 class Digraph(object):
@@ -750,437 +53,6 @@ class Digraph(object):
   a diagraph by interpreting its edges (an unordered pair of vertices)
   as two arrows, back and forth within the pair.
   '''
-  
-  # Before the class per se we create some useful objects as namedtuples
-  # Name of vertex should be preferably hashable because they are often keys of dicts
-  # On the other hand, we implement no checks for hashableness
-  Vertex = collections_namedtuple('Vertex', 'name')
-  # Make weight to be None if unweighted (default value)
-  Arrow = collections_namedtuple('Arrow', 'source,target,weight', defaults = (None,))
-  Edge = collections_namedtuple('Edge', 'first,second,weight', defaults = (None,))
-
-########################################################################
-# Static Methods for Vertex, Arrow, Edge namedtuples
-########################################################################
-
-  @staticmethod
-  def sanitize_vertex(obj, require_namedtuple = False):
-    '''
-    Given an object, returns a Vertex namedtuple containing it as a name,
-    or containing its content as a name.
-    
-    If starting with a Vertex namedtuple, return the Vertex.
-    
-    Can also require that the object was a Vertex namedtuple to start with.
-    '''
-    if isinstance(obj, Digraph.Vertex):
-      return obj
-    else:
-      if require_namedtuple:
-        raise ValueError('Require a Vertex namedtuple.')
-      else:
-        # We do many tests to determine what to do with the object
-        # It should have length one in this case (and in particular a __len__ method)
-        if not hasattr(obj, '__len__'):
-          # A namedtuple always has length, so object is not one
-          return Digraph.Vertex(obj)
-        # We finally check the length (if we arrive here, there is length)
-        elif len(obj) != 1:
-          # In this case we know it is not a Vertex instance, and we can envelop it
-          return Digraph.Vertex(obj)
-        else:
-          # In this case it is has length 1
-          # We create a vertex from the first and only item
-          # Note that one consequence of this is that [item] and item
-          #will produce the same Vertex (one with name=item).
-          # Note that for a single-char string, its first item is itself
-          vertex_from_object = Digraph.Vertex(obj[0])
-
-  @staticmethod
-  def sanitize_vertices(vertices, require_namedtuple = False, output_as_generator = False):
-    '''
-    Iterable version of sanitize_vertex.
-    '''
-    # We have options for output, as list or generator. Default is list
-    #(that is, output_as_generator is defaulted to False)
-    # We use lambda and map, making it a list if requested
-    # Same could be accomplished via partial from functools, but we prefer lambda
-    partial_function = lambda vertex: sanitize_vertex(vertex, require_namedtuple = require_namedtuple)
-    as_generator = map(partial_function, vertices)
-    if output_as_generator:
-      return as_generator
-    else:
-      return list(as_generator)
-
-  @staticmethod
-  def sanitize_arrow_or_edge(tuplee, use_edges_instead_of_arrows,
-      require_namedtuple = False):
-    '''
-    Returns an Arrow or Edge namedtuple with the given information.
-    
-    If require_namedtuple, ensures argument is an Arrow/Edge namedtuple.
-    
-    [Tuples are imutable; this always produces a new namedtuple.]
-    '''
-    if use_edges_instead_of_arrows:
-      selected_class = Digraph.Edge
-    else:  
-      selected_class = Digraph.Arrow
-    # We want this to be very quick if tuple is alerady Arrow or Edge
-    # Thus, we start by test for being an instance of selected_class
-    if isinstance(tuplee, selected_class):
-      return tuplee
-    else:
-      if require_namedtuple:
-        raise TypeError('Require tuple to be an Arrow or Edge namedtuple')
-      else:
-        # In this case we attempt the conversion, and return the required Arrow/Edge
-        # This will work if and only if len(tuplee) is 2 or 3 (unweighted or not)
-        try:
-          new_tuplee = selected_class(*tuplee)
-          return new_tuplee
-        except SyntaxError:
-          # Likely in case the unpacking with * doesn't work
-          raise TypeError('Expect tuple to be an iterable/container.')
-        except TypeError:
-          # This is likely due to not having 2 or 3 arguments given
-          raise ValueError('Expect tuple to have length 2 or 3')
-
-  @staticmethod
-  def sanitize_arrows_or_edges(tuplees, use_edges_instead_of_arrows,
-      require_namedtuple = False, output_as_generator = False):
-    '''
-    Iterable version of sanitize_arrow_or_edge.
-    '''
-    partial_function = lambda tuplee: sanitize_arrow_or_edge(tuplee,
-        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
-    as_generator = map(partial_function, tuplees)
-    if output_as_generator:
-      return as_generator
-    else:
-      return list(as_generator)
-
-  @staticmethod
-  def get_edges_from_sanitized_arrows(data, are_arrows_from_digraph = False,
-      is_multiarrow_free = False):
-    '''
-    From some sanitized arrows returns the edges which would form them
-    (if each edge was decomposed into two mutually-reverse arrows).
-    
-    Using are_arrows_from_digraph, we obtain all edges derived from the arrows of
-    the digraph given as data (using data.get_arrows(), which doesn't read its edges).
-    All arrows should automatically be Arrow nameduples.
-    
-    Otherwise, data is assumed to be an iterable of Arrow namedtuples.
-    
-    If the digraph has no multiarrows we use a faster algorithm.
-    
-    If pairing arrows into edges is not possible, returns None.
-    '''
-    # We first obtain the arrows
-    if are_arrows_from_digraph:
-      # In this case data is a Digraph instance
-      arrows = data.get_arrows()
-    else:
-      # We ensure list for uniformity, but any iterable is fine
-      arrows = list(data)
-    # One possible shortcut: if number of arrows is odd, they cannot form a Graph
-    if len(arrows) % 2 == 1: 
-      return None
-    else:
-      if is_multiarrow_free:
-        # Algorithm with frozenset and hashing: we do it with lists in multiple steps
-        #to facilitate understanding, even if it might cost more memory
-        arrows_and_its_reverses = [[arrow, Digraph.get_reversed_arrow(arrow, skip_checks = True)] for arrow in arrows]
-        list_of_frozensets = [frozenset(pair) for pair in arrows_and_reversed_arrows]
-        # We use frozenset to do all the comparing (sets are not hasheable)
-        # It is not a problem to fit them all in a set
-        set_of_frozensets = frozenset(list_of_frozensets)
-        # If we have exactly half elements as we had for arrows, it means they form pairs
-        if len(frozenset_of_frozensets) == len(arrows) // 2:
-          # To extract one edge from each frozenset
-          edges = []
-          for pair_of_arrows in set_of_frozensets:
-            # We don't have pop() for frozensets, so we make them into lists
-            # These lists have two elements; we extract the first
-            arrow = list(pair_of_arrows)[0]
-            new_edge = Digraph.Edge(arrow.source, arrow.target, arrow.weight)
-            edges.append(new_edge)
-          return edges
-        else:
-          # Pairs not perfectly formed
-          return None
-      else:
-        # We are in the case where there are multi-arrows
-        # Since two arrows with same source and target don't form an edge,
-        #we need to use a slower, O(n^2) algorithm
-        # We eliminate the arrows in pairs [each arrow and its reverse] from the list
-        # If at any moment we fail to see the reverse of an arrow in the list,
-        #we break because that means it forms no edge
-        # If we arrive at [] as final list, we are done
-        # We use a list to store the new edges (for the possibility we return them)
-        new_edges = []
-        found_arrow_without_edge = False
-        while new_edges: # i. e. new_edges nonempty
-          last_arrow = arrows.pop() # pop() removes last and return it
-          last_arrow_reversed = Digraph.get_reversed_arrow(last_arrow, skip_checks = True)
-          # Try to remove the reversed arrow. If it fails, they don't form edges
-          try:
-            arrows.remove(last_arrow_reversed)
-          except ValueError:
-            found_arrow_without_edge = True
-            break
-        if found_arrow_without_edge:
-          return None
-        else:
-          return new_edges
-
-  @staticmethod
-  def sanitize_arrows_and_return_formed_edges(arrows, require_namedtuple = False,
-      raise_error_if_edges_not_formed = False):
-    '''
-    Sanitizes arrows, and returns the corresponding formed edges.
-    
-    Returns a tuple (arrows, edges). If edges cannot be formed, raise an error
-    or return (arrows, None) depending on raise_error_if_edges_not_formed.
-    '''
-    new_arrows = sanitize_arrows(arrows, require_namedtuple)
-    new_edges = get_edges_from_sanitized_arrows(new_arrows)
-    # We deal with the situation in which we couldn't properly form edges
-    if new_edges is None:
-      # In this case we could not form the edges correctly
-      if raise_error_if_edges_not_formed:
-        raise ValueError('Cannot form edges with given arrows')
-      else:
-        # Simply return None as the new edges
-        return (new_arrows, None)
-    else:
-      return (new_arrows, new_edges)
-
-  @staticmethod
-  def get_reversed_arrow_or_equivalent_edge(tuplee, use_edges_instead_of_arrows,
-      require_namedtuple = False):
-    '''
-    Given an arrow, returns the opposite arrow, going in the opposite direction.
-    
-    Given an edge, returns the equivalent edge in which its two inciding
-    vertices are listed in reverse order.
-    
-    Has the option to accept or not a tuple which is not Arrow/Edge namedtuple.
-    '''
-    # To make the work simpler we factor through sanitization
-    tuplee = Digraph.sanitize_arrow_or_edge(tuplee,
-        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
-    # We can read the namedtuple from tuplee now; Arrow or Edge
-    selected_class = type(tuplee)
-    # We reverse the first and second items (arrow/source, first/second)
-    # We number the items to be a common approach to Arrow and Edge
-    return selected_class(tuplee[1], tuplee[0], tuplee[2])
-
-  @staticmethod
-  def get_reversed_arrows_or_edges(tuplees, use_edges_instead_of_arrows,
-      require_namedtuple = False, output_as_generator = False):
-    '''
-    Iterable version of get_reversed_arrow_or_edge.
-    '''
-    # We use lambda and map
-    partial_function = lambda tuplee: get_reversed_arrow(tuplee,
-        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
-    as_generator = map(partial_function, tuplees)
-    if output_as_generator:
-      return as_generator
-    else:
-      return list(as_generator)
-  
-  @staticmethod
-  def get_arrows_from_edge(edge, require_namedtuple = False):
-    '''
-    From an edge creates a list with the two corresponding arrows.
-    
-    Has the option to accept or not a tuple which is not Edge.
-    '''
-    # To save time we factor though sanitization
-    edge = Digraph.sanitize_arrow_or_edge(edge,
-        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
-    # We are guaranteed to have an Edge now
-    # We could use get_reversed_arrow_or_equivalent_edge, but we won't
-    first_arrow = Digraph.Arrow(edge.first, edge.second, edge.weight)
-    second_arrow = Digraph.Arrow(edge.second, edge.first, edge.weight)
-    return [first_arrow, second_arrow]
-  
-  @staticmethod
-  def get_arrows_from_edges(edges, require_namedtuple = False, output_as_generator = False):
-    '''
-    Iterable version of get_arrows_from_edge.
-    '''
-    # We produce a suitable generator using chain from itertools
-    # First, we produce a generator to produce smaller (length 2) generators
-    # We use a lambda to create those small generators
-    # We modify the output to be a generator for each edge
-    small_generator = lambda edge: (arrow for arrow in Digraph.get_arrows_from_edge(
-        edge, require_namedtuple = require_namedtuple))
-    # We group them together in a generator of generators
-    generator_of_generators = map(small_generator, edges)
-    # We produce a single generator
-    big_generator = itertools_chain(*generator_of_generators)
-    if output_as_generator:
-      return big_generator
-    else:
-      return list(big_generator)
-  
-  @staticmethod
-  def remove_weight_from_arrow_or_edge(tuplee,
-      use_edges_instead_of_arrows, require_namedtuple = False):
-    '''
-    Returns a new Arrow or Edge with no weight (that is, weight None).
-    
-    Has the option to accept or not tuples which are not Arrows or Edges.
-    '''
-    # We factor through sanitization to save time
-    tuplee = Digraph.sanitize_arrow_or_edge(tuplee,
-        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
-    # We have an Edge or Arrow namedtuple. We can capture class via type()
-    selected_class = type(tuplee)
-    return selected_class(tuplee[0], tuplee[1], None)
-    # Note we don't really check if tuplee was weighted to begin with
-
-  @staticmethod
-  def remove_weight_from_arrows_or_edges(weighted_tuples,
-      use_edges_instead_of_arrows, require_namedtuple = False,
-      output_as_generator = False):
-    '''
-    Iterable version of remove_weight_from_arrow_or_edge.
-    '''
-    # The following can also be accomplised via partial() from functools library
-    partial_function = lambda x: remove_weight_from_arrow_or_edge(
-        unweighted_tuple = x,
-        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
-    as_generator = map(partial_function, weighted_tuples)
-    if output_as_generator:
-      return as_generator
-    else:
-      return list(as_generator)
-  
-  @staticmethod
-  def write_weight_into_arrow_or_edge(tuplee, use_edges_instead_of_arrows,
-      new_weight = None, require_namedtuple = False):
-    '''
-    Writes a weight (default 1) to an Arrow or Edge, returning a new one.
-    
-    If arrow/edge originally unweighted, adds the given value as weight.
-    
-    If originally weighted, this modifies the weight to be the given value.
-    
-    Has the option to accept or not tuples which are not Arrows or Edges.
-    '''
-    # Tipically, None is used to denote weight in unweighted arrows.
-    # In this function/method we do differently.
-    # If None is new_weight (argument of this function), we change it to 1
-    # (This use of None as a default argument only casually coincides with
-    #the use of None as weight attribute of unweighted arrows/edges.)
-    if new_weight == None:
-      new_weight = 1
-    # We can factor through sanitization
-    tuplee = Digraph.sanitize_arrow_or_edge(tuplee,
-        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
-    # Now tuplee is guaranteed to be Arrow or Edge
-    selected_class = type(tuplee)
-    return selected_class(tuplee[0], tuplee[1], )
-    # Note that in no moment we verify we started with an unweighted Arrow/Edge
-
-  @staticmethod
-  def write_weights_into_arrows_or_edges(tuplees, use_edges_instead_of_arrows,
-      new_weights = None, require_namedtuple = False, output_as_generator = False):
-    '''
-    Iterable version of write_weight_into_arrow_or_edge
-    '''
-    # We use lambda. Using partial from functools could potentially work too
-    #if the issues with argument ordering were solved
-    partial_function = lambda tuplee, weight: write_weight_into_arrow_or_edge(
-        tuplee = tuplee,
-        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        new_weight = weight,
-        require_namedtuple = require_namedtuple)
-    # We prepare the arguments together. Note zip_longest from itertools
-    #will automatically fill the pairings with None if the iterables have
-    #different sizes (we hope that those are the weights and not the tuples)
-    # To do so we must guarantee new_weights is iterable. This could be
-    #a concern if we want the default value by setting new_weights = None
-    if new_weights is None:
-      new_weights = []
-    tuples_and_weights = itertools_zip_longest(tuplees, new_weights)
-    # We build the generator using map(), and, if asked, as list
-    as_generator = map(partial_function, tuples_and_weights)
-    if output_as_generator:
-      return as_generator
-    else:
-      return list(as_generator)
-
-  @staticmethod
-  def get_namedtuples_from_neighbors(dict_of_neighbors, output_as, namedtuple_choice = None):
-    '''
-    From a dictionary of neighbors, creates all corresponding tuples.
-    
-    Can give the answer as a list or as a dict with same keys.
-    
-    From dic[a] = [a1, a2, ..., an] produce [(a, a1), (a, a2), ..., (a, an)]
-    Same if we have [[a1], [a2], ..., [an]] or [(a1), (a2), ..., (an)]
-    From dic[a] = [[a11,... ,a1m], [a21,... ,a2m], ..., [an1,... ,anm]]
-    produce [(a, a11, ..., a1m), (a, a21, ..., a2m), ..., (a, an1, ..., anm)]
-    
-    If namedtuple is given [it must be given as a class, not a string],
-    produce that namedtuple. Otherwise, plain tuple.
-    '''
-    # It all depends if the values in the dict are iterable or not
-    # To save time and testing strings fewer times, we do:
-    if output_as.lower() == 'list':
-      output_as_dict_instead_of_list = False
-    elif output_as.lower() == 'dict':
-      output_as_dict_instead_of_list = True
-    else:
-      raise ValueError('Can only output as dict or as list')
-    # To save time while testing subclassing, we do:
-    if namedtuple_choice is None or namedtuple_choice == tuple:
-      # Note that tuple takes an iterable, while namedtuple specific values
-      # We want to uniformize the input
-      # Easier way is to use a lambda with unpacking
-      namedtuple_choice = lambda *x: tuple(x) # Default to regular tuple
-    else:
-      # We assert we do have a tuple subclass (just to avoid errors later)
-      # (Probably the best way to meet the proposal of the method.)
-      assert issubclass(namedtuple_choice, tuple), 'Needs subclass of tuple'
-      pass
-    edited_dict = {}
-    edited_list = []
-    for key in dict_of_neighbors:
-      edited_dict[key] = []
-      for item in dict_of_neighbors[key]:
-        # We check if __len__ is a valid method to determine how to proceed
-        if hasattr(item, '__len__'):
-          # Use * for easier unpacking. This works for length 0, 1 or bigger
-          pre_appending_tuple = (key, *item)
-        else:
-          # No length method, even easier
-          pre_appending_tuple = (key, item)
-        # We make the right type of tuple or namedtuple
-        # The packing and unpacking appear weird but is likely the best way
-        pre_appending_tuple = namedtuple_choice(*pre_appending_tuple)
-        # We append to the big list or to the individual key as requested
-        if output_as_dict_instead_of_list:
-          edited_dict[key].append(appending_tuple)
-        else:
-          edited_list.append(appending_tuple)
-
-########################################################################
-# Method __init__ (used for initialization and resetting)
-########################################################################
 
   def __init__(self, data, data_type, cast_as_class = None):
     '''
@@ -1195,7 +67,8 @@ class Digraph(object):
     
     'all_arrows': self explanatory, a list [or other iterable] of arrows.
     Depending on their characteristics (i. e. the length of important information)
-    we will deduce weighted or unweighted
+    we will deduce weighted or unweighted. With this option it is impossible
+    to create an instance with an isolated vertex
     
     'some_vertices_and_all_arrows': similar to before but a tuple starting with
     a list [or iterable] of vertices, and then the iterable for all arrows
@@ -1241,6 +114,9 @@ class Digraph(object):
         self.__class__ = cast_as_class
       except:
         raise ValueError('Cannot cast as requested class.')
+    else:
+      # If cast_as_class == None we don't interfere with the initialization
+      pass
     # Depending on the subclass calling this, it expects a few different things
     # Note that WeightedGraph, for example, inherits from Graph and WeightedDigraph
     # We can test using isinstance()
@@ -1274,7 +150,8 @@ class Digraph(object):
     # We now do some unpacking
     # Note that even a Graph can be given by arrows, so we won't be fussy
     #in determining the type given. Rather, rely on is_initiating_graph
-    #to know how to act regarding the edges
+    #to know how to act regarding the edges (i.e. form them if and only if
+    #is_initiating_graph is True)
     if 'all_arrows' in data_type.lower():
       if data_type.lower() == 'all_arrows':
         init_vertices, init_arrows = [], data
@@ -1293,9 +170,9 @@ class Digraph(object):
       # This work is handled by _add_arrows with an extra option
       also_add_formed_edges = is_initiating_graph
       self._add_vertices(init_vertices, require_vertex_not_in = True,
-          require_namedtuple = False, skip_checks = False)
+          require_namedtuple = False)
       self._add_arrows(init_arrows, require_vertices_in = require_vertices_in,
-          also_add_formed_edges = also_add_formed_edges, skip_checks = False)
+          also_add_formed_edges = also_add_formed_edges)
     elif 'all_edges' in data_type.lower():
       if data_type.lower() == 'all_edges':
         init_vertices, init_edges = [], data
@@ -1312,9 +189,9 @@ class Digraph(object):
       # That is, we may or may not add the edges, depending on flags
       add_as_edges = is_initiating_graph
       self._add_vertices(init_vertices, require_vertex_not_in = True,
-          require_namedtuple = False, skip_checks = False)
+          require_namedtuple = False)
       self._add_edges(init_edges, require_vertices_in = require_vertices_in,
-          add_as_edges = add_as_edges, add_as_arrows = True, skip_checks = False)
+          add_as_edges = add_as_edges, add_as_arrows = True)
     elif 'as_dict' in data_type.lower() or 'as_list' in data_type.lower():
       # We need to format the information
       # First, to save time coding, we format a list (in the 'as_list' option)
@@ -1340,7 +217,7 @@ class Digraph(object):
       # (Note they will go under further formatting later when being added)
       if 'arrows_out' in data_type.lower():
         # We expect the values of the dict to be lists with the arrows
-        init_arrows = get_namedtuples_from_neighbors(data_as_dict, namedtuple_choice = DigraphArrow)
+        init_arrows = get_namedtuples_from_neighbors(data_as_dict, namedtuple_choice = Arrow)
         for vertex in data_as_dict:
           init_arrows.extend(data_as_dict[vertex])
       elif 'edges' in data_type.lower():
@@ -1349,28 +226,26 @@ class Digraph(object):
           init_edges.extend(data_as_dict[vertex])
       elif 'neighbors_out' in data_type.lower():
         # There is some complexity and so we defer to another method
-        init_arrows = Digraph.get_namedtuples_from_neighbors(data_as_dict,
-            output_as = 'list', namedtuple_choice = Digraph.Arrow)
+        init_arrows = get_namedtuples_from_neighbors(data_as_dict,
+            output_as = 'list', namedtuple_choice = Arrow)
       elif ('neighbors' in data_type_lower()) and (not 'out' in data_type.lower()):
         # There is some complexity and so we defer to another method
-        init_edges = Digraph.get_namedtuples_from_neighbors(data_as_dict,
-            output_as = 'list', namedtuple_choice = Digraph.Edge)
+        init_edges = get_namedtuples_from_neighbors(data_as_dict,
+            output_as = 'list', namedtuple_choice = Edge)
       else:
         raise ValueError('Option not recognized')
-    else:
-      raise ValueError('Option not recognized')
-      # Now we have either: vertices and edges, or vertices and arrows
+      # We return to the main trunk of the code
+      # Now we have either: init_vertices and init_edges,
+      #or init_vertices and init_arrows, and that is all data that matters
       # Either way, we will add those to the digraph
       # (Note that even if they aren't namedtuple Arrows, Edges and Vertex,
       #they will be when added to self._arrows, self._arrows_out and troupe)
       # That is, the info will be sanitized when added
       # The weights will also be sorted (that is, if None is given as weight or
       #if they are omitted altogether, the method still does the right thing)
-      self._add_vertices(vertices)
+      self._add_vertices(init_vertices, require_vertex_not_in = require_vertex_not_in,
+          require_namedtuple = False)
       # Note that we have either only init_arrows or only init_edges available
-      # Note that if we are given edges and Graph is not on __mro__
-      #(Method Resolution Order) then it won't work because the methods
-      #involving edges are under the subclass Graph
       try:
         # First we detect the case where init_arrows may not exist
         init_arrows = init_arrows
@@ -1406,7 +281,10 @@ class Digraph(object):
           # We add them as both edges and arrows or only as arrows depending on the case
           add_as_edges = is_initiating_graph
           self._add_edges(init_edges, require_vertices_in = require_vertices_in,
-              add_as_edges = add_as_edges, add_as_arrows = True, skip_checks = False)
+              add_as_edges = add_as_edges, add_as_arrows = True)
+    else:
+      # Not fitting any of the options
+      raise ValueError('Option not recognized')
 
 ########################################################################
 # Methods for adding vertices, edges, arrows, used in initialization
@@ -1429,7 +307,7 @@ class Digraph(object):
     '''
     # We pass most of the formatting/checking to sanitive_vertex()
     # (That includes the detection of being a Vertex if require_namedtuple is True)
-    vertex = Digraph.sanitize_vertex(vertex, require_namedtuple = require_namedtuple)
+    vertex = OperationsVAE.sanitize_vertex(vertex, require_namedtuple = require_namedtuple)
     # We determine whether the vertex is already in the graph
     if vertex in self:
       # In this case vertex is already present
@@ -1452,8 +330,8 @@ class Digraph(object):
     Adds an iterable of vertices to self.
     '''
     for vertex in vertices:
-      _add_vertex(self, vertex, require_vertex_not_in = require_vertex_not_in,
-      require_namedtuple = require_namedtuple)
+      self._add_vertex(vertex, require_vertex_not_in = require_vertex_not_in,
+          require_namedtuple = require_namedtuple)
 
   def _add_arrow(self, arrow, require_vertices_in = False, require_namedtuple = False):
     '''
@@ -1462,7 +340,7 @@ class Digraph(object):
     # We verify it is a valid arrow, putting it into the right format if it makes sense
     # We don't mind if we start with a simple tuple instead of the named tuple Arrow
     # We will put it into a namedtuple Arrow, that is, a sanitized arrow
-    arrow = self.sanitize_arrow_or_edge(arrow,
+    arrow = OperationsVAE.sanitize_arrow_or_edge(arrow,
         use_edges_instead_of_arrows = False, require_namedtuple = require_namedtuple)
     # We check whether the vertices are already present
     # If require_vertices_in, we raise an error if the vertices are not
@@ -1492,10 +370,10 @@ class Digraph(object):
     # If we require sanitize arrows, we do this always in this function, at once
     # We do slightly different depending on the edge formation requirement
     if also_add_formed_edges:
-      arrows, edges = Digraph.sanitize_arrows_and_return_formed_edges()
+      arrows, edges = OperationsVAE.sanitize_arrows_and_return_formed_edges()
     else:
-      arrows = Digraph.sanitize_arrows_or_edges(arrows, use_edges_instead_of_arrows = False,
-          require_nametuple = require_nametuple)
+      arrows = OperationsVAE.sanitize_arrows_or_edges(arrows, use_edges_instead_of_arrows = False,
+          require_namedtuple = require_namedtuple)
     # We add the arrows
     for arrow in arrows:
       self._add_arrow(arrow, require_vertices_in = require_vertices_in,
@@ -1519,7 +397,7 @@ class Digraph(object):
     It also appears as one edge in self._edges (in Graph instance only)
     '''
     # We first put the edge into a namedtuple, if not already [sanitize it]
-    edge = Digraph.sanitize_arrow_or_edge(edge, require_namedtuple = require_namedtuple)
+    edge = OperationsVAE.sanitize_arrow_or_edge(edge, require_namedtuple = require_namedtuple)
     # We check whether the vertices are already present
     if edge.first not in self:
       if require_vertices_in:
@@ -1545,7 +423,7 @@ class Digraph(object):
       # We now work on the arrows: every edge also makes two arrows.
       # We call Digraph._add_arrow, skipping all checks
       # We produce two namedtuples Arrow using get_arrows_from_edge
-      two_arrows = self.get_arrows_from_edge(edge)
+      two_arrows = OperationsVAE.get_arrows_from_edge(edge)
       for arrow in two_arrows:
         # All checks done already, don't need to put any requirement
         # (Note that edges have been sanitized already.)
@@ -1569,27 +447,95 @@ class Digraph(object):
           require_namedtuple = require_namedtuple)
 
 ########################################################################
-# Methods which read simple information from the graph
+# Methods representing the digraph as a string
 ########################################################################
 
   def __repr__(self):
     '''
-    Returns representation of self.
+    Magic method. Returns faithful representation of instance.
     '''
-    # We take the last part of the class name using split() string method
-    # We do this for proper subclassing. Note that Graph instances
-    #have their own __repr__ method which has priority over Digraph.__repr__
-    class_last_name = self.__class__.__name__.split()[-1]
-    about_instance = 'A {} with {} vertices and {} arrows.'.format(
-        class_last_name, self.get_number_of_vertices(), self.get_number_of_arrows())
-    return about_instance
+    # We believe using arrow_out_as_dict is the best way
+    # (Could alternatively use provide_unique_presentation to generate info)
+    # (Note that using edges for a Graph complicated things. Better to aim
+    #for initializing always as arrows_out_as_dict in all cases)
+    instance_class = repr(type(self))
+    data = repr(self.get_arrows_out())
+    data_type = 'arrows_out_as_dict'
+    return '{}(data = {}, data_type = {}, cast_as_class = None)'.format(
+        instance_class, data, data_type)
+    
+  def __str__(self):
+    '''
+    Magic method. Returns user-friendly representation of instance.
+    '''
+    # In the future, this might become a more comprehensive description,
+    #with more details, or even a visual representation.
+    # Right now, we get it from provide_short_summary
+    return self.provide_short_summary()
+    
+  def provide_short_summary(self):
+    '''
+    Returns a string summarizing the most basic information about the instance.
+    
+    For a Graph, provides number of vertices and number of edges;
+    otherwise, provides number of vertices and number of arrows.
+    '''
+    if isinstance(self, Graph):
+      object_in_one_word = 'graph'
+      relevant_components = '{} edges'.format(self.get_number_of_edges())
+    else:
+      object_in_one_word = 'digraph'
+      relevant_components = '{} arrows'.format(self.get_number_of_arrows())
+    return 'A {} with {} vertices and {}.'.format(
+        object_in_one_word, self.get_number_of_vertices(), relevant_components)
 
-  def provide_long_representation(self):
+########################################################################
+# Methods to compare digraphs
+########################################################################
+
+  def provide_unique_representation(self):
     '''
-    All information about the graph in a string.
+    Returns all information about the digraph.
+    
+    Returns a tuple with the class of the instance, with a set of its vertices
+    as well as a multi-set (Counter from built-in package collections)
+    of arrows.
     '''
-    raise NotImplementedError('Implement in the future.')
-    pass
+    # We return the class/type and the information on vertices and arrows
+    # Idea is that two digraphs with same output are the same for all purposes.
+    # There could be shortcuts to make this faster. For example, We opt for clarity
+    instance_class = type(self)
+    vertices = set(self.get_vertices())
+    arrows = collections_Counter(self.get_arrows())
+    return (instance_class, vertices, arrows)
+    
+  def __eq__(self, other, *, require_equal_classes = False):
+    '''
+    Magic method. Returns whether two instances are the same object.
+    
+    Has an option (default False) to require the subclassing to coincide.
+    '''
+    # To reduce the computing time (in particular avoiding forming sets/Counter)
+    #we first look at class, then only at vertices (typically their number
+    #is one order less than ), then finally at the whole "unique representation"
+    if require_equal_classes:
+      if type(self) != type(other):
+        return False
+    try:
+      if set(self.get_vertices()) == set(other.get_vertices()):
+        if self.provide_unique_representation() == other.provide_unique_representation():
+          return True
+        else:
+          return False
+      else:
+        return False
+    except AttributeError:
+      # AttributeError: most likely other instance not a Digraph
+      return False
+
+########################################################################
+# Methods which read simple information from the graph
+########################################################################
 
   def __contains__(self, vertex):
     '''
@@ -1754,7 +700,7 @@ class Digraph(object):
     #to build, with the given arrows, a Graph [an undirected graph]
     # We use the static method get_edges_from_sanitized_arrows, which returns
     #None when the arrows cannot be used to form edges
-    new_edges = Digraph.get_edges_from_sanitized_arrows(data = self,
+    new_edges = OperationsVAE.get_edges_from_sanitized_arrows(data = self,
         are_arrows_from_digraph = True, is_multiarrow_free = False)
     # We are explicit on what we're doing
     is_undirected = (new_edges is not None)
@@ -1936,13 +882,13 @@ class Digraph(object):
           # Slightly differently depending on arrows or edges
           if old_und:
             # Note default weight is supposed to be 1
-            weighted_edges_or_arrows = Digraph.write_weights_into_arrows_or_edges(
+            weighted_edges_or_arrows = OperationsVAE.write_weights_into_arrows_or_edges(
                 unweighted_tuples = data[1],
                 use_edges_instead_of_arrows = True,
                 new_weights = [1 for item in range(len(data[1]))],
                 require_namedtuple = True)
           else:
-            weighted_edges_or_arrows = Digraph.write_weights_into_arrows_or_edges(
+            weighted_edges_or_arrows = OperationsVAE.write_weights_into_arrows_or_edges(
                 unweighted_tuples = data[1],
                 use_edges_instead_of_arrows = False,
                 new_weights = [1 for item in range(len(data[1]))],
@@ -1951,12 +897,12 @@ class Digraph(object):
         elif new_unw and old_wei:
           # Possible if accept_data_loss is True, or if all have weight 1
           if old_und:
-            unweighted_edges_or_arrows = Digraph.remove_weights_from_arrows_or_edges(
+            unweighted_edges_or_arrows = OperationsVAE.remove_weights_from_arrows_or_edges(
                 weighted_tuples = data[1],
                 use_edges_instead_of_arrows = True,
                 require_namedtuple = True)
           else:
-            unweighted_edges_or_arrows = Digraph.remove_weights_from_arrows_or_edges(
+            unweighted_edges_or_arrows = OperationsVAE.remove_weights_from_arrows_or_edges(
                 weighted_tuples = data[1],
                 use_edges_instead_of_arrows = False,
                 require_namedtuple = True)
@@ -2149,7 +1095,7 @@ class Digraph(object):
         return copy_copy(self)
     else:
       # Easiest and cleanest way is through __init__
-      all_reversed_arrows = Digraph.get_reversed_arrows(self.get_arrows(),
+      all_reversed_arrows = OperationsVAE.get_reversed_arrows(self.get_arrows(),
           require_namedtuple = True)
       data = (self.get_vertices(), all_reversed_arrows)
       data_type = 'all_vertices_and_all_arrows'
@@ -2357,7 +1303,7 @@ class WeightedDigraph(Digraph):
       use_edges_instead_of_arrows = False
       original_working_data = self.get_arrows()
     # We then create the unweighted arrows/edges
-    list_new_tuplees = Digraph.remove_weight_from_arrows_or_edges(
+    list_new_tuplees = OperationsVAE.remove_weight_from_arrows_or_edges(
         tuplees = original_working_data,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         require_namedtuple = True, output_as_generator = False)
@@ -2955,10 +1901,8 @@ class WeightedDigraph(Digraph):
     
     If no such path or cycle exists, returns None.
     '''
-    # We use a class
-    pass
-        
-    
+    # We use a separate class
+    raise NotImplementedError('WORK HERE')
 
 ########################################################################
 # Class UnweightedDigraph
@@ -2988,7 +1932,7 @@ class UnweightedDigraph(Digraph):
       original_working_data = self.get_arrows()
     # We create the weighted arrows. Note default new weight is 1
     # Easiest way to make them all 1 is no put new_weights = None
-    list_new_tuplees = Digraph.write_weights_into_arrows_or_edges(
+    list_new_tuplees = OperationsVAE.write_weights_into_arrows_or_edges(
         tuplees = original_working_data,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows, new_weights = None,
         require_namedtuple = True, output_as_generator = False)
@@ -3023,7 +1967,7 @@ class UnweightedDigraph(Digraph):
     while name_super_source in [vertex.name for vertex in self.get_vertices()]:
       name_super_source = 's'+name_super_source
       # We consolidate it into a Vertex
-      the_super_source = Digraph.sanitize_vertex(name_super_source, require_namedtuple = False)
+      the_super_source = OperationsVAE.sanitize_vertex(name_super_source, require_namedtuple = False)
     # Now we create the new arrows starting from our super source
     new_arrows = []
     for vertex in self.get_vertices():
@@ -3125,16 +2069,6 @@ class Graph(Digraph):
   
   Edges might or not be weighted, depending on subclassing.
   '''
-
-  def __repr__(self):
-    '''
-    Returns representation of self.
-    '''
-    # We take the last part of the class name using split() string method
-    class_last_name = self.__class__.__name__.split()[-1]
-    about_instance = 'A {} with {} vertices and {} edges.'.format(
-        class_last_name, self.get_number_of_vertices(), self.get_number_of_edges())
-    return about_instance
     
   def get_edges(self):
     '''
@@ -3312,7 +2246,7 @@ class Graph(Digraph):
     If removed the variable k and tried to find the smallest vertex cover,
     then we would have an NP-complete problem.
     '''
-    pass
+    raise NotImplementedError('WORK HERE')
 
 ########################################################################
 # Class WeightedGraph
@@ -3407,7 +2341,7 @@ class WeightedGraph(WeightedDigraph, Graph):
       # To get the two vertices (first in X, second in Y) and the weight, we do:
       assert pre_new_edge_to_add[0] == cost_of_new_edge, 'Weight of edges does not match'
       connecting_vertex = pre_new_edge_to_add[1]
-      new_edge_to_add = Digraph.Edge(connecting_vertex, new_vertex, cost_of_new_edge)
+      new_edge_to_add = Edge(connecting_vertex, new_vertex, cost_of_new_edge)
       E.append(new_edge_to_add)
       # Unfortunately deletion is awful using heapq. But it's the best we have
       # We don't need to delete the vertex new_vertex from vertices_heap
@@ -3442,438 +2376,5 @@ class UnweightedGraph(UnweightedDigraph, Graph):
   A graph whose edges are all unweighted.
   '''
   pass
-
-########################################################################
-# Class StateDiraphGetCC
-########################################################################
-
-class StateDigraphGetSCC(object):
-  '''
-  Instances used to record the state of method Digraph.get_sccs()
-  
-  Attributes:
-  _graph
-  _vertices_ranked
-  _n
-  
-  Temporary attributes (using only for SCC algorithm, then deleted):
-  t
-  s
-  leaders
-  explored
-  new_rank
-  '''
-  
-  def __init__(self, graph):
-    '''
-    Initializes the instace.
-    '''
-    self._graph = graph
-    self._vertices_ranked = self._graph.get_vertices() # Lists the keys, the vertices
-    self._n = len(self._vertices_ranked) # Same as self.get_number_of_vertices()
-    
-  def manually_change_graph(self, graph):
-    '''
-    Changes the graph to another graph.
-    
-    This new graph should have the same vertices (p. ex. inverted graph.)
-    '''
-    # This should not alter self._n nor self._vertices_ranked
-    self._graph = graph
-
-  def manually_change_vertices_ranked(self, vertices_ranked):
-    '''
-    Changes the order of the vertices in the instance.
-    
-    This new rank should have the same vertices.
-    '''
-    self._vertices_ranked = vertices_ranked
-    
-  def dfs_outer_loop(self):
-    # This is the right place. These are all new definitions
-    # (Since we assume delete them attributes at the end.)
-    self.t = 0 # A number from 0 to n-1
-    self.s = None # Should be None or a vertex
-    self.leaders = {vertex: None for vertex in self._vertices_ranked}
-    self.explored = {vertex: False for vertex in self._vertices_ranked}
-    self.new_rank = [None]*self._n
-    # Now we execute the algorithm
-    for i in range(self._n - 1, -1, -1):
-      current_vertex = self._vertices_ranked[i]
-      if not self.explored[current_vertex]:
-        #print(f'{i} vertices yet to explore')
-        self.s = current_vertex
-        self.dfs_inner_loop(current_vertex)
-    # We "deliver" the results which are new_rank (useful for first pass)
-    #and leaders (useful for second pass)
-    # We could make new_rank replace self._vertices_ranked but we won't
-    # We will even delete the reference to the attributes
-    new_rank = list(self.new_rank) # Makes a fresh copy
-    leaders = dict(self.leaders)
-    delattr(self, 't')
-    delattr(self, 's')
-    delattr(self, 'leaders')
-    delattr(self, 'explored')
-    delattr(self, 'new_rank')
-    return (new_rank, leaders)
-
-  def dfs_inner_loop(self, fixed_vertex):
-    '''
-    Performs an internal operation on self, based on fixed_vertex of self._graph.
-    
-    It assumes the existence of the attibute new_rank. Called only by dfs_loop.
-    '''
-    self.explored[fixed_vertex] = True
-    self.leaders[fixed_vertex] = self.s
-    for vertex in self._graph.get_neighbors_out(fixed_vertex):
-      if not self.explored[vertex]:
-        self.dfs_inner_loop(vertex)
-    self.new_rank[self.t] = fixed_vertex # Puts fixed_vertex at rank self.t
-    # A little debug routine
-    #print(f'Marked vertex {fixed_vertex} as rank {self.t}')
-    #print(f'{self.explored=}')
-    #print(f'{self.leaders=}\n')
-    # Could use append instead of t with the same effect, since it goes in order
-    # Nonetheless, we prefer to follow the original algorithm closely
-    self.t += 1
-    # Note that this is a procedure and not a method and thus we don't return anything
-
-########################################################################
-# Class StateGraphGetCC
-########################################################################
-
-class StateGraphGetCC(object):
-  '''
-  Instances used to record the state of method
-  HomemadeGraph.get_ccs()
-  
-  Attributes:
-  _graph
-  
-  Temporary attributes (using only for CC algorithm, then deleted):
-  self.current_label
-  
-  Goal attributes:
-  vertices_by_label
-  components
-  number_components
-  '''
-  
-  def __init__(self, graph):
-    '''
-    Initializes the instance
-    '''
-    self._graph = graph
-  
-  def dfs_outer_loop(self):
-    '''
-    Returns the connected components of self._graph using depth-first search.
-    '''
-    # In this process we scan all vertices to find the connected components
-    # We can do with either depth-first or breadth-first search either way
-    # We can do with either depth-first or breadth-first search either way
-    # Each time we explore a vertex, we mark it with a label (a number)
-    # (This is how we mark it explored for DFS)
-    # To make it easy, let's do component 0, 1, 2, and so on
-    # Two vertices will have the same label iff they are in the same component
-    # Let's do it with a dictionary. We start with the None label
-    self.components = {vertex:None for vertex in self.get_vertices()}
-    # We assign labels to unlabeled vertices, starting from 0
-    self.current_label = 0
-    # We also control the vertices with each existing label using a dict
-    self.vertices_by_label = {}
-    # Regarding the vertices, we can scan them in order
-    # (And update the label for the whole connected component)
-    for vertex in self._graph.get_vertices():
-      if self.components[vertex] is None:
-        # We mark as explored right away using self.components[]
-        self.components[vertex] = self.current_label
-        # We could use a default dict but we'll do it manually
-        if self.current_label not in self.vertices_by_label:
-          self.vertices_by_label[self.current_label] = []
-        self.vertices_by_label[self.current_label].append(vertex)
-        # The following being right here characterizes depth-first search
-        # (Technically it's a depth-based search and not a depth-first search, but ok)
-        for other_vertex in self._graph.get_neighbors(vertex, skip_checks = True):
-          if self.components[other_vertex] is None:
-            self.dfs_inner_loop(other_vertex)
-        # Now that everyone reachable using DFS was reached, we close the loop
-        self.current_label += 1
-    # The number of components is exactly the current value of self.current_label
-    self.number_components = self.current_label
-    # We output what is relevant, and delete the rest
-    # That is, we output the components as given by self.components,
-    #self.vertices_by_label, self.components, and self.number_components
-    vertices_by_label = dict(self.vertices_by_label)
-    components = dict(self.components)
-    number_components = self.number_components
-    delattr(self, 'vertices_by_label')
-    delattr(self, 'components')
-    delattr(self, 'number_components')
-    delattr(self, 'current_label')
-    return (vertices_by_label, components, number_components)
-          
-  def dfs_inner_loop(self, fixed_vertex):
-    '''
-    Inner loop of deapth-first search.
-    
-    Does not return anything, only changes self.
-    '''
-    # We mark fixed_vertex as explored, update the status of self
-    self.components[fixed_vertex] = self.current_label
-    if self.current_label not in self.vertices_by_label:
-      self.vertices_by_label[self.current_label] = []
-    self.vertices_by_label[self.current_label].append(fixed_vertex)
-    # We know try all edges and do the process
-    for other_vertex in self._graph.get_neighbors(fixed_vertex, skip_checks = True):
-      if self.components[other_vertex] is None:
-        self.dfs_inner_loop(other_vertex)
-    # We don't return anything, only change self
-
-########################################################################
-# Class StateDigraphSolveTSP
-########################################################################
-
-class StateDigraphSolveTSP(object):
-  '''
-  Used to help with method solve_traveling_salesman_problem.
-  '''
-  
-  def __init__(self, digraph):
-    '''
-    Magic method. Initializes the instance.
-    '''
-    self.digraph = digraph
-    self.n = self.digraph.get_number_of_vertices()
-    # Let's create a relationship between vertices and their indices
-    self.number_by_vertex = {}
-    self.vertex_by_number = {}
-    # Note Vertex is a namedtuple and thus it is hasheable
-    for idx, vertex in enumerate(self.get_vertices()):
-      number_by_vertex[vertex] = idx
-      vertex_by_number[idx] = vertex
-
-  #############
-  # WORK HERE
-  # Develop memoization/tabulation (top down/bottom up) versions of algorithm
-  # If can both coexist in the code, way better!
-  # Maybe use top_down_solve_subproblem = functools_cache(solve_subproblem)
-  #and use two different functions (or something like that)
-  #############
-  # To avoid calculating something multiple times (and not calculate useless stuff)
-  # Alternative: simply store it into a table self.A
-  @functools_cache
-  def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
-      use_top_down_instead_of_bottom_up = False, output_as = None, skip_checks = False):
-    '''
-    Computes the minimal path length given specific parameters: given
-    initial and final vertices and a set of vertices [given by a tuple of
-    Booleans], finds minimal among paths traveling once though each vertex.
-    
-    Returns the minimal weight of such path, and also one of these minimizing paths.
-    
-    [Note this method is only about paths, not cycles.]
-    '''
-    # Default output is 'path', meaning an instance of VertexPath
-    if output_as is None:
-      output_as = 'path'
-    # Our subproblems are: Consider we have a fixed initial vertex
-    #(which might be passed as argument as source_vertex), a fixed
-    #final vertex, and a set of the vertices including those two. We want
-    #the minimal length of the paths going through each vertex once
-    #(if there are such paths), starting at initial and ending on the final
-    # We will parametrize these subproblems by initial, final, presence_set,
-    #where presence_set is a tuple of n Booleans, True meaning the corresponding
-    #vertex in its position is an element of the set (and thus part of path)
-    presence_set = args
-    initial_number = self.number_by_vertex[initial_vertex]
-    final_number = self.number_by_vertex[final_vertex]
-    if not skip_checks:
-      # Expect arg to be a tuple of Booleans with length n
-      assert len(presence_set) == self.n, 'Internal logic error'
-      # Check that initial_vertex and final_vertex are present [i. e. True]
-      assert presence_set[initial_number], 'Internal logic error'
-      assert presence_set[final_number], 'Internal logic error'
-    # We get rid of the boundary cases
-    # We impose that if the final vertex coincides with the initial vertex,
-    #the only possible path is the no-arrow path (of length 0)
-    if initial_number == final_number:
-      # Want only that vertex as True, otherwise no path (distance math_inf)
-      sought_presence_set = tuple((idx == initial_number) for idx in range(self.n))
-      if presence_set == sought_presence_set:
-        # No previous vertex, so previous path should be [] to work well later
-        # If only lengths are asked, we produce None instead of [], for consistency
-        if output_as.lower() == 'length':
-          return (0, None)
-        else:
-          return (0, [])
-      else:
-        if output_as.lower() == 'length':
-          return (math_inf, None)
-        else:
-          return (math_inf, [])
-    else:
-      # We essentially recur on "previous subproblems"
-      # That is, for all arrows landing on final_vertex, we ask which
-      #could be the last one, and pick the one producing the smallest
-      #weight (assuming we solve the subproblems without this last vertex)
-      min_among_all_last_arrows = math_inf
-      whole_path_as_arrows = None
-      for arrow in self.graph.get_arrows_in(final_vertex):
-        # arrow has information arrow.source, arrow.target which is final
-        #vertex, and arrow.weight.
-        # We verify the source does belong to the presence_set
-        arrow_source_as_number = number_by_vertex[arrow.source]
-        if presence_set[arrow_source_as_number]:
-          # We "remove" arrow.source by flipping True to False
-          # We need to create a temporary mutable object first
-          presence_set_as_list = list(presence_set)
-          presence_set_as_list[arrow_source_as_number] = False
-          last_off_presence_set = tuple(presence_set_as_list)
-          # Total weight is then the solution of that problem,
-          #plus the weight of this last arrow
-          # Note that we also keep a list of arrows going back to start
-          # It's probably easier than start a VertexPath instance every time
-          previous_length, previous_path = self.solve_subproblem(
-              initial_vertex = initial_vertex,
-              final_vertex = arrow.source,
-              presence_set = last_off_presence_set,
-              skip_checks = skip_checks)
-          this_distance = arrow.weight + previous_length
-          if this_distance < min_among_all_last_arrows:
-            # Update the minimal distance, if this is minimal
-            min_among_all_last_arrows = this_distance
-            if (not output_as is None) and (output_as.lower() == 'length'):
-              # Also update the last arrow (last arrow in path)
-              whole_path_as_arrows = previous_path + arrow
-            else:
-              # To save memory during execution, if we only want the minimal length
-              #we will not conserve information on how to reconstruct the path
-              # We use the very default object None for this objective
-              whole_path_as_arrows = None
-      # With the loop ended, the best should be recorded
-      # (None whole_path_as_arrows contains None if output_as is 'length')
-      return (best_distance, whole_path_as_arrows)
-
-  #############
-  # WORK HERE
-  # Develop memoization/tabulation (top down/bottom up) versions of algorithm
-  #############
-  def solve_full_problem(self, compute_path_instead_of_cycle,
-      initial_vertex = None, final_vertex = None,
-      use_top_down_instead_of_bottom_up = False, output_as = None, skip_checks = False):
-    '''
-    Solves the Traveling Salesman Problem for the graph.
-    
-    output_as: 'path', 'vertices', 'vertices_and_arrows', 'arrows', 'length'
-    '''
-    # At the moment support only for output_as = VertexPath/VertexCycle
-    # We check that there is at least one vertex
-    if not bool(self.graph):
-      # Returns path/cycle with no vertices
-      if compute_path_instead_of_cycle:
-        return VertexPath(self.graph, [], 'vertices')
-      else:
-        return VertexCycle(self.graph, [], 'vertices')
-    else:
-      # To solve the problem for a path (for a cycle it involves an extra step;
-      #we will do it at the end, and only if required), we need to use some
-      #form or recursion, or dynamic programming, which is carried out
-      #in a separate method
-      # For all vertices but the initial_vertex, we compute the possible
-      #paths starting on initial_vertex, passing through all others exactly once
-      #and ending on them
-      # To simplify:
-      all_vertices = list(self.number_by_vertex)
-      # We prepare a tuple of n Trues to be the presence set, we will need it
-      tuple_of_trues = tuple([True]*(self.n))
-      if compute_path_instead_of_cycle:
-        # In this case, if there is no initial given vertex (i. e. None),
-        #we assume we must scan through all possible initial vertices
-        # We need to ensure final_vertex is different than initial_vertex,
-        #if those are given
-        if (not initial_vertex is None) and (not final_vertex is None):
-          assert final_vertex != initial_vertex, 'Hamiltonian path cannot be a cycle'
-        # We will generate all possible paths for given initial and final vertices
-        # Note initial and final vertices cannot coincide
-        if initial_vertex is None:
-          # All are allowed. We use list on dict self.number_by_vertex
-          initial_vertices = all_vertices
-        else:
-          initial_vertices = [initial_vertex]
-        initial_and_final = []
-        for vertex in initial_vertices:
-          # If final_vertex is specified, only such vertex can be final
-          # Otherwise, all (except initial_vertex; would form cycle) are allowed
-          if final_vertex is None:
-            for another_vertex in all_vertices:
-              if vertex != another_vertex:
-                initial_and_final.append((vertex, another_vertex))
-          else:
-            if vertex != final_vertex:
-              initial_and_final.append((vertex, final_vertex))
-        # We compute all possibilities, and record the best
-        # If no path is valid, it should be math_inf, so that is how we start
-        min_distance_overall = math_inf
-        minimizing_path = None
-        for pair in initial_and_final:
-          local_distance, local_path = self.solve_subproblem(
-              initial_vertex = pair[0], final_vertex = pair[1],
-              presence_set = tuple_of_trues, skip_checks = skip_checks)
-          # Note local_last_arrow is ignored... we still don't know how to
-          #build the data using the arrows
-          if local_distance < min_distance_overall:
-            min_distance_overall = local_distance
-        # In the moment we have no formatting according to output_as
-        return min_distance_overall, minimizing_path
-      else:
-        # If we want a cycle, there should be no specified final_vertex
-        # [Unless the same vertex is entered as initial_vertex, which would be allowed
-        #under certain interpretation to reinforce the request for a cycle]
-        if initial_vertex is None:
-          assert final_vertex is None, 'Cannot specify end of cycle if start is not specified'
-        else:
-          assert final_vertex == initial_vertex, 'Cycles start and end at same place'
-        # In any case, the variable final_vertex will be ignored
-        # We only want to raise the error to make it clearer
-        # We will even delete the variable from this scope
-        del final_vertex
-        # In this case, the same cycle will be generated independently
-        #of the first vertex
-        # We pick the first listed if not given as argument
-        # If passed as argument, we keep it [it doesn't really matter]
-        if initial_vertex is None:
-          initial_vertex = self.vertex_by_number[0]
-        # We consider all cycles starting at given cycle
-        # We consider all possibilities for the penultimate vertex of the cycle
-        #(the final vertex, by definition, coincides with the initial)
-        # We pick the best one after closing the cycle with the last arrow
-        #(from the penultimate to the initial/final vertex)
-        # We initiate values as math_inf, and then search for the minimum
-        # We also report the minimizing path
-        min_distance_overall = math_inf
-        minimizing_path = None
-        # Note also this penultimate cannot be the initial vertex
-        # (To read arrows ending at initial=final, we use get_arrows_in)
-        for arrow in self.get_arrows_in(initial_vertex):
-          if arrow.source != initial_vertex:
-            # Compute the paths from initial to penultimate [using the last arrow]
-            length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
-                initial_vertex = initial_vertex, final_vertex = arrow.source,
-                presence_set = tuple_of_trues, output_as = output_as,
-                skip_checks = skip_checks)
-            # Comparisons involves always the last edge, whose weight must be factored in
-            #to close the cycle
-            this_distance = length_up_to_penultimate + arrow.weight
-            if this_distance < min_distance_overall:
-              min_distance_overall = this_distance
-              # We only record the path if output_as is not 'length'
-              if output_as.lower() == 'length':
-                minimizing_path = None
-              else:
-                minimizing_path = path_up_to_penultimate + arrow
-        # By now, we have min_distance_overall and minimizing_path
-        # In the moment we have no formatting according to output_as
-        return min_distance_overall, minimizing_path
 
 ########################################################################
