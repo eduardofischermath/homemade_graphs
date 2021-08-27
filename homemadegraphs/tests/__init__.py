@@ -30,7 +30,7 @@
 # Internal imports
 ########################################################################
 
-# Bring all functions and classes in the files into their own subpackage scope
+# Bring all functions and classes into homemadegraphs.tests scope
 
 from . import test_digraph_initialization
 from . import test_empty_digraph

@@ -41,8 +41,11 @@ from itertools import chain as itertools_chain
 # Name of vertex should be preferably hashable because they are often keys of dicts
 # On the other hand, we implement no checks for hashableness
 Vertex = collections_namedtuple('Vertex', 'name')
-# Make weight to be None if unweighted (default value)
+
+# In an Arrow, make weight to be None if unweighted (default value)
 Arrow = collections_namedtuple('Arrow', 'source,target,weight', defaults = (None,))
+
+# Similarly for Edges
 Edge = collections_namedtuple('Edge', 'first,second,weight', defaults = (None,))
 
 ########################################################################
@@ -79,7 +82,7 @@ class OperationsVAE(object):
     
     Can also require that the object was a Vertex namedtuple to start with.
     '''
-    if isinstance(obj, Digraph.Vertex):
+    if isinstance(obj, Vertex):
       return obj
     else:
       if require_namedtuple:
@@ -89,18 +92,18 @@ class OperationsVAE(object):
         # It should have length one in this case (and in particular a __len__ method)
         if not hasattr(obj, '__len__'):
           # A namedtuple always has length, so object is not one
-          return Digraph.Vertex(obj)
+          return Vertex(obj)
         # We finally check the length (if we arrive here, there is length)
         elif len(obj) != 1:
           # In this case we know it is not a Vertex instance, and we can envelop it
-          return Digraph.Vertex(obj)
+          return Vertex(obj)
         else:
           # In this case it is has length 1
           # We create a vertex from the first and only item
           # Note that one consequence of this is that [item] and item
           #will produce the same Vertex (one with name=item).
           # Note that for a single-char string, its first item is itself
-          vertex_from_object = Digraph.Vertex(obj[0])
+          vertex_from_object = Vertex(obj[0])
 
   @staticmethod
   def sanitize_vertices(vertices, require_namedtuple = False, output_as_generator = False):
@@ -111,7 +114,7 @@ class OperationsVAE(object):
     #(that is, output_as_generator is defaulted to False)
     # We use lambda and map, making it a list if requested
     # Same could be accomplished via partial from functools, but we prefer lambda
-    partial_function = lambda vertex: sanitize_vertex(vertex, require_namedtuple = require_namedtuple)
+    partial_function = lambda vertex: OperationsVAE.sanitize_vertex(vertex, require_namedtuple = require_namedtuple)
     as_generator = map(partial_function, vertices)
     if output_as_generator:
       return as_generator
@@ -129,9 +132,9 @@ class OperationsVAE(object):
     [Tuples are imutable; this always produces a new namedtuple.]
     '''
     if use_edges_instead_of_arrows:
-      selected_class = Digraph.Edge
+      selected_class = Edge
     else:  
-      selected_class = Digraph.Arrow
+      selected_class = Arrow
     # We want this to be very quick if tuple is alerady Arrow or Edge
     # Thus, we start by test for being an instance of selected_class
     if isinstance(tuplee, selected_class):
@@ -158,7 +161,7 @@ class OperationsVAE(object):
     '''
     Iterable version of sanitize_arrow_or_edge.
     '''
-    partial_function = lambda tuplee: sanitize_arrow_or_edge(tuplee,
+    partial_function = lambda tuplee: OperationsVAE.sanitize_arrow_or_edge(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         require_namedtuple = require_namedtuple)
     as_generator = map(partial_function, tuplees)
@@ -198,7 +201,7 @@ class OperationsVAE(object):
       if is_multiarrow_free:
         # Algorithm with frozenset and hashing: we do it with lists in multiple steps
         #to facilitate understanding, even if it might cost more memory
-        arrows_and_its_reverses = [[arrow, Digraph.get_reversed_arrow(arrow, skip_checks = True)] for arrow in arrows]
+        arrows_and_its_reverses = [[arrow, OperationsVAE.get_reversed_arrow(arrow, skip_checks = True)] for arrow in arrows]
         list_of_frozensets = [frozenset(pair) for pair in arrows_and_reversed_arrows]
         # We use frozenset to do all the comparing (sets are not hasheable)
         # It is not a problem to fit them all in a set
@@ -211,7 +214,7 @@ class OperationsVAE(object):
             # We don't have pop() for frozensets, so we make them into lists
             # These lists have two elements; we extract the first
             arrow = list(pair_of_arrows)[0]
-            new_edge = Digraph.Edge(arrow.source, arrow.target, arrow.weight)
+            new_edge = Edge(arrow.source, arrow.target, arrow.weight)
             edges.append(new_edge)
           return edges
         else:
@@ -230,7 +233,7 @@ class OperationsVAE(object):
         found_arrow_without_edge = False
         while new_edges: # i. e. new_edges nonempty
           last_arrow = arrows.pop() # pop() removes last and return it
-          last_arrow_reversed = Digraph.get_reversed_arrow(last_arrow, skip_checks = True)
+          last_arrow_reversed = OperationsVAE.get_reversed_arrow(last_arrow, skip_checks = True)
           # Try to remove the reversed arrow. If it fails, they don't form edges
           try:
             arrows.remove(last_arrow_reversed)
@@ -276,7 +279,7 @@ class OperationsVAE(object):
     Has the option to accept or not a tuple which is not Arrow/Edge namedtuple.
     '''
     # To make the work simpler we factor through sanitization
-    tuplee = Digraph.sanitize_arrow_or_edge(tuplee,
+    tuplee = OperationsVAE.sanitize_arrow_or_edge(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         require_namedtuple = require_namedtuple)
     # We can read the namedtuple from tuplee now; Arrow or Edge
@@ -309,13 +312,13 @@ class OperationsVAE(object):
     Has the option to accept or not a tuple which is not Edge.
     '''
     # To save time we factor though sanitization
-    edge = Digraph.sanitize_arrow_or_edge(edge,
+    edge = OperationsVAE.sanitize_arrow_or_edge(edge,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         require_namedtuple = require_namedtuple)
     # We are guaranteed to have an Edge now
     # We could use get_reversed_arrow_or_equivalent_edge, but we won't
-    first_arrow = Digraph.Arrow(edge.first, edge.second, edge.weight)
-    second_arrow = Digraph.Arrow(edge.second, edge.first, edge.weight)
+    first_arrow = Arrow(edge.first, edge.second, edge.weight)
+    second_arrow = Arrow(edge.second, edge.first, edge.weight)
     return [first_arrow, second_arrow]
 
   @staticmethod
@@ -327,7 +330,7 @@ class OperationsVAE(object):
     # First, we produce a generator to produce smaller (length 2) generators
     # We use a lambda to create those small generators
     # We modify the output to be a generator for each edge
-    small_generator = lambda edge: (arrow for arrow in Digraph.get_arrows_from_edge(
+    small_generator = lambda edge: (arrow for arrow in OperationsVAE.get_arrows_from_edge(
         edge, require_namedtuple = require_namedtuple))
     # We group them together in a generator of generators
     generator_of_generators = map(small_generator, edges)
@@ -347,7 +350,7 @@ class OperationsVAE(object):
     Has the option to accept or not tuples which are not Arrows or Edges.
     '''
     # We factor through sanitization to save time
-    tuplee = Digraph.sanitize_arrow_or_edge(tuplee,
+    tuplee = OperationsVAE.sanitize_arrow_or_edge(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         require_namedtuple = require_namedtuple)
     # We have an Edge or Arrow namedtuple. We can capture class via type()
@@ -363,7 +366,7 @@ class OperationsVAE(object):
     Iterable version of remove_weight_from_arrow_or_edge.
     '''
     # The following can also be accomplised via partial() from functools library
-    partial_function = lambda x: remove_weight_from_arrow_or_edge(
+    partial_function = lambda x: OperationsVAE.remove_weight_from_arrow_or_edge(
         unweighted_tuple = x,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         require_namedtuple = require_namedtuple)
@@ -393,7 +396,7 @@ class OperationsVAE(object):
     if new_weight == None:
       new_weight = 1
     # We can factor through sanitization
-    tuplee = Digraph.sanitize_arrow_or_edge(tuplee,
+    tuplee = OperationsVAE.sanitize_arrow_or_edge(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         require_namedtuple = require_namedtuple)
     # Now tuplee is guaranteed to be Arrow or Edge
@@ -409,7 +412,7 @@ class OperationsVAE(object):
     '''
     # We use lambda. Using partial from functools could potentially work too
     #if the issues with argument ordering were solved
-    partial_function = lambda tuplee, weight: write_weight_into_arrow_or_edge(
+    partial_function = lambda tuplee, weight: OperationsVAE.write_weight_into_arrow_or_edge(
         tuplee = tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         new_weight = weight,

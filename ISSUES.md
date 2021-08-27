@@ -159,3 +159,9 @@ A .toml file also generalizes setup.py. Consult PEP 518
 Since package name is currently homemadegraphs, consider renaming things.
 One thing that should be renamed is the header of every file, which mentions
 "homemade_graphs" instead of "homemadegraphs".
+
+## ISSUE #0028 ONGOING
+
+Create tests for every method/function/operation/functionality in package.
+(This is bound to be an almost permanent issue, as any new, future functionality
+should also have corresponding testing implemented.)
