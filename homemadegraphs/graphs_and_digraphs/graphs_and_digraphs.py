@@ -340,8 +340,10 @@ class Digraph(object):
     # We verify it is a valid arrow, putting it into the right format if it makes sense
     # We don't mind if we start with a simple tuple instead of the named tuple Arrow
     # We will put it into a namedtuple Arrow, that is, a sanitized arrow
+    # Vertex is also to be sanitized before going in, with request_vertex_sanitization
     arrow = OperationsVAE.sanitize_arrow_or_edge(arrow,
-        use_edges_instead_of_arrows = False, require_namedtuple = require_namedtuple)
+        use_edges_instead_of_arrows = False, require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = True)
     # We check whether the vertices are already present
     # If require_vertices_in, we raise an error if the vertices are not
     #already present. Otherwise, we add the vertices too.
@@ -375,7 +377,7 @@ class Digraph(object):
       arrows, edges = OperationsVAE.sanitize_arrows_and_return_formed_edges()
     else:
       arrows = OperationsVAE.sanitize_arrows_or_edges(arrows, use_edges_instead_of_arrows = False,
-          require_namedtuple = require_namedtuple)
+          require_namedtuple = require_namedtuple, request_vertex_sanitization = True)
     # We add the arrows
     for arrow in arrows:
       self._add_arrow(arrow, require_vertices_in = require_vertices_in,
@@ -399,7 +401,10 @@ class Digraph(object):
     It also appears as one edge in self._edges (in Graph instance only)
     '''
     # We first put the edge into a namedtuple, if not already [sanitize it]
-    edge = OperationsVAE.sanitize_arrow_or_edge(edge, require_namedtuple = require_namedtuple)
+    edge = OperationsVAE.sanitize_arrow_or_edge(edge,
+        use_edges_instead_of_arrows = True,
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = True)
     # We check whether the vertices are already present
     if edge.first not in self:
       if require_vertices_in:
