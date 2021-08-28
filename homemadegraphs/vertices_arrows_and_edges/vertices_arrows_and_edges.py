@@ -461,7 +461,8 @@ class OperationsVAE(object):
       return list(as_generator)
 
   @staticmethod
-  def get_namedtuples_from_neighbors(dict_of_neighbors, output_as, namedtuple_choice = None):
+  def get_namedtuples_from_neighbors(dict_of_neighbors, output_as, namedtuple_choice = None,
+      require_namedtuple = False, request_vertex_sanitization = False):
     '''
     From a dictionary of neighbors, creates all corresponding tuples.
     
@@ -475,7 +476,13 @@ class OperationsVAE(object):
     If namedtuple is given [it must be given as a class, not a string],
     produce that namedtuple. Otherwise, plain tuple.
     
-    Note this static method/function has no options for sanitization.
+    Option require_namedtuple requires keys of given dict and the first item
+    of their values to be Vertex, but this checking only occurs if
+    request_vertex_sanitization is True.
+    
+    If request_vertex_sanitization, the keys of the output dict (if output as dict)
+    and the two first items of the tuples will be sanitized to Vertices.
+    This happens even if namedtuple_choice is not Arrow nor Edge.
     '''
     # It all depends if the values in the dict are iterable or not
     # To save time and testing strings fewer times, we do:
@@ -493,28 +500,54 @@ class OperationsVAE(object):
       namedtuple_choice = lambda *x: tuple(x) # Default to regular tuple
     else:
       # We assert we do have a tuple subclass (just to avoid errors later)
+      # Likely Edge or Arrow but other possibilities might be created in the future
       # (Probably the best way to meet the proposal of the method.)
       assert issubclass(namedtuple_choice, tuple), 'Needs subclass of tuple'
       pass
     edited_dict = {}
     edited_list = []
     for key in dict_of_neighbors:
-      edited_dict[key] = []
+      # We sanitize the key (in a typical use it's meant to be a vertex)
+      if request_vertex_sanitization:
+        sanitized_key = OperationsVAE.sanitize_vertex(key, require_namedtuple = require_namedtuple)
+      else:
+        sanitized_key = key
+      edited_dict[sanitized_key] = []
       for item in dict_of_neighbors[key]:
         # We check if __len__ is a valid method to determine how to proceed
         if hasattr(item, '__len__'):
           # Use * for easier unpacking. This works for length 0, 1 or bigger
-          pre_appending_tuple = (key, *item)
+          if request_vertex_sanitization:
+            # If request_vertex_sanitization, the item should have length >= 1
+            #and the first sub-item needs to be a Vertex
+            if not len(item):
+              raise ValueError('Need a Vertex in iterable and so expect it non-empty.')
+            # We can proceed
+            first, *others = item
+            sanitized_first = OperationsVAE.sanitize_vertex(first, require_namedtuple = require_namedtuple)
+            pre_appending_tuple = (sanitized_key, sanitized_first, *others)
+          else:
+            pre_appending_tuple = (sanitized_key, *item)
         else:
           # No length method, even easier
-          pre_appending_tuple = (key, item)
+          # Note this works file with chars
+          if request_vertex_sanitization:
+            sanitized_item = OperationsVAE.sanitize_vertex(item, require_namedtuple = require_namedtuple)
+            pre_appending_tuple = (sanitized_key, sanitized_item)
+          else:
+            pre_appending_tuple = (sanitized_key, item)
         # We make the right type of tuple or namedtuple
         # The packing and unpacking appear weird but is likely the best way
         pre_appending_tuple = namedtuple_choice(*pre_appending_tuple)
+        # We do the requested sanitization
         # We append to the big list or to the individual key as requested
         if output_as_dict_instead_of_list:
           edited_dict[key].append(appending_tuple)
         else:
           edited_list.append(appending_tuple)
+    if output_as_dict_instead_of_list:
+      return edited_dict
+    else:
+      return edited_list
 
 ########################################################################
