@@ -470,7 +470,7 @@ class Digraph(object):
     # (Note that using edges for a Graph complicated things. Better to aim
     #for initializing always as arrows_out_as_dict in all cases)
     instance_class = repr(type(self))
-    data = repr(self.get_arrows_out())
+    data = repr(self.get_arrows_out_as_dict())
     data_type = 'arrows_out_as_dict'
     return '{}(data = {}, data_type = {}, cast_as_class = None)'.format(
         instance_class, data, data_type)
@@ -665,6 +665,12 @@ class Digraph(object):
     else:
       raise ValueError('Output option not recognized')
 
+  def get_arrows_out_as_dict(self):
+    '''
+    Returns arrows going out of each vertex.
+    '''
+    return self._arrows_out
+
   def get_arrows_out(self, vertex, skip_checks = False):
     '''
     Returns arrows going out of a vertex.
@@ -672,6 +678,12 @@ class Digraph(object):
     if not skip_checks:
       assert vertex in self, 'Vertex must be in digraph'
     return self._arrows_out[vertex]
+
+  def get_arrows_in_as_dict(self):
+    '''
+    Returns arrows going into each of the vertices.
+    '''
+    return self._arrows_in
 
   def get_arrows_in(self, vertex, skip_checks = False):
     '''
