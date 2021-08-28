@@ -65,11 +65,12 @@ class TestDigraphInitialization(unittest_TestCase):
         ({A: [AB], B: [], C:[CB]},'arrows_out_as_dict'),
         ([[A, AB], [B], [C, CB]],'arrows_out_as_list'),
         ({A:[B], B:[], C:[B]},'neighbors_out_as_dict'),
-        ([[A, B], [B], [C, B]],'neighbots_out_as_list')]
+        ([[A, B], [B], [C, B]],'neighbors_out_as_list')]
     # We make a dict, indexed by data_type
     cls.dict_of_digraphs = {}
     for data, data_type in data_and_data_types:
       cls.dict_of_digraphs[data_type] = Digraph(data = data, data_type = data_type)
+      print(f'Graph successfully formed with {data_type=}')
     
   def test_pairwise_equality(self):
     count = 0

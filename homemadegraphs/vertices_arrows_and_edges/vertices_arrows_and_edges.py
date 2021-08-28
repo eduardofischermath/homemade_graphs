@@ -129,6 +129,9 @@ class OperationsVAE(object):
     
     If require_namedtuple, ensures argument is an Arrow/Edge namedtuple.
     
+    If require_vertex_namedtuple, will need first and second item to be
+    Vertex namedtuples.
+    
     [Tuples are imutable; this always produces a new namedtuple.]
     '''
     if use_edges_instead_of_arrows:

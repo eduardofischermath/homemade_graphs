@@ -165,3 +165,9 @@ One thing that should be renamed is the header of every file, which mentions
 Create tests for every method/function/operation/functionality in package.
 (This is bound to be an almost permanent issue, as any new, future functionality
 should also have corresponding testing implemented.)
+
+## ISSUE #0029 OPEN
+
+Work on sanitize_arrow_or_edge to have an optional argument
+also_sanitize_vertices which, if True, orders sanitization of the vertices
+(that is, the first and second items of the Arrow/Edge namedtuple)

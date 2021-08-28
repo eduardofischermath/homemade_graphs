@@ -311,7 +311,7 @@ class Digraph(object):
     # We determine whether the vertex is already in the graph
     if vertex in self:
       # In this case vertex is already present
-      if not require_vertex_not_in:
+      if require_vertex_not_in:
         raise ValueError('Vertex already present')
       else:
         # Vertex present, but not a problem. Leave the method
@@ -349,12 +349,14 @@ class Digraph(object):
       if require_vertices_in:
         raise ValueError('Source of arrow needs to be in digraph.')
       else:
-        self._add_vertex(arrow.source)
+        self._add_vertex(arrow.source, require_vertex_not_in = True,
+            require_namedtuple = False)
     if arrow.target not in self:
       if require_vertices_in:
         raise ValueError('Target of arrow needs to be in digraph.')
       else:
-        self._add_vertex(arrow.target)    
+        self._add_vertex(arrow.target, require_vertex_not_in = True,
+            require_namedtuple = False)
     # We now work on the arrow
     self._arrows_in[arrow.target].append(arrow)
     self._arrows_out[arrow.source].append(arrow)
