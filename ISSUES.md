@@ -166,7 +166,7 @@ Create tests for every method/function/operation/functionality in package.
 (This is bound to be an almost permanent issue, as any new, future functionality
 should also have corresponding testing implemented.)
 
-## ISSUE #0029 OPEN
+## ISSUE #0029 COMPLETE
 
 Work on sanitize_arrow_or_edge to have an optional argument
 also_sanitize_vertices which, if True, orders sanitization of the vertices
