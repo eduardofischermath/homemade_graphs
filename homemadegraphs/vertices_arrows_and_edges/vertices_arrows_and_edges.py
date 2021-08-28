@@ -114,7 +114,7 @@ class OperationsVAE(object):
     #(that is, output_as_generator is defaulted to False)
     # We use lambda and map, making it a list if requested
     # Same could be accomplished via partial from functools, but we prefer lambda
-    partial_function = lambda vertex: OperationsVAE.sanitize_vertex(vertex, require_namedtuple = require_namedtuple)
+    partial_function = lambda vertex: sanitize_vertex(vertex, require_namedtuple = require_namedtuple)
     as_generator = map(partial_function, vertices)
     if output_as_generator:
       return as_generator
@@ -123,14 +123,13 @@ class OperationsVAE(object):
 
   @staticmethod
   def sanitize_arrow_or_edge(tuplee, use_edges_instead_of_arrows,
-      require_namedtuple = False):
+      require_namedtuple = False, request_vertex_sanitization = False):
     '''
     Returns an Arrow or Edge namedtuple with the given information.
     
     If require_namedtuple, ensures argument is an Arrow/Edge namedtuple.
     
-    If require_vertex_namedtuple, will need first and second item to be
-    Vertex namedtuples.
+    If request_vertex_sanitization, also sanitizes vertices.
     
     [Tuples are imutable; this always produces a new namedtuple.]
     '''
@@ -141,7 +140,7 @@ class OperationsVAE(object):
     # We want this to be very quick if tuple is alerady Arrow or Edge
     # Thus, we start by test for being an instance of selected_class
     if isinstance(tuplee, selected_class):
-      return tuplee
+      pass
     else:
       if require_namedtuple:
         raise TypeError('Require tuple to be an Arrow or Edge namedtuple')
@@ -149,14 +148,22 @@ class OperationsVAE(object):
         # In this case we attempt the conversion, and return the required Arrow/Edge
         # This will work if and only if len(tuplee) is 2 or 3 (unweighted or not)
         try:
-          new_tuplee = selected_class(*tuplee)
-          return new_tuplee
+          tuplee = selected_class(*tuplee)
         except SyntaxError:
           # Likely in case the unpacking with * doesn't work
           raise TypeError('Expect tuple to be an iterable/container.')
         except TypeError:
           # This is likely due to not having 2 or 3 arguments given
           raise ValueError('Expect tuple to have length 2 or 3')
+    # We sanitize the vertices, but only if requested
+    if request_vertex_sanitization:
+      new_first_item = OperationsVAE.sanitize_vertex(tuplee[0],
+          require_namedtuple = require_namedtuple)
+      new_second_item = OperationsVAE.sanitize_vertex(tuplee[1],
+          require_namedtuple = require_namedtuple)
+      return selected_class(new_first_item, new_second_item, tuplee.weight)
+    else:
+      return tuplee
 
   @staticmethod
   def sanitize_arrows_or_edges(tuplees, use_edges_instead_of_arrows,
@@ -166,7 +173,8 @@ class OperationsVAE(object):
     '''
     partial_function = lambda tuplee: OperationsVAE.sanitize_arrow_or_edge(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization)
     as_generator = map(partial_function, tuplees)
     if output_as_generator:
       return as_generator
@@ -193,6 +201,7 @@ class OperationsVAE(object):
     # We first obtain the arrows
     if are_arrows_from_digraph:
       # In this case data is a Digraph instance
+      # Note no import is needed at this moment
       arrows = data.get_arrows()
     else:
       # We ensure list for uniformity, but any iterable is fine
@@ -204,7 +213,9 @@ class OperationsVAE(object):
       if is_multiarrow_free:
         # Algorithm with frozenset and hashing: we do it with lists in multiple steps
         #to facilitate understanding, even if it might cost more memory
-        arrows_and_its_reverses = [[arrow, OperationsVAE.get_reversed_arrow(arrow, skip_checks = True)] for arrow in arrows]
+        arrows_and_its_reverses = [[arrow, OperationsVAE.get_reversed_arrow_or_equivalent_edge(
+            arrow, use_edges_instead_of_arrows = False, require_namedtuple = False,
+            request_vertex_sanitization = request_vertex_sanitization)] for arrow in arrows]
         list_of_frozensets = [frozenset(pair) for pair in arrows_and_reversed_arrows]
         # We use frozenset to do all the comparing (sets are not hasheable)
         # It is not a problem to fit them all in a set
@@ -236,7 +247,8 @@ class OperationsVAE(object):
         found_arrow_without_edge = False
         while new_edges: # i. e. new_edges nonempty
           last_arrow = arrows.pop() # pop() removes last and return it
-          last_arrow_reversed = OperationsVAE.get_reversed_arrow(last_arrow, skip_checks = True)
+          last_arrow_reversed = OperationsVAE.get_reversed_arrow_or_equivalent_edge(last_arrow,
+              use_edges_instead_of_arrows = False, require_namedtuple = False)
           # Try to remove the reversed arrow. If it fails, they don't form edges
           try:
             arrows.remove(last_arrow_reversed)
@@ -250,15 +262,18 @@ class OperationsVAE(object):
 
   @staticmethod
   def sanitize_arrows_and_return_formed_edges(arrows, require_namedtuple = False,
-      raise_error_if_edges_not_formed = False):
+      request_vertex_sanitization = False, raise_error_if_edges_not_formed = False):
     '''
     Sanitizes arrows, and returns the corresponding formed edges.
     
     Returns a tuple (arrows, edges). If edges cannot be formed, raise an error
     or return (arrows, None) depending on raise_error_if_edges_not_formed.
     '''
-    new_arrows = sanitize_arrows(arrows, require_namedtuple)
-    new_edges = get_edges_from_sanitized_arrows(new_arrows)
+    new_arrows = sanitize_arrows_or_edges(arrows,
+        use_edges_instead_of_arrows = False,
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization)
+    new_edges = get_edges_from_sanitized_arrows(new_arrows,)
     # We deal with the situation in which we couldn't properly form edges
     if new_edges is None:
       # In this case we could not form the edges correctly
@@ -272,7 +287,7 @@ class OperationsVAE(object):
 
   @staticmethod
   def get_reversed_arrow_or_equivalent_edge(tuplee, use_edges_instead_of_arrows,
-      require_namedtuple = False):
+      require_namedtuple = False, request_vertex_sanitization = False):
     '''
     Given an arrow, returns the opposite arrow, going in the opposite direction.
     
@@ -284,7 +299,8 @@ class OperationsVAE(object):
     # To make the work simpler we factor through sanitization
     tuplee = OperationsVAE.sanitize_arrow_or_edge(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization)
     # We can read the namedtuple from tuplee now; Arrow or Edge
     selected_class = type(tuplee)
     # We reverse the first and second items (arrow/source, first/second)
@@ -292,15 +308,17 @@ class OperationsVAE(object):
     return selected_class(tuplee[1], tuplee[0], tuplee[2])
 
   @staticmethod
-  def get_reversed_arrows_or_edges(tuplees, use_edges_instead_of_arrows,
-      require_namedtuple = False, output_as_generator = False):
+  def get_reversed_arrows_or_equivalent_edges(tuplees, use_edges_instead_of_arrows,
+      require_namedtuple = False, request_vertex_sanitization = False,
+      output_as_generator = False):
     '''
-    Iterable version of get_reversed_arrow_or_edge.
+    Iterable version of get_reversed_arrow_or_equivalent_edges.
     '''
     # We use lambda and map
     partial_function = lambda tuplee: get_reversed_arrow(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization)
     as_generator = map(partial_function, tuplees)
     if output_as_generator:
       return as_generator
@@ -308,7 +326,8 @@ class OperationsVAE(object):
       return list(as_generator)
 
   @staticmethod
-  def get_arrows_from_edge(edge, require_namedtuple = False):
+  def get_arrows_from_edge(edge, require_namedtuple = False,
+      request_vertex_sanitization = False):
     '''
     From an edge creates a list with the two corresponding arrows.
     
@@ -317,7 +336,8 @@ class OperationsVAE(object):
     # To save time we factor though sanitization
     edge = OperationsVAE.sanitize_arrow_or_edge(edge,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization)
     # We are guaranteed to have an Edge now
     # We could use get_reversed_arrow_or_equivalent_edge, but we won't
     first_arrow = Arrow(edge.first, edge.second, edge.weight)
@@ -325,7 +345,8 @@ class OperationsVAE(object):
     return [first_arrow, second_arrow]
 
   @staticmethod
-  def get_arrows_from_edges(edges, require_namedtuple = False, output_as_generator = False):
+  def get_arrows_from_edges(edges, require_namedtuple = False,
+      request_vertex_sanitization = False, output_as_generator = False):
     '''
     Iterable version of get_arrows_from_edge.
     '''
@@ -333,8 +354,9 @@ class OperationsVAE(object):
     # First, we produce a generator to produce smaller (length 2) generators
     # We use a lambda to create those small generators
     # We modify the output to be a generator for each edge
-    small_generator = lambda edge: (arrow for arrow in OperationsVAE.get_arrows_from_edge(
-        edge, require_namedtuple = require_namedtuple))
+    small_generator = lambda edge: (arrow for arrow in OperationsVAE.get_arrows_from_edge(edge,
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization))
     # We group them together in a generator of generators
     generator_of_generators = map(small_generator, edges)
     # We produce a single generator
@@ -346,7 +368,8 @@ class OperationsVAE(object):
 
   @staticmethod
   def remove_weight_from_arrow_or_edge(tuplee,
-      use_edges_instead_of_arrows, require_namedtuple = False):
+      use_edges_instead_of_arrows, require_namedtuple = False,
+      request_vertex_sanitization = False):
     '''
     Returns a new Arrow or Edge with no weight (that is, weight None).
     
@@ -355,7 +378,8 @@ class OperationsVAE(object):
     # We factor through sanitization to save time
     tuplee = OperationsVAE.sanitize_arrow_or_edge(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization)
     # We have an Edge or Arrow namedtuple. We can capture class via type()
     selected_class = type(tuplee)
     return selected_class(tuplee[0], tuplee[1], None)
@@ -364,7 +388,7 @@ class OperationsVAE(object):
   @staticmethod
   def remove_weight_from_arrows_or_edges(weighted_tuples,
       use_edges_instead_of_arrows, require_namedtuple = False,
-      output_as_generator = False):
+      request_vertex_sanitization = False, output_as_generator = False):
     '''
     Iterable version of remove_weight_from_arrow_or_edge.
     '''
@@ -372,7 +396,8 @@ class OperationsVAE(object):
     partial_function = lambda x: OperationsVAE.remove_weight_from_arrow_or_edge(
         unweighted_tuple = x,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization)
     as_generator = map(partial_function, weighted_tuples)
     if output_as_generator:
       return as_generator
@@ -381,7 +406,7 @@ class OperationsVAE(object):
 
   @staticmethod
   def write_weight_into_arrow_or_edge(tuplee, use_edges_instead_of_arrows,
-      new_weight = None, require_namedtuple = False):
+      new_weight = None, require_namedtuple = False, request_vertex_sanitization = False):
     '''
     Writes a weight (default 1) to an Arrow or Edge, returning a new one.
     
@@ -401,7 +426,8 @@ class OperationsVAE(object):
     # We can factor through sanitization
     tuplee = OperationsVAE.sanitize_arrow_or_edge(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
-        require_namedtuple = require_namedtuple)
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization)
     # Now tuplee is guaranteed to be Arrow or Edge
     selected_class = type(tuplee)
     return selected_class(tuplee[0], tuplee[1], )
@@ -409,7 +435,8 @@ class OperationsVAE(object):
 
   @staticmethod
   def write_weights_into_arrows_or_edges(tuplees, use_edges_instead_of_arrows,
-      new_weights = None, require_namedtuple = False, output_as_generator = False):
+      new_weights = None, require_namedtuple = False,
+      request_vertex_sanitization = False, output_as_generator = False):
     '''
     Iterable version of write_weight_into_arrow_or_edge
     '''
@@ -419,7 +446,8 @@ class OperationsVAE(object):
         tuplee = tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         new_weight = weight,
-        require_namedtuple = require_namedtuple)
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization)
     # We prepare the arguments together. Note zip_longest from itertools
     #will automatically fill the pairings with None if the iterables have
     #different sizes (we hope that those are the weights and not the tuples)
@@ -436,7 +464,8 @@ class OperationsVAE(object):
       return list(as_generator)
 
   @staticmethod
-  def get_namedtuples_from_neighbors(dict_of_neighbors, output_as, namedtuple_choice = None):
+  def get_namedtuples_from_neighbors(dict_of_neighbors, output_as, namedtuple_choice = None,
+      require_namedtuple = False, request_vertex_sanitization = False):
     '''
     From a dictionary of neighbors, creates all corresponding tuples.
     
@@ -449,6 +478,14 @@ class OperationsVAE(object):
     
     If namedtuple is given [it must be given as a class, not a string],
     produce that namedtuple. Otherwise, plain tuple.
+    
+    Option require_namedtuple requires keys of given dict and the first item
+    of their values to be Vertex, but this checking only occurs if
+    request_vertex_sanitization is True.
+    
+    If request_vertex_sanitization, the keys of the output dict (if output as dict)
+    and the two first items of the tuples will be sanitized to Vertices.
+    This happens even if namedtuple_choice is not Arrow nor Edge.
     '''
     # It all depends if the values in the dict are iterable or not
     # To save time and testing strings fewer times, we do:
@@ -466,28 +503,54 @@ class OperationsVAE(object):
       namedtuple_choice = lambda *x: tuple(x) # Default to regular tuple
     else:
       # We assert we do have a tuple subclass (just to avoid errors later)
+      # Likely Edge or Arrow but other possibilities might be created in the future
       # (Probably the best way to meet the proposal of the method.)
       assert issubclass(namedtuple_choice, tuple), 'Needs subclass of tuple'
       pass
     edited_dict = {}
     edited_list = []
     for key in dict_of_neighbors:
-      edited_dict[key] = []
+      # We sanitize the key (in a typical use it's meant to be a vertex)
+      if request_vertex_sanitization:
+        sanitized_key = OperationsVAE.sanitize_vertex(key, require_namedtuple = require_namedtuple)
+      else:
+        sanitized_key = key
+      edited_dict[sanitized_key] = []
       for item in dict_of_neighbors[key]:
         # We check if __len__ is a valid method to determine how to proceed
         if hasattr(item, '__len__'):
           # Use * for easier unpacking. This works for length 0, 1 or bigger
-          pre_appending_tuple = (key, *item)
+          if request_vertex_sanitization:
+            # If request_vertex_sanitization, the item should have length >= 1
+            #and the first sub-item needs to be a Vertex
+            if not len(item):
+              raise ValueError('Need a Vertex in iterable and so expect it non-empty.')
+            # We can proceed
+            first, *others = item
+            sanitized_first = OperationsVAE.sanitize_vertex(first, require_namedtuple = require_namedtuple)
+            pre_appending_tuple = (sanitized_key, sanitized_first, *others)
+          else:
+            pre_appending_tuple = (sanitized_key, *item)
         else:
           # No length method, even easier
-          pre_appending_tuple = (key, item)
+          # Note this works file with chars
+          if request_vertex_sanitization:
+            sanitized_item = OperationsVAE.sanitize_vertex(item, require_namedtuple = require_namedtuple)
+            pre_appending_tuple = (sanitized_key, sanitized_item)
+          else:
+            pre_appending_tuple = (sanitized_key, item)
         # We make the right type of tuple or namedtuple
         # The packing and unpacking appear weird but is likely the best way
         pre_appending_tuple = namedtuple_choice(*pre_appending_tuple)
+        # We do the requested sanitization
         # We append to the big list or to the individual key as requested
         if output_as_dict_instead_of_list:
           edited_dict[key].append(appending_tuple)
         else:
           edited_list.append(appending_tuple)
+    if output_as_dict_instead_of_list:
+      return edited_dict
+    else:
+      return edited_list
 
 ########################################################################
