@@ -171,3 +171,4 @@ should also have corresponding testing implemented.)
 Work on sanitize_arrow_or_edge to have an optional argument
 also_sanitize_vertices which, if True, orders sanitization of the vertices
 (that is, the first and second items of the Arrow/Edge namedtuple)
+

@@ -344,7 +344,7 @@ class Digraph(object):
     # Vertex is also to be sanitized before going in, with request_vertex_sanitization
     arrow = OperationsVAE.sanitize_arrow_or_edge(arrow,
         use_edges_instead_of_arrows = False, require_namedtuple = require_namedtuple,
-        request_vertex_sanitization = True)
+        request_vertex_sanitization = True, require_vertex_namedtuple = False)
     # We check whether the vertices are already present
     # If require_vertices_in, we raise an error if the vertices are not
     #already present. Otherwise, we add the vertices too.
@@ -558,6 +558,27 @@ class Digraph(object):
     # Use __contains__ for conditionals: vertex in self
     # For looping over vertices self.get_vertices() is unavoidable
     return vertex in self._arrows_out
+    
+  def belongs_to_as_vertex(self, obj, require_vertex_namedtuple = False):
+    '''
+    Determines if object belongs to the graph as a vertex.
+    
+    If require_vertex_namedtuple, this is __contains__.
+    
+    If not require_vertex_namedtuple, we consider whether the object belongs
+    only after being Vertex-ified: sanitized into vertex.
+    '''
+    # Use this to provide a more flexible __contains__
+    if require_vertex_namedtuple:
+      return obj in self
+    else:
+      # In this case either obj or sanitize_vertex(obj, **args) should be in
+      if obj in self:
+        return True
+      elif OperationsVAE.sanitize_vertex(obj, require_vertex_namedtuple = False) in self:
+        return True
+      else:
+        return False
 
   def __bool__(self):
     '''
