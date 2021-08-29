@@ -177,9 +177,13 @@ also_sanitize_vertices which, if True, orders sanitization of the vertices
 Make a better Digraph.__repr__ to write the name of the class without
 <class ...>.
 
-## ISSUE #0031 OPEN
+## ISSUE #0031 COMPLETE
 
-Create function (potential name: WeightedGraph.from_cities_on_map) that takes
-cities with coordinates on a map and makes a complete weighted graph whose vertices
-are the cities and the distances becomes the weights of the edges.
+Create function that takes cities with coordinates on a map and makes a
+complete weighted graph whose vertices are the cities and the distances
+becomes the weights of the edges.
 Motivation: traveling salesman problem.
+
+## ISSUE #0032 OPEN
+
+Find consistent way to raise AssertionError and other Errors in whole code.
