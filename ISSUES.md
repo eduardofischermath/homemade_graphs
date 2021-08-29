@@ -159,3 +159,27 @@ A .toml file also generalizes setup.py. Consult PEP 518
 Since package name is currently homemadegraphs, consider renaming things.
 One thing that should be renamed is the header of every file, which mentions
 "homemade_graphs" instead of "homemadegraphs".
+
+## ISSUE #0028 ONGOING
+
+Create tests for every method/function/operation/functionality in package.
+(This is bound to be an almost permanent issue, as any new, future functionality
+should also have corresponding testing implemented.)
+
+## ISSUE #0029 COMPLETE
+
+Work on sanitize_arrow_or_edge to have an optional argument
+also_sanitize_vertices which, if True, orders sanitization of the vertices
+(that is, the first and second items of the Arrow/Edge namedtuple)
+
+## ISSUE #0030 OPEN
+
+Make a better Digraph.__repr__ to write the name of the class without
+<class ...>.
+
+## ISSUE #0031 OPEN
+
+Create function (potential name: WeightedGraph.from_cities_on_map) that takes
+cities with coordinates on a map and makes a complete weighted graph whose vertices
+are the cities and the distances becomes the weights of the edges.
+Motivation: traveling salesman problem.
