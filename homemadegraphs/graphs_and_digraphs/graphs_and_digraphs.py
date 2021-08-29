@@ -334,7 +334,8 @@ class Digraph(object):
       self._add_vertex(vertex, require_vertex_not_in = require_vertex_not_in,
           require_vertex_namedtuple = require_vertex_namedtuple)
 
-  def _add_arrow(self, arrow, require_vertices_in = False, require_namedtuple = False):
+  def _add_arrow(self, arrow, require_vertices_in = False, require_namedtuple = False,
+      require_vertex_namedtuple = False):
     '''
     Adds (weighted or unweighted) arrow to self.
     '''
@@ -343,8 +344,10 @@ class Digraph(object):
     # We will put it into a namedtuple Arrow, that is, a sanitized arrow
     # Vertex is also to be sanitized before going in, with request_vertex_sanitization
     arrow = OperationsVAE.sanitize_arrow_or_edge(arrow,
-        use_edges_instead_of_arrows = False, require_namedtuple = require_namedtuple,
-        request_vertex_sanitization = True, require_vertex_namedtuple = False)
+        use_edges_instead_of_arrows = False,
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = True,
+        require_vertex_namedtuple = require_vertex_namedtuple)
     # We check whether the vertices are already present
     # If require_vertices_in, we raise an error if the vertices are not
     #already present. Otherwise, we add the vertices too.
@@ -469,7 +472,7 @@ class Digraph(object):
     # (Could alternatively use provide_unique_presentation to generate info)
     # (Note that using edges for a Graph complicated things. Better to aim
     #for initializing always as arrows_out_as_dict in all cases)
-    instance_class = repr(type(self))
+    instance_class = self.__class__.__name__
     data = repr(self.get_arrows_out_as_dict())
     data_type = 'arrows_out_as_dict'
     return '{}(data = {}, data_type = {}, cast_as_class = None)'.format(
