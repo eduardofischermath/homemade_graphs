@@ -31,6 +31,7 @@ from heapq import heappop as heapq_heappop
 from heapq import heappush as heapq_heappush
 from math import inf as math_inf
 from math import log2 as math_log2
+from math import sqrt as math_sqrt
 from random import choices as random_choices
 
 ########################################################################
@@ -2304,6 +2305,64 @@ class WeightedGraph(WeightedDigraph, Graph):
   '''
   A graph whose edges are all weighted.
   '''
+
+  @classmethod
+  def from_names_and_coordinates(cls, list_of_points, number_of_dimensions = None,
+      skip_checks = False):
+    '''
+    Creates the complete graph corresponding to a list of cities (or anything
+    represented by points in any-dimensional space) and the pairwise distances.
+    
+    Given a list of tuples with names and any-dimensional coordinates,
+    creates a weighted graph which is a complete graph whose vertices are
+    Vertex namedtuples created after the names (the first item of each tuple)
+    and whose edges are weighted according to the Euclidean distance
+    between the names of the vertices.
+    '''
+    # Default is two-dimensional
+    if number_of_dimensions is None:
+      number_of_dimensions = 2
+    # We ensure data makes sense
+    if not skip_checks:
+      try:
+        float_number_of_dimensions = float(number_of_dimensions)
+      except ValueError:
+        raise ValueError('Need number_of_dimensions to be a number')
+      if float_number_of_dimensions.is_integer:
+        number_of_dimensions = int(float_number_of_dimensions)
+      else:
+        raise ValueError('Need a whole number of dimensions.')
+      assert number_of_dimensions >= 1, 'Needs at least one dimension'
+      assert hasattr(list_of_points, __len__), 'Need list_of_points to be iterable'
+      for item in list_of_points:
+        assert hasattr(item, __len__), 'Items must be iterable'
+        assert len(item) == number_of_dimensions + 1, 'Each item must have a name and then coordinates'
+        for sub_index, sub_item in enumerate(item):
+          if sub_index >= 1:
+            assert float(sub_item) == sub_item, 'sub-items from second onward must be numeric'
+    else:
+      # Ensure number_of_dimensions is integer
+      number_of_dimensions = int(number_of_dimensions)
+    # Graph to be initiated with data_type "all_vertices_and_all_edges"
+    # Include vertex because if list_of_points has length one it has no edges
+    list_of_vertices = []
+    list_of_edges = []
+    for first_index, first_item in enumerate(list_of_points):
+      list_of_vertices.append(first_item)
+      for second_index in range(first_index):
+        second_item = list_of_points[second_index]
+        if first_item[0] == second_item[0]:
+          raise ValueError('Cannot have two points with same name')
+        # Uses are not anticipated to be extremely large
+        # Thus, using built-in math package [instead of numpy] is good enough
+        distance = math_sqrt(sum((first_item[idx] - second_item[idx])**2 for idx in range(1, number_of_dimensions + 1)))
+        list_of_edges.append((first_item[0], second_item[0], distance))
+    data = (list_of_vertices, list_of_edges)
+    data_type = 'all_vertices_and_all_edges']
+    # Since this is a class method this will also work for subclasses
+    #of WeightedGraph, should that ever be needed
+    new_instance = cls(data = data, data_type = data_type)
+    return new_instance
 
   def get_minimal_spanning_tree_via_Prims(self):
     '''
