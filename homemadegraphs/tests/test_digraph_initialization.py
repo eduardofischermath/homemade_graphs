@@ -51,21 +51,26 @@ class TestDigraphInitialization(unittest_TestCase):
   No information on weights will be given.
   '''
   
+  # To use in many methods within this class
+  @staticmethod
+  def recipes_for_data_and_data_types():
+    A, B, C = 'A', 'B', 'C'
+    AB, CB = ('A', 'B'), ('C', 'B')
+    return [
+        ([AB, CB], 'all_arrows'),
+        (([A], [AB, CB]),'some_vertices_and_all_arrows'),
+        (([A, B, C], [AB, CB]),'all_vertices_and_all_arrows'),
+        ({A: [AB], B: [], C:[CB]},'arrows_out_as_dict'),
+        ([[A, AB], [B], [C, CB]],'arrows_out_as_list'),
+        ({A:[B], B:[], C:[B]},'neighbors_out_as_dict'),
+        ([[A, B], [B], [C, B]],'neighbors_out_as_list')]
+  
   @classmethod
   def setUpClass(cls):
     '''
     Initializes one digraph by multiple methods.
     '''
-    A, B, C = 'A', 'B', 'C'
-    AB, CB = ('A', 'B'), ('C', 'B')
-    data_and_data_types = [
-        ([AB, CB], 'all_arrows'),
-        #(([A, B, C], [AB, CB]),'all_vertices_and_all_arrows'),
-        (([A], [AB, CB]),'some_vertices_and_all_arrows'),
-        ({A: [AB], B: [], C:[CB]},'arrows_out_as_dict'),
-        ([[A, AB], [B], [C, CB]],'arrows_out_as_list'),
-        ({A:[B], B:[], C:[B]},'neighbors_out_as_dict'),
-        ([[A, B], [B], [C, B]],'neighbors_out_as_list')]
+    data_and_data_types = cls.recipes_for_data_and_data_types()
     # We make a dict, indexed by data_type
     cls.dict_of_digraphs = {}
     for data, data_type in data_and_data_types:
