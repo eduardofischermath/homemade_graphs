@@ -581,7 +581,7 @@ class OperationsVAE(object):
             pre_appending_tuple = (sanitized_key, item)
         # We make the right type of tuple or namedtuple
         # The packing and unpacking appear weird but is likely the best way
-        pre_appending_tuple = namedtuple_choice(*pre_appending_tuple)
+        appending_tuple = namedtuple_choice(*pre_appending_tuple)
         # We do the requested sanitization
         # We append to the big list or to the individual key as requested
         if output_as_dict_instead_of_list:

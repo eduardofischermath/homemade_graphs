@@ -77,8 +77,10 @@ class Digraph(object):
     'all_vertices_and_all_arrows': similar but we insist all vertices
     are given; arrows are forced to incide on the known vertices
     
-    'all_edges': similar to 'all_arrows' with each edge generating
-    two arrows, back and forth
+    'all_edges': similar to 'all_arrows' with each individual edge
+    generating two arrows, back and forth. [Under this option, a pair of edges
+    back and forth between two vertices would produce four arrows, two in each
+    direction.]
     
     'some_vertices_and_all_edges': similar to 'some_vertices_and_all_arrows'
     
@@ -91,8 +93,9 @@ class Digraph(object):
     and for each of them, the item at position 0 is the vertex and all
     other items correspond to the arrows out of it
     
-    'edges_out_as_dict': similar to 'arrows_out_as_dict' but each arrow
-    should be interpreted as an edge, giving also rise to its reverse arrow
+    'edges_out_as_dict': similar to 'arrows_out_as_dict' but each tuple
+    should be interpreted as an edge inciding on the pertinent vertex,
+    giving also rise to two arrows, back and forth
     
     'edges_out_as_list': similar to 'arrows_out_as_list'
     
@@ -130,8 +133,9 @@ class Digraph(object):
     else:
       is_initiating_graph = False
       # In this case we don't want to have self._edges nor self._inciding edges
-      # Since this might be a cast from another class (using cast_as_another_class)
-      #we prefer to delete, if already existent, those attributes
+      # Since this might be a cast from another class (using cast_as_another_class
+      #or a similar mechanism) we prefer, for purposes of standartization,
+      #to delete those attributes (if existent)
       if hasattr(self, '_edges'):
         del self._edges
       if hasattr(self, '_inciding_edges'):
@@ -144,10 +148,13 @@ class Digraph(object):
       expect_unweighted_digraph = True
     else:
       expect_unweighted_digraph = False
-    # We create the base attributes: _arrows, _arrows_out, _arrows_in
+    # We create the three base attributes: _arrows, _arrows_out, _arrows_in
+    # (Or reset them, in case this __init__ is used for a reset/recast)
     self._arrows = []
     self._arrows_out = {}
     self._arrows_in = {}
+    # These are all internal attributes for a non-Graph. A Graph (and only
+    #a graph has a list self._edges and a dict self._inciding_edges)
     # We now do some unpacking
     # Note that even a Graph can be given by arrows, so we won't be fussy
     #in determining the type given. Rather, rely on is_initiating_graph
@@ -170,12 +177,11 @@ class Digraph(object):
       # They can be read from the arrows, with extra work
       # This work is handled by _add_arrows with an extra option
       also_add_formed_edges = is_initiating_graph
-      print(f'{init_vertices}')
-      print(f'{init_arrows}')
       self._add_vertices(init_vertices, require_vertex_not_in = True,
           require_vertex_namedtuple = False)
       self._add_arrows(init_arrows, require_vertices_in = require_vertices_in,
           also_add_formed_edges = also_add_formed_edges)
+      # End of 'all_arrows' in data_type.lower()
     elif 'all_edges' in data_type.lower():
       if data_type.lower() == 'all_edges':
         init_vertices, init_edges = [], data
@@ -195,6 +201,7 @@ class Digraph(object):
           require_vertex_namedtuple = False)
       self._add_edges(init_edges, require_vertices_in = require_vertices_in,
           add_as_edges = add_as_edges, add_as_arrows = True)
+      # End of 'all_edges' in data_type.lower()
     elif 'as_dict' in data_type.lower() or 'as_list' in data_type.lower():
       # We need to format the information
       # First, to save time coding, we format a list (in the 'as_list' option)
@@ -214,25 +221,25 @@ class Digraph(object):
       # Now do things common to both, acting on data_as_dict
       # All of them are dictionaries whose keys are vertices
       vertices = list(data_as_dict)
-      # For the operations, the vertices should be in, so we mark so
+      # For the arrow/edge operations, the vertices should be already in:
       require_vertices_in = True
       # We now produce the arrows or edges
       # (Note they will go under further formatting later when being added)
-      if 'arrows_out' in data_type.lower():
+      if 'arrows_out_as_' in data_type.lower():
         # We expect the values of the dict to be lists with the arrows
         init_arrows = OperationsVAE.get_namedtuples_from_neighbors(data_as_dict,
             output_as = 'list', namedtuple_choice = Arrow)
         for vertex in data_as_dict:
           init_arrows.extend(data_as_dict[vertex])
-      elif 'edges' in data_type.lower():
+      elif 'edges_out_as_' in data_type.lower():
         init_edges = []
         for vertex in data_as_dict:
           init_edges.extend(data_as_dict[vertex])
-      elif 'neighbors_out' in data_type.lower():
+      elif 'neighbors_out_as_' in data_type.lower():
         # There is some complexity and so we defer to another method
         init_arrows = OperationsVAE.get_namedtuples_from_neighbors(data_as_dict,
             output_as = 'list', namedtuple_choice = Arrow)
-      elif ('neighbors' in data_type_lower()) and (not 'out' in data_type.lower()):
+      elif 'neighbors_as_' in data_type_lower():
         # There is some complexity and so we defer to another method
         init_edges = OperationsVAE.get_namedtuples_from_neighbors(data_as_dict,
             output_as = 'list', namedtuple_choice = Edge)
@@ -240,7 +247,9 @@ class Digraph(object):
         raise ValueError('Option not recognized')
       # We return to the main trunk of the code
       # Now we have either: init_vertices and init_edges,
-      #or init_vertices and init_arrows, and that is all data that matters
+      #or init_vertices and init_arrows, and that is the most important
+      # (We also have require_vertices_in, is_initiating_graph and
+      #the correct self.__class__. We might or might not have space for
       # Either way, we will add those to the digraph
       # (Note that even if they aren't namedtuple Arrows, Edges and Vertex,
       #they will be when added to self._arrows, self._arrows_out and troupe)
