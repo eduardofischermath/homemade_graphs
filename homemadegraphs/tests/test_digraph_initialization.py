@@ -51,19 +51,19 @@ class TestDigraphInitialization(unittest_TestCase):
   No information on weights will be given.
   '''
   
-  # To use in many methods within this class
+  # Dict to be used in many methods within this class
   @staticmethod
   def recipes_for_data_and_data_types():
     A, B, C = 'A', 'B', 'C'
     AB, CB = ('A', 'B'), ('C', 'B')
-    return [
-        ([AB, CB], 'all_arrows'),
-        (([A], [AB, CB]),'some_vertices_and_all_arrows'),
-        (([A, B, C], [AB, CB]),'all_vertices_and_all_arrows'),
-        ({A: [AB], B: [], C:[CB]},'arrows_out_as_dict'),
-        ([[A, AB], [B], [C, CB]],'arrows_out_as_list'),
-        ({A:[B], B:[], C:[B]},'neighbors_out_as_dict'),
-        ([[A, B], [B], [C, B]],'neighbors_out_as_list')]
+    return {
+        'all_arrows': [AB, CB],
+        'some_vertices_and_all_arrows': ([A], [AB, CB]),
+        'all_vertices_and_all_arrows': ([A, B, C], [AB, CB]),
+        'arrows_out_as_dict': {A: [AB], B: [], C:[CB]},
+        'arrows_out_as_list': [[A, AB], [B], [C, CB]],
+        'neighbors_out_as_dict': {A:[B], B:[], C:[B]},
+        'neighbors_out_as_list': [[A, B], [B], [C, B]]}
   
   @classmethod
   def setUpClass(cls):
@@ -71,9 +71,11 @@ class TestDigraphInitialization(unittest_TestCase):
     Initializes one digraph by multiple methods.
     '''
     data_and_data_types = cls.recipes_for_data_and_data_types()
-    # We make a dict, indexed by data_type
+    # We make another dict, indexed by data_type
     cls.dict_of_digraphs = {}
-    for data, data_type in data_and_data_types:
+    for key in data_and_data_types:
+      data_type = key
+      data = data_and_data_types[key]
       cls.dict_of_digraphs[data_type] = Digraph(data = data, data_type = data_type)
       print(f'Graph successfully formed with {data_type=}')
     
