@@ -187,3 +187,9 @@ Motivation: traveling salesman problem.
 ## ISSUE #0032 OPEN
 
 Find consistent way to raise AssertionError and other Errors in whole code.
+
+## ISSUE #0033 OPEN
+
+Consider extending Issue #0031 to enable building Graphs/Digraphs from files.
+The file might have info on arrows, on edges, or even pre a pre-input for
+WeightedGraph.from_names_and_coordinates.
