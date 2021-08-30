@@ -60,7 +60,7 @@ class TestDigraphInitialization(unittest_TestCase):
     AB, CB = ('A', 'B'), ('C', 'B')
     data_and_data_types = [
         ([AB, CB], 'all_arrows'),
-        (([A, B, C], [AB, CB]),'all_vertices_and_all_arrows'),
+        #(([A, B, C], [AB, CB]),'all_vertices_and_all_arrows'),
         (([A], [AB, CB]),'some_vertices_and_all_arrows'),
         ({A: [AB], B: [], C:[CB]},'arrows_out_as_dict'),
         ([[A, AB], [B], [C, CB]],'arrows_out_as_list'),

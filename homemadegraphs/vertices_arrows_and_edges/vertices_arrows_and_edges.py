@@ -504,10 +504,12 @@ class OperationsVAE(object):
     '''
     From a dictionary of neighbors, creates all corresponding tuples.
     
-    Can give the answer as a list or as a dict with same keys.
+    Can give the answer a dict with same keys (but modified values) or
+    a single list with the union of all those modified values.
     
-    From dic[a] = [a1, a2, ..., an] produce [(a, a1), (a, a2), ..., (a, an)]
-    Same if we have [[a1], [a2], ..., [an]] or [(a1), (a2), ..., (an)]
+    From dic[a] = [a1, a2, ..., an] produce, as modified values,
+    [(a, a1), (a, a2), ..., (a, an)].
+    Same result if we have [[a1], [a2], ..., [an]] or [(a1), (a2), ..., (an)]
     From dic[a] = [[a11,... ,a1m], [a21,... ,a2m], ..., [an1,... ,anm]]
     produce [(a, a11, ..., a1m), (a, a21, ..., a2m), ..., (a, an1, ..., anm)]
     
@@ -583,7 +585,7 @@ class OperationsVAE(object):
         # We do the requested sanitization
         # We append to the big list or to the individual key as requested
         if output_as_dict_instead_of_list:
-          edited_dict[key].append(appending_tuple)
+          edited_dict[sanitized_key].append(appending_tuple)
         else:
           edited_list.append(appending_tuple)
     if output_as_dict_instead_of_list:

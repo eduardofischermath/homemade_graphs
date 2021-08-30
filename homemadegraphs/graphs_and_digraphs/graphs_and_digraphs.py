@@ -170,6 +170,8 @@ class Digraph(object):
       # They can be read from the arrows, with extra work
       # This work is handled by _add_arrows with an extra option
       also_add_formed_edges = is_initiating_graph
+      print(f'{init_vertices}')
+      print(f'{init_arrows}')
       self._add_vertices(init_vertices, require_vertex_not_in = True,
           require_vertex_namedtuple = False)
       self._add_arrows(init_arrows, require_vertices_in = require_vertices_in,
@@ -218,7 +220,8 @@ class Digraph(object):
       # (Note they will go under further formatting later when being added)
       if 'arrows_out' in data_type.lower():
         # We expect the values of the dict to be lists with the arrows
-        init_arrows = get_namedtuples_from_neighbors(data_as_dict, namedtuple_choice = Arrow)
+        init_arrows = OperationsVAE.get_namedtuples_from_neighbors(data_as_dict,
+            output_as = 'list', namedtuple_choice = Arrow)
         for vertex in data_as_dict:
           init_arrows.extend(data_as_dict[vertex])
       elif 'edges' in data_type.lower():
@@ -227,11 +230,11 @@ class Digraph(object):
           init_edges.extend(data_as_dict[vertex])
       elif 'neighbors_out' in data_type.lower():
         # There is some complexity and so we defer to another method
-        init_arrows = get_namedtuples_from_neighbors(data_as_dict,
+        init_arrows = OperationsVAE.get_namedtuples_from_neighbors(data_as_dict,
             output_as = 'list', namedtuple_choice = Arrow)
       elif ('neighbors' in data_type_lower()) and (not 'out' in data_type.lower()):
         # There is some complexity and so we defer to another method
-        init_edges = get_namedtuples_from_neighbors(data_as_dict,
+        init_edges = OperationsVAE.get_namedtuples_from_neighbors(data_as_dict,
             output_as = 'list', namedtuple_choice = Edge)
       else:
         raise ValueError('Option not recognized')
@@ -2358,7 +2361,7 @@ class WeightedGraph(WeightedDigraph, Graph):
         distance = math_sqrt(sum((first_item[idx] - second_item[idx])**2 for idx in range(1, number_of_dimensions + 1)))
         list_of_edges.append((first_item[0], second_item[0], distance))
     data = (list_of_vertices, list_of_edges)
-    data_type = 'all_vertices_and_all_edges']
+    data_type = 'all_vertices_and_all_edges'
     # Since this is a class method this will also work for subclasses
     #of WeightedGraph, should that ever be needed
     new_instance = cls(data = data, data_type = data_type)
