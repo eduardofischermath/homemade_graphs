@@ -64,30 +64,39 @@ class TestDigraphInitialization(unittest_TestCase):
         'arrows_out_as_list': [[A, AB], [B], [C, CB]],
         'neighbors_out_as_dict': {A:[B], B:[], C:[B]},
         'neighbors_out_as_list': [[A, B], [B], [C, B]]}
-  
-  @classmethod
-  def setUpClass(cls):
+
+  def test_initialization(self, deactivate_assertions = False):
     '''
-    Initializes one digraph by multiple methods.
+    Initializes one digraph by all multiple methods.
     '''
-    data_and_data_types = cls.recipes_for_data_and_data_types()
-    # We make another dict, indexed by data_type
-    cls.dict_of_digraphs = {}
+    dict_of_digraphs = {}
+    data_and_data_types = self.recipes_for_data_and_data_types()
+    # We use subTest to discriminate what we are doing
+    # It accepts any keyword parameters for parametrization
     for key in data_and_data_types:
-      data_type = key
-      data = data_and_data_types[key]
-      cls.dict_of_digraphs[data_type] = Digraph(data = data, data_type = data_type)
-      print(f'Graph successfully formed with {data_type=}')
+      with self.subTest(data_type = key):
+        data_type = key
+        data = data_and_data_types[key]
+        dict_of_digraphs[data_type] = Digraph(data = data, data_type = data_type)
+        if not deactivate_assertions:
+          # We want to test this only when called directly by unittest
+          self.assertIsInstance(dict_of_digraphs[data_type], Digraph)
+    return dict_of_digraphs
     
   def test_pairwise_equality(self):
+    # Creating all instances, using the other method for better separation
+    dict_of_digraphs = self.test_initialization(deactivate_assertions = True)
     count = 0
-    for digraph_1 in self.__class__.dict_of_digraphs.values():
-      for digraph_2 in self.__class__.dict_of_digraphs.values():
-        count += 1
-        assertEqual(digraph_1, digraph_2)
+    for key_1 in dict_of_digraphs:
+      for key_2 in dict_of_digraphs:
+        with self.subTest(data_types = (key_1, key_2)):
+          digraph_1 = dict_of_digraphs[key_1]
+          digraph_2 = dict_of_digraphs[key_2]
+          count += 1
+          self.assertEqual(digraph_1, digraph_2)
     # We also verify this testing tests all (total_digraphs)**2 pairs
-    total_digraphs = len(self.__class__dict_of_digraphs)
-    assertEqual(count, total_digraphs**2)
+    total_digraphs = len(self.dict_of_digraphs)
+    self.assertEqual(count, total_digraphs**2)
 
 ########################################################################
 # Commands to be run on execution
