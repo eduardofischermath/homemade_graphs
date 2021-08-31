@@ -73,7 +73,7 @@ class Digraph(object):
     Similarly, there are subclasses depending on whether the digraph is weighted.]
     This method also allows for class recasting.
     
-    Data specifications for each data_type (14 possibilities):
+    Data specifications for each data_type (22 possibilities):
     
     'all_arrows': self explanatory, a list [or other iterable] of arrows.
     Depending on their characteristics (i. e. the length of important information)
@@ -95,28 +95,53 @@ class Digraph(object):
     
     'all_vertices_and_all_edges': similar to 'all_vertices_and_all_arrows'
     
-    'arrows_out_as_dict': gives the arrows out of vertices, each vertex
-    being the key of a dict whose value has the arrows or the destinations
+    'full_arrows_out_as_dict': gives the arrows out of vertices, each vertex
+    being the key of a dict whose value has the arrows out of it
     
-    'arrows_out_as_list': a list [or iterable] of lists [or iterables],
+    'arrows_out_as_dict': similar to 'full_arrows_out_as_dict' except
+    that vertices which are not the sources of any arrows (i. e. corresponding
+    values are empty lists) don't need to be in the keys of the dictionary
+    
+    'full_arrows_out_as_list': a list [or iterable] of lists [or iterables],
     and for each of them, the item at position 0 is the vertex and all
     other items correspond to the arrows out of it
     
-    'edges_out_as_dict': similar to 'arrows_out_as_dict' but each tuple
+    'arrows_out_as_list': similar to 'full_arrows_out_as_list' but vertices
+    without nontrivial values might be omitted
+    
+    'full_edges_out_as_dict': similar to 'arrows_out_as_dict' but each tuple
     should be interpreted as an edge inciding on the pertinent vertex,
     giving also rise to two arrows, back and forth
     
-    'edges_out_as_list': similar to 'arrows_out_as_list'
+    'edges_out_as_dict': similar to 'full_edges_out_as_dict' but vertices
+    without nontrivial values might be omitted
     
-    'neighbors_out_as_dict': similar to 'arrows_as_as_dict' but each value
+    'full_edges_out_as_list': similar to 'arrows_out_as_list'
+    
+    'edges_out_as_list': similar to 'full_edges_out_as_list' but vertices
+    without nontrivial values might be omitted
+    
+    'full_neighbors_out_as_dict': similar to 'arrows_as_as_dict' but each value
     is not the arrow but only the target of the arrow (and possibly the weight)
     
-    'neighbors_out_as_list': similar to 'arrows_out_as_list'
+    'neighbors_out_as_dict': similar to 'full_neighbors_out_as_dict' but vertices
+    with trivial values might be omitted
     
-    'neighbors_as_dict': similar to 'arrows_as_as_dict', providing neighbors
+    'full_neighbors_out_as_list': similar to 'arrows_out_as_list'
+    
+    'neighbors_out_as_list': similar to 'full_neighbors_out_as_list' but vertices
+    with trivial values might be omitted
+    
+    'full_neighbors_as_dict': similar to 'arrows_as_as_dict', providing neighbors
     and possibly weight, but creating edges instead of arrows
     
-    'neighbors_as_list': similar to 'arrows_out_as_list'
+    'neighbors_as_dict': similar to 'full_neighbors_as_dict' but vertices
+    with trivial values might be omitted
+    
+    'full_neighbors_as_list': similar to 'arrows_out_as_list'
+    
+    'neighbors_as_list': similar to 'full_neighbors_as_list' but vertices
+    with trivial values might be omitted
     '''
     # We subdivide the work into methods
     # First we do the proper subclassing and reset the attributes
@@ -230,10 +255,12 @@ class Digraph(object):
       # Now do things common to both, acting on data_as_dict
       # All of them are dictionaries whose keys are vertices
       init_vertices = list(data_as_dict)
-      # For the arrow/edge operations, the vertices should be already in
-      #(that is, they are added on a more direct call to _add_vertex
-      #than the ones inside _add_arrow)
-      require_vertices_in = True
+      # On eaxmining the dictionary, we allow for inclusion of new vertices
+      #if and only if we don't have a 'full_' data_type option
+      if 'full_' in data_type.lower(): 
+        require_vertices_in = True
+      else:
+        require_vertices_in = False
       # We now produce the arrows or edges
       # (Note they will go under further formatting later when being added)
       if 'arrows_out_as_' in data_type.lower():
@@ -279,6 +306,8 @@ class Digraph(object):
     else:
       raise ValueError('Option not recognized')
     # Return as a single tuple
+    # Note init_arrows and init_edges are encoded as init_tuplees for this packing
+    # use_edges_instead_of_arrows is the correct key for their unpacking
     init_data = (use_edges_instead_of_arrows, init_vertices, init_tuplees, require_vertices_in)
     return init_data
 

@@ -61,10 +61,14 @@ class TestDigraphInitialization(unittest_TestCase):
         'all_arrows': [AB, CB],
         'some_vertices_and_all_arrows': ([A], [AB, CB]),
         'all_vertices_and_all_arrows': ([A, B, C], [AB, CB]),
-        'arrows_out_as_dict': {A: [AB], B: [], C:[CB]},
-        'arrows_out_as_list': [[A, AB], [B], [C, CB]],
-        'neighbors_out_as_dict': {A:[B], B:[], C:[B]},
-        'neighbors_out_as_list': [[A, B], [B], [C, B]]}
+        'full_arrows_out_as_dict': {A: [AB], B: [], C:[CB]},
+        'arrows_out_as_dict': {A: [AB], C:[CB]},
+        'full_arrows_out_as_list': [[A, AB], [B], [C, CB]],
+        'arrows_out_as_list': [[A, AB], [C, CB]],
+        'full_neighbors_out_as_dict': {A:[B], B:[], C:[B]},
+        'neighbors_out_as_dict': {A:[B], C:[B]},
+        'full_neighbors_out_as_list': [[A, B], [B], [C, B]],
+        'neighbors_out_as_list': [[A, B], [C, B]]}
 
   def test_initialization(self, deactivate_assertions = False):
     '''
