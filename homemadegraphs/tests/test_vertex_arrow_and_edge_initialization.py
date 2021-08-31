@@ -38,37 +38,53 @@ from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, Operat
 # Tests
 ########################################################################
 
-class TestNamedtupleInitialization(unittest_TestCase):
+class TestVertexArrowEdgeInitialization(unittest_TestCase):
   '''
   Tests the namedtuples Vertex, Arrow and Edge.
   '''
-
-  def test_vertex_initialization(self):
-    vertex = Vertex('Demonstration string')
-    self.assertIsInstance(vertex, Vertex)
-    self.assertTrue(hasattr(vertex, 'name'))
-    self.assertTrue(hasattr(vertex, '__len__'))
-    self.assertEqual(len(vertex), 1)
-    
-  def test_arrow_initialization(self):
-    arrow = Arrow('A string', 200, 0.236)
-    self.assertIsInstance(arrow, Arrow)
-    self.assertTrue(hasattr(arrow, 'source'))
-    self.assertTrue(hasattr(arrow, 'target'))
-    self.assertTrue(hasattr(arrow, 'weight'))
-    self.assertTrue(hasattr(arrow, '__len__'))
-    self.assertEqual(len(arrow), 3)
   
-  def test_edge_initialization(self):
-    edge = Edge('A string', 200, 0.236)
-    self.assertIsInstance(edge, Edge)
-    self.assertTrue(hasattr(edge, 'first'))
-    self.assertTrue(hasattr(edge, 'second'))
-    self.assertTrue(hasattr(edge, 'weight'))
-    self.assertTrue(hasattr(edge, '__len__'))
-    self.assertEqual(len(edge), 3)
+  @staticmethod
+  def recipes_for_initialization_and_testing():
+    '''
+    Provides recipes for formation of the namedtuples.
+    '''
+    data = {
+        'vertex': (
+            Vertex,
+            ('String for vertex',),
+            ('name',),
+            1),
+        'arrow': (
+            Arrow,
+            (400, 'String for arrow', 0.35),
+            ('source', 'target', 'weight'),
+            3),
+        'edge': (
+            Edge,
+            (400, 'String for edge', 0.35),
+            ('first', 'second', 'weight'),
+            3)}
+    return data
+  
+  def test_initialization(self):
+    '''
+    Tests initialization of Vertex, Arrow and Edge.
+    '''
+    data = self.recipes_for_initialization_and_testing()
+    for key in data:
+      with self.subTest(namedtuple_name = key):
+        class_name, init_values, fields_names, length = data[key]
+        instance = class_name(*init_values)
+        self.assertIsInstance(instance, class_name)
+        for field_name in fields_names:
+          self.assertTrue(hasattr(instance, field_name))
+        self.assertTrue(hasattr(instance, '__len__'))
+        self.assertEqual(len(instance), length)
 
   def test_weight_default(self):
+    '''
+    Tests whether default weight of None (to unweighted Arrows and Edges) works.
+    '''
     explicitly_unweighted_arrow = Arrow('A', 1, None)
     implicitly_unweighted_arrow = Arrow('A', 1)
     self.assertEqual(explicitly_unweighted_arrow, implicitly_unweighted_arrow)
