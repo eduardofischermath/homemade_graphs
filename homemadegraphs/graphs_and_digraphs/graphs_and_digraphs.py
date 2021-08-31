@@ -377,7 +377,7 @@ class Digraph(object):
     vertex = OperationsVAE.sanitize_vertex(vertex,
         require_vertex_namedtuple = require_vertex_namedtuple)
     # We determine whether the vertex is already in the graph
-    if self.belongs_to_as_vertex(vertex, require_vertex_namedtuple = False):
+    if self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False):
       # In this case vertex is already present
       if require_vertex_not_in:
         raise ValueError('Vertex already present')
@@ -419,14 +419,14 @@ class Digraph(object):
     # We check whether the vertices are already present
     # If require_vertices_in, we raise an error if the vertices are not
     #already present. Otherwise, we add the vertices too.
-    if self.belongs_to_as_vertex(arrow.source, require_vertex_namedtuple = False):
+    if self.belongs_to_as_vertex_after_sanitization(arrow.source, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Source of arrow needs to be in digraph.')
       else:
         self._add_vertex(arrow.source,
             require_vertex_not_in = True,
             require_vertex_namedtuple = False)
-    if self.belongs_to_as_vertex(arrow.target, require_vertex_namedtuple = False):
+    if self.belongs_to_as_vertex_after_sanitization(arrow.target, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Target of arrow needs to be in digraph.')
       else:
@@ -659,7 +659,7 @@ class Digraph(object):
     # For looping over vertices self.get_vertices() is unavoidable
     return vertex in self._arrows_out
     
-  def belongs_to_as_vertex(self, obj, require_vertex_namedtuple = False):
+  def belongs_to_as_vertex_after_sanitization(self, obj, require_vertex_namedtuple = False):
     '''
     Determines if object belongs to the graph as a vertex.
     
