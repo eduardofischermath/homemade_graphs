@@ -210,7 +210,7 @@ class Digraph(object):
       else:
         raise ValueError('Option not recognized')
       init_tuplees = init_arrows
-      use_edges_instead_of_arrows = False
+      use_edges_instead_of_arrows = True
     elif 'as_dict' in data_type.lower() or 'as_list' in data_type.lower():
       # We need to format the information
       # First, to save time coding, we format a list (in the 'as_list' option)
@@ -230,7 +230,9 @@ class Digraph(object):
       # Now do things common to both, acting on data_as_dict
       # All of them are dictionaries whose keys are vertices
       init_vertices = list(data_as_dict)
-      # For the arrow/edge operations, the vertices should be already in:
+      # For the arrow/edge operations, the vertices should be already in
+      #(that is, they are added on a more direct call to _add_vertex
+      #than the ones inside _add_arrow)
       require_vertices_in = True
       # We now produce the arrows or edges
       # (Note they will go under further formatting later when being added)
@@ -244,10 +246,13 @@ class Digraph(object):
             require_vertex_namedtuple = False)
         for vertex in data_as_dict:
           init_arrows.extend(data_as_dict[vertex])
+        use_edges_instead_of_arrows = False
+        init_tuplees = init_arrows
       elif 'edges_out_as_' in data_type.lower():
         init_edges = []
         for vertex in data_as_dict:
           init_edges.extend(data_as_dict[vertex])
+        use_edges_instead_of_arrows = True
         init_tuplees = init_edges
       elif 'neighbors_out_as_' in data_type.lower():
         # There is some complexity and so we defer to another method
@@ -257,6 +262,7 @@ class Digraph(object):
             require_namedtuple = False,
             request_vertex_sanitization = True,
             require_vertex_namedtuple = False)
+        use_edges_instead_of_arrows = False
         init_tuplees = init_arrows
       elif 'neighbors_as_' in data_type_lower():
         # There is some complexity and so we defer to another method
@@ -266,6 +272,7 @@ class Digraph(object):
             require_namedtuple = False,
             request_vertex_sanitization = True,
             require_vertex_namedtuple = False)
+        use_edges_instead_of_arrows = True
         init_tuplees = init_edges
       else:
         raise ValueError('Option not recognized')
@@ -316,7 +323,7 @@ class Digraph(object):
           require_vertices_in = require_vertices_in,
           also_add_formed_edges = also_add_formed_edges,
           require_namedtuple = False,
-          require_vertex_namedtuple = False)  
+          require_vertex_namedtuple = False)
 
 ########################################################################
 # Methods for adding vertices, edges, arrows, used in initialization
@@ -341,7 +348,7 @@ class Digraph(object):
     vertex = OperationsVAE.sanitize_vertex(vertex,
         require_vertex_namedtuple = require_vertex_namedtuple)
     # We determine whether the vertex is already in the graph
-    if vertex in self:
+    if self.belongs_to_as_vertex(vertex, require_vertex_namedtuple = False):
       # In this case vertex is already present
       if require_vertex_not_in:
         raise ValueError('Vertex already present')
@@ -383,14 +390,14 @@ class Digraph(object):
     # We check whether the vertices are already present
     # If require_vertices_in, we raise an error if the vertices are not
     #already present. Otherwise, we add the vertices too.
-    if arrow.source not in self:
+    if self.belongs_to_as_vertex(arrow.source, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Source of arrow needs to be in digraph.')
       else:
         self._add_vertex(arrow.source,
             require_vertex_not_in = True,
             require_vertex_namedtuple = False)
-    if arrow.target not in self:
+    if self.belongs_to_as_vertex(arrow.target, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Target of arrow needs to be in digraph.')
       else:

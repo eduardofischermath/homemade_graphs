@@ -24,8 +24,9 @@
 # External imports
 ########################################################################
 
-from unittest import TestCase as unittest_TestCase
 from unittest import main as unittest_main
+from unittest import skip as unittest_skip
+from unittest import TestCase as unittest_TestCase
 
 ########################################################################
 # Internal imports
@@ -82,7 +83,8 @@ class TestDigraphInitialization(unittest_TestCase):
           # We want to test this only when called directly by unittest
           self.assertIsInstance(dict_of_digraphs[data_type], Digraph)
     return dict_of_digraphs
-    
+  
+  @unittest_skip
   def test_pairwise_equality(self):
     # Creating all instances, using the other method for better separation
     dict_of_digraphs = self.test_initialization(deactivate_assertions = True)
