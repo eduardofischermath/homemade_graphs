@@ -419,14 +419,14 @@ class Digraph(object):
     # We check whether the vertices are already present
     # If require_vertices_in, we raise an error if the vertices are not
     #already present. Otherwise, we add the vertices too.
-    if self.belongs_to_as_vertex_after_sanitization(arrow.source, require_vertex_namedtuple = False):
+    if not self.belongs_to_as_vertex_after_sanitization(arrow.source, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Source of arrow needs to be in digraph.')
       else:
         self._add_vertex(arrow.source,
             require_vertex_not_in = True,
             require_vertex_namedtuple = False)
-    if self.belongs_to_as_vertex_after_sanitization(arrow.target, require_vertex_namedtuple = False):
+    if not self.belongs_to_as_vertex_after_sanitization(arrow.target, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Target of arrow needs to be in digraph.')
       else:
@@ -496,14 +496,14 @@ class Digraph(object):
         request_vertex_sanitization = True,
         require_vertex_namedtuple = require_vertex_namedtuple)
     # We check whether the vertices are already present
-    if edge.first not in self:
+    if not self.belongs_to_as_vertex_after_sanitization(edge.first, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Source of edge needs to be in (di)graph.')
       else:
         self._add_vertex(edge.first,
             require_vertex_not_in = True,
             require_vertex_namedtuple = False)
-    if edge.second not in self:
+    if not self.belongs_to_as_vertex_after_sanitization(edge.second, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Target of edge needs to be in (di)graph.')
       else:
