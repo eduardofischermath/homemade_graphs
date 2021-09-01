@@ -205,3 +205,10 @@ a specific key/vertex.
 
 Since many methods have many arguments, consider always "towering" them
 (that is, putting one in each line, as doen for a few function/method calls)
+
+## ISSUE #0036 ONGOING
+
+Generalize testing by the use of generic testing classes. For example,
+a class for initialization (that tests all ways something can be initialized
+and whether they return the correct results) which is subclassed and
+applied in different contexts (p. ex. Digraphs, Graphs, empty digraph)
