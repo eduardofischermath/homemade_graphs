@@ -24,17 +24,34 @@
 # External imports
 ########################################################################
 
-
+from unittest import TestCase as unittest_TestCase
 
 ########################################################################
 # Internal imports
 ########################################################################
 
-# Bring all functions and classes into homemadegraphs.tests scope
 
-from . import all_tests
-from . import test_digraph_initialization
-from . import test_empty_digraph
-from . import test_vertex_arrow_and_edge_initialization
+
+########################################################################
+# Generic test procedures
+########################################################################
+
+class GenericInitializationTestCase(unittest_TestCase):
+  '''
+  Provides some generic and enhanced version of unittest.TestCase by
+  providing a few generic class methods related to initialization.
+  '''
+  
+  @classmethod
+  def test_initialization(cls):
+    pass
+  
+  @classmethod
+  def test_pairwise_equality(cls):
+    pass
+    
+  @classmethod
+  def test_equality_against_specific(cls):
+    pass
 
 ########################################################################

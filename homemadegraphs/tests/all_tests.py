@@ -40,13 +40,16 @@ from unittest import TextTestRunner as unittest_TextTestRunner
 # iv) write a load_tests function on __init__ of subpackage tests
 #(it would take priority within unittest.TestLoader.discover())
 
-def discover_and_run_all_tests(start_dir = './tests', pattern = 'test*.py', top_level_dir = '.', verbosity = 2):
+def discover_and_run_all_tests(start_dir = './tests', pattern = 'test*.py', top_level_dir = '.', verbosity = None):
   '''
   Discover and runs all tests.
   
   Ideally, must be run at the main/top folder of the project. To run from somewhere else,
   or to change verbosity, change the arguments.
   '''
+  # If verbosity is None, default to 2
+  if verbosity is None:
+    verbosity = 2
   # Creates a TestSuite using unittest_TestLoader.discover
   # The tests don't need to be imported: unittest_TestLoader.discover does it
   # The needed code from homemadegraphs is imported on the tests themselves

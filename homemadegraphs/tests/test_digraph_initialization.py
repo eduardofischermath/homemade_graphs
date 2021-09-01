@@ -24,8 +24,9 @@
 # External imports
 ########################################################################
 
-from unittest import TestCase as unittest_TestCase
 from unittest import main as unittest_main
+from unittest import skip as unittest_skip
+from unittest import TestCase as unittest_TestCase
 
 ########################################################################
 # Internal imports
@@ -51,36 +52,57 @@ class TestDigraphInitialization(unittest_TestCase):
   No information on weights will be given.
   '''
   
-  @classmethod
-  def setUpClass(cls):
-    '''
-    Initializes one digraph by multiple methods.
-    '''
+  # Dict to be used in many methods within this class
+  @staticmethod
+  def recipes_for_data_and_data_types():
     A, B, C = 'A', 'B', 'C'
     AB, CB = ('A', 'B'), ('C', 'B')
-    data_and_data_types = [
-        ([AB, CB], 'all_arrows'),
-        (([A, B, C], [AB, CB]),'all_vertices_and_all_arrows'),
-        (([A], [AB, CB]),'some_vertices_and_all_arrows'),
-        ({A: [AB], B: [], C:[CB]},'arrows_out_as_dict'),
-        ([[A, AB], [B], [C, CB]],'arrows_out_as_list'),
-        ({A:[B], B:[], C:[B]},'neighbors_out_as_dict'),
-        ([[A, B], [B], [C, B]],'neighbors_out_as_list')]
-    # We make a dict, indexed by data_type
-    cls.dict_of_digraphs = {}
-    for data, data_type in data_and_data_types:
-      cls.dict_of_digraphs[data_type] = Digraph(data = data, data_type = data_type)
-      print(f'Graph successfully formed with {data_type=}')
-    
+    return {
+        'all_arrows': [AB, CB],
+        'some_vertices_and_all_arrows': ([A], [AB, CB]),
+        'all_vertices_and_all_arrows': ([A, B, C], [AB, CB]),
+        'full_arrows_out_as_dict': {A: [AB], B: [], C:[CB]},
+        'arrows_out_as_dict': {A: [AB], C:[CB]},
+        'full_arrows_out_as_list': [[A, AB], [B], [C, CB]],
+        'arrows_out_as_list': [[A, AB], [C, CB]],
+        'full_neighbors_out_as_dict': {A:[B], B:[], C:[B]},
+        'neighbors_out_as_dict': {A:[B], C:[B]},
+        'full_neighbors_out_as_list': [[A, B], [B], [C, B]],
+        'neighbors_out_as_list': [[A, B], [C, B]]}
+
+  def test_initialization(self, deactivate_assertions = False):
+    '''
+    Initializes one digraph by all multiple methods.
+    '''
+    dict_of_digraphs = {}
+    data_and_data_types = self.recipes_for_data_and_data_types()
+    # We use subTest to discriminate what we are doing
+    # It accepts any keyword parameters for parametrization
+    for key in data_and_data_types:
+      with self.subTest(data_type = key):
+        data_type = key
+        data = data_and_data_types[key]
+        dict_of_digraphs[data_type] = Digraph(data = data, data_type = data_type)
+        if not deactivate_assertions:
+          # We want to test this only when called directly by unittest
+          self.assertIsInstance(dict_of_digraphs[data_type], Digraph)
+    return dict_of_digraphs
+  
+  #@unittest_skip
   def test_pairwise_equality(self):
+    # Creating all instances, using the other method for better separation
+    dict_of_digraphs = self.test_initialization(deactivate_assertions = True)
     count = 0
-    for digraph_1 in self.__class__.dict_of_digraphs.values():
-      for digraph_2 in self.__class__.dict_of_digraphs.values():
-        count += 1
-        assertEqual(digraph_1, digraph_2)
+    for key_1 in dict_of_digraphs:
+      for key_2 in dict_of_digraphs:
+        with self.subTest(data_types = (key_1, key_2)):
+          digraph_1 = dict_of_digraphs[key_1]
+          digraph_2 = dict_of_digraphs[key_2]
+          count += 1
+          self.assertEqual(digraph_1, digraph_2)
     # We also verify this testing tests all (total_digraphs)**2 pairs
-    total_digraphs = len(self.__class__dict_of_digraphs)
-    assertEqual(count, total_digraphs**2)
+    total_digraphs = len(dict_of_digraphs)
+    self.assertEqual(count, total_digraphs**2)
 
 ########################################################################
 # Commands to be run on execution

@@ -91,7 +91,7 @@ class OperationsVAE(object):
         # We do many tests to determine what to do with the object
         # It should have length one in this case (and in particular a __len__ method)
         if not hasattr(obj, '__len__'):
-          # A namedtuple always has length, so object is not one
+          # A tuple/iterable always has length, so object is not one
           return Vertex(obj)
         # We finally check the length (if we arrive here, there is length)
         elif len(obj) != 1:
@@ -103,7 +103,7 @@ class OperationsVAE(object):
           # Note that one consequence of this is that [item] and item
           #will produce the same Vertex (one with name=item).
           # Note that for a single-char string, its first item is itself
-          vertex_from_object = Vertex(obj[0])
+          return Vertex(obj[0])
 
   @staticmethod
   def sanitize_vertices(vertices, require_vertex_namedtuple = False,
@@ -504,10 +504,12 @@ class OperationsVAE(object):
     '''
     From a dictionary of neighbors, creates all corresponding tuples.
     
-    Can give the answer as a list or as a dict with same keys.
+    Can give the answer a dict with same keys (but modified values) or
+    a single list with the union of all those modified values.
     
-    From dic[a] = [a1, a2, ..., an] produce [(a, a1), (a, a2), ..., (a, an)]
-    Same if we have [[a1], [a2], ..., [an]] or [(a1), (a2), ..., (an)]
+    From dic[a] = [a1, a2, ..., an] produce, as modified values,
+    [(a, a1), (a, a2), ..., (a, an)].
+    Same result if we have [[a1], [a2], ..., [an]] or [(a1), (a2), ..., (an)]
     From dic[a] = [[a11,... ,a1m], [a21,... ,a2m], ..., [an1,... ,anm]]
     produce [(a, a11, ..., a1m), (a, a21, ..., a2m), ..., (a, an1, ..., anm)]
     
@@ -579,11 +581,11 @@ class OperationsVAE(object):
             pre_appending_tuple = (sanitized_key, item)
         # We make the right type of tuple or namedtuple
         # The packing and unpacking appear weird but is likely the best way
-        pre_appending_tuple = namedtuple_choice(*pre_appending_tuple)
+        appending_tuple = namedtuple_choice(*pre_appending_tuple)
         # We do the requested sanitization
         # We append to the big list or to the individual key as requested
         if output_as_dict_instead_of_list:
-          edited_dict[key].append(appending_tuple)
+          edited_dict[sanitized_key].append(appending_tuple)
         else:
           edited_list.append(appending_tuple)
     if output_as_dict_instead_of_list:
