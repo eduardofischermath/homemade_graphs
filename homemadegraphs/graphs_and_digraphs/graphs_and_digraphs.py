@@ -386,8 +386,8 @@ class Digraph(object):
         pass
     else:
       # In this case all clear, we can add the vertex to the relevant dicts
-      self._arrows_in[vertex] = []
       self._arrows_out[vertex] = []
+      self._arrows_in[vertex] = []
       # If we have Graph on top of Digraph, we need to deal with self._inciding_edges
       if isinstance(self, Graph):
         self._inciding_edges[vertex] = []
@@ -666,19 +666,16 @@ class Digraph(object):
     If require_vertex_namedtuple, this is __contains__.
     
     If not require_vertex_namedtuple, we consider whether the object belongs
-    only after being Vertex-ified: sanitized into vertex.
+    only after being Vertex-ified: sanitized into Vertex.
     '''
     # Use this to provide a more flexible __contains__
     if require_vertex_namedtuple:
+      # In this case obj is unaltered by sanitize_vertex
       return obj in self
     else:
       # In this case either obj or sanitize_vertex(obj, **args) should be in
-      if obj in self:
-        return True
-      elif OperationsVAE.sanitize_vertex(obj, require_vertex_namedtuple = False) in self:
-        return True
-      else:
-        return False
+      sanitized_obj = OperationsVAE.sanitize_vertex(obj, require_vertex_namedtuple = False)
+      return sanitized_obj in self
 
   def __bool__(self):
     '''

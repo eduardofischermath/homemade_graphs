@@ -91,7 +91,7 @@ class OperationsVAE(object):
         # We do many tests to determine what to do with the object
         # It should have length one in this case (and in particular a __len__ method)
         if not hasattr(obj, '__len__'):
-          # A namedtuple always has length, so object is not one
+          # A tuple/iterable always has length, so object is not one
           return Vertex(obj)
         # We finally check the length (if we arrive here, there is length)
         elif len(obj) != 1:
@@ -103,7 +103,7 @@ class OperationsVAE(object):
           # Note that one consequence of this is that [item] and item
           #will produce the same Vertex (one with name=item).
           # Note that for a single-char string, its first item is itself
-          vertex_from_object = Vertex(obj[0])
+          return Vertex(obj[0])
 
   @staticmethod
   def sanitize_vertices(vertices, require_vertex_namedtuple = False,
