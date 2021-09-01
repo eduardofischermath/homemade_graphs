@@ -193,3 +193,15 @@ Find consistent way to raise AssertionError and other Errors in whole code.
 Consider extending Issue #0031 to enable building Graphs/Digraphs from files.
 The file might have info on arrows, on edges, or even pre a pre-input for
 WeightedGraph.from_names_and_coordinates.
+
+## ISSUE #0034 OPEN
+
+Consider renaming functions in Digraph to increase clarity
+For example, the current method "get_arrows_out" does not indicate in its name
+whether it returns self._arrows_out or the value of self._arrows_out at
+a specific key/vertex.
+
+## ISSUE #0035 OPEN
+
+Since many methods have many arguments, consider always "towering" them
+(that is, putting one in each line, as doen for a few function/method calls)

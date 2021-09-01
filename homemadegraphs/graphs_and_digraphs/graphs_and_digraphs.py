@@ -265,12 +265,7 @@ class Digraph(object):
       # (Note they will go under further formatting later when being added)
       if 'arrows_out_as_' in data_type.lower():
         # We expect the values of the dict to be lists with the arrows
-        init_arrows = OperationsVAE.get_namedtuples_from_neighbors(data_as_dict,
-            output_as = 'list',
-            namedtuple_choice = Arrow,
-            require_namedtuple = False,
-            request_vertex_sanitization = True,
-            require_vertex_namedtuple = False)
+        init_arrows = []
         for vertex in data_as_dict:
           init_arrows.extend(data_as_dict[vertex])
         use_edges_instead_of_arrows = False

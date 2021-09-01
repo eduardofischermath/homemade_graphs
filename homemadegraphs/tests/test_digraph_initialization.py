@@ -101,7 +101,7 @@ class TestDigraphInitialization(unittest_TestCase):
           count += 1
           self.assertEqual(digraph_1, digraph_2)
     # We also verify this testing tests all (total_digraphs)**2 pairs
-    total_digraphs = len(self.dict_of_digraphs)
+    total_digraphs = len(dict_of_digraphs)
     self.assertEqual(count, total_digraphs**2)
 
 ########################################################################
