@@ -88,7 +88,7 @@ class TestDigraphInitialization(unittest_TestCase):
           self.assertIsInstance(dict_of_digraphs[data_type], Digraph)
     return dict_of_digraphs
   
-  @unittest_skip
+  #@unittest_skip
   def test_pairwise_equality(self):
     # Creating all instances, using the other method for better separation
     dict_of_digraphs = self.test_initialization(deactivate_assertions = True)

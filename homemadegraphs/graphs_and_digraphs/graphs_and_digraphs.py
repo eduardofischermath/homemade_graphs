@@ -616,9 +616,9 @@ class Digraph(object):
     # Idea is that two digraphs with same output are the same for all purposes.
     # There could be shortcuts to make this faster. For example, We opt for clarity
     instance_class = type(self)
-    vertices = set(self.get_vertices())
-    arrows = collections_Counter(self.get_arrows())
-    return (instance_class, vertices, arrows)
+    set_of_vertices = set(self.get_vertices())
+    multiset_of_arrows = collections_Counter(self.get_arrows())
+    return (instance_class, set_of_vertices, multiset_of_arrows)
     
   def __eq__(self, other, *, require_equal_classes = False):
     '''

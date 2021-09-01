@@ -42,6 +42,22 @@ class TestEmptyDigraph(unittest_TestCase):
   Tests all (di)graph methods on the empty (di)graph, ensuring the output is
   correct (or, if non-canonically defined, that is follows the specified convention).
   '''
+
+  # Dict to be used in many methods within this class
+  @staticmethod
+  def recipes_for_data_and_data_types():
+    return {
+        'all_arrows': [],
+        'some_vertices_and_all_arrows': ([], []),
+        'all_vertices_and_all_arrows': ([], []),
+        'full_arrows_out_as_dict': {},
+        'arrows_out_as_dict': {},
+        'full_arrows_out_as_list': [],
+        'arrows_out_as_list': [],
+        'full_neighbors_out_as_dict': {},
+        'neighbors_out_as_dict': {},
+        'full_neighbors_out_as_list': [],
+        'neighbors_out_as_list': []}
   
   @classmethod
   def setUpClass(cls):
