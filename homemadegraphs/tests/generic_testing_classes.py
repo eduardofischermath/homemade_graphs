@@ -24,6 +24,11 @@
 # External imports
 ########################################################################
 
+from abc import ABCMeta as abc_ABCMeta
+from abc import abstractmethod as abc_abstractmethod
+from unittest import skip as unittest_skip
+from unittest import skipIf as unittest_skipIf
+from unittest import SkipTest as unittest_SkipTest
 from unittest import TestCase as unittest_TestCase
 
 ########################################################################
@@ -40,18 +45,85 @@ class GenericInitializationTestCase(unittest_TestCase):
   '''
   Provides some generic and enhanced version of unittest.TestCase by
   providing a few generic class methods related to initialization.
+  
+  The methods in the derived classes will be called from unittest but not
+  the ones in this class due to unittest.skipIf.
+  
+  Idea is that a derived class will test multiple initialization methods
+  (stored in a class variable) of the "same" instance (of a class which
+  is being tested) and verify they all produce the "same" instance.
   '''
-  
+
   @classmethod
-  def test_initialization(cls):
-    pass
-  
-  @classmethod
-  def test_pairwise_equality(cls):
-    pass
+  def setUpClass(cls):
+    '''
+    Called automatically by unittest.
     
-  @classmethod
-  def test_equality_against_specific(cls):
-    pass
+    Only allows the tests in a class to go forward when specific information,
+    in the form of a class attribute, are provided.
+    
+    In particular, for the generic class, no tests are performed.
+    '''
+    # One alternative way to implement this is with abstract base classes
+    # It would have the problem of forcing the implementation of abstract methods
+    #in every class (overriding the base class's), which is not the goal
+    # Note: unittest doesn't call setUpClass for skipped tests, so this is
+    #closer to what we want to accomplish with this generic testing class
+    if not hasattr(cls, 'recipes_for_data_and_data_types') or not hasattr(cls, 'class_being_tested'):
+      raise unittest_SkipTest(f'Need recipes for initialization of the tested classes')
+
+  def test_initialization(self, deactivate_assertions = False):
+    '''
+    Initializes one instance by all multiple input types.
+    '''
+    cls = self.__class__
+    dict_of_instances = {}
+    data_and_data_types = self.recipes_for_data_and_data_types()
+    # We use subTest to discriminate what we are doing
+    # It accepts any keyword parameters for parametrization
+    for key in data_and_data_types:
+      with self.subTest(data_type = key):
+        data_type = key
+        data = data_and_data_types[key]
+        dict_of_instances[data_type] = cls.class_being_tested(data = data, data_type = data_type)
+        if not deactivate_assertions:
+          # We want to test this only when called directly by unittest
+          self.assertIsInstance(dict_of_instances[data_type], cls.class_being_tested)
+    return dict_of_instances
+
+  def test_pairwise_equality(self):
+    '''
+    Tests equality for all pairs of instances emerging from different input types.
+    '''
+    # Creating all instances, using the test_initialization for better separation
+    dict_of_instances = self.test_initialization(deactivate_assertions = True)
+    count = 0
+    for key_1 in dict_of_instances:
+      for key_2 in dict_of_instances:
+        with self.subTest(data_types = (key_1, key_2)):
+          instance_1 = dict_of_instances[key_1]
+          instance_2 = dict_of_instances[key_2]
+          count += 1
+          self.assertEqual(instance_1, instance_2)
+    # We also verify this testing tests all (total_instances)**2 pairs
+    number_of_instances = len(dict_of_instances)
+    self.assertEqual(count, number_of_instances**2)
+
+  def test_equality_against_specific(self):
+    '''
+    Compares equality for all instances emerging from different inputs
+    against one specific among them.
+    '''
+    dict_of_instances = self.test_initialization(deactivate_assertions = True)
+    # Pick only one of them, and compare all others to this special fixed instance
+    if dict_of_instances:
+      fixed_key = list(dict_of_instances)[0]
+      fixed_instance = dict_of_instances[fixed_key]
+      for variable_key in dict_of_instances:
+        with self.subTest(fixed_key = fixed_key, variable_key = variable_key):
+          variable_instance = dict_of_instances[variable_key]
+          self.assertEqual(fixed_instance, variable_instance)
 
 ########################################################################
+
+

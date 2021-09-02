@@ -44,7 +44,7 @@ class TestVertexArrowEdgeInitialization(unittest_TestCase):
   '''
   
   @staticmethod
-  def recipes_for_initialization_and_testing():
+  def recipes_for_initialization():
     '''
     Provides recipes for formation of the namedtuples.
     '''
@@ -66,11 +66,12 @@ class TestVertexArrowEdgeInitialization(unittest_TestCase):
             3)}
     return data
   
+  """
   def test_initialization(self):
     '''
     Tests initialization of Vertex, Arrow and Edge.
     '''
-    data = self.recipes_for_initialization_and_testing()
+    data = self.recipes_for_initialization()
     for key in data:
       with self.subTest(namedtuple_name = key):
         class_name, init_values, fields_names, length = data[key]
@@ -90,7 +91,7 @@ class TestVertexArrowEdgeInitialization(unittest_TestCase):
     self.assertEqual(explicitly_unweighted_arrow, implicitly_unweighted_arrow)
     explicitly_unweighted_edge = Edge('A', 1, None)
     implicitly_unweighted_edge = Edge('A', 1)
-    self.assertEqual(explicitly_unweighted_edge, implicitly_unweighted_edge)
+    self.assertEqual(explicitly_unweighted_edge, implicitly_unweighted_edge)"""
 
 ########################################################################
 # Commands to be run on execution
