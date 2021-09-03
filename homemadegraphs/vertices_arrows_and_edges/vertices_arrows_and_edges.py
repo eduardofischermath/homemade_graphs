@@ -258,9 +258,10 @@ class OperationsVAE(object):
         # If we arrive at [] as final list, we are done
         # We use a list to store the new edges (for the possibility we return them)
         new_edges = []
-        found_arrow_without_edge = False
-        while new_edges: # i. e. new_edges nonempty
-          last_arrow = arrows.pop() # pop() removes last and return it
+        found_arrow_without_reverse_forming_edge = False
+        while arrows: # i. e. arrows nonempty
+          last_arrow = arrows.pop() # pop() removes last from list and return it
+          # Note it is supposed to be already sanitized, so we skip all the work we can
           last_arrow_reversed = OperationsVAE.get_reversed_arrow_or_equivalent_edge(
               last_arrow,
               use_edges_instead_of_arrows = False,
@@ -270,10 +271,13 @@ class OperationsVAE(object):
           # Try to remove the reversed arrow. If it fails, they don't form edges
           try:
             arrows.remove(last_arrow_reversed)
+            # For the following we could use either last_arrow or last_arrow_reversed
+            edge_to_append = Edge(last_arrow.source, last_arrow.target, last_arrow.weight)
+            new_edges.append(edge_to_append)
           except ValueError:
-            found_arrow_without_edge = True
+            found_arrow_without_reverse_forming_edge = True
             break
-        if found_arrow_without_edge:
+        if found_arrow_without_reverse_forming_edge:
           return None
         else:
           return new_edges

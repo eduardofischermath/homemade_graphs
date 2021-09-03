@@ -486,6 +486,9 @@ class Digraph(object):
     Edge appears as as two arrows in self._arrows, among other attributes
     It also appears as one edge in self._edges (in Graph instance only)
     '''
+    # This method is used for Graphs and for non-Graph Digraphs
+    # For non-Graph Digraphs, add_as_edges should be False, as there would be
+    #no attributes self._edges and self._inciding_edges
     # We first put the edge into a namedtuple, if not already [sanitize it]
     edge = OperationsVAE.sanitize_arrow_or_edge(edge,
         use_edges_instead_of_arrows = True,
@@ -493,6 +496,7 @@ class Digraph(object):
         request_vertex_sanitization = True,
         require_vertex_namedtuple = require_vertex_namedtuple)
     # We check whether the vertices are already present
+    # Note this will be conducted even if add_as_edge and add_as_arrows are False
     if not self.belongs_to_as_vertex_after_sanitization(edge.first, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Source of edge needs to be in (di)graph.')
@@ -509,18 +513,19 @@ class Digraph(object):
             require_vertex_namedtuple = False)
     # We care about adding the edges (depend on instance class)
     # Note that if Digraph is Graph we need to deal with more attributes
-    # We will trust our flag add_as_edge for the discrimination
+    # We will trust our flag add_as_edge for the proper discrimination
+    # (Otherwise we run into an AttributeError)
     if add_as_edge:
       # That is, we need to add the edge information as an edge:
       self._edges.append(edge)
       self._inciding_edges[edge.first].append(edge)
       self._inciding_edges[edge.second].append(edge)
     # It may or may not be the case that we will add the arrows
-    # That is, it depends on the request
+    # That is, it depends on the request, independently of add_as_edge
     if add_as_arrows:
       # We now work on the arrows: every edge also makes two arrows.
-      # We call Digraph._add_arrow, skipping all checks
-      # We produce two namedtuples Arrow using get_arrows_from_edge
+      # We produce a list of two Arrows using get_arrows_from_edge,
+      #then use self._add_arrow
       two_arrows = OperationsVAE.get_arrows_from_edge(edge,
           require_namedtuple = True,
           request_vertex_sanitization = False,
@@ -541,8 +546,6 @@ class Digraph(object):
     '''
     Adds an iterable of edges to the (di)graph.
     '''
-    # Note that if Digraph is Graph this will call Graph method
-    # Otherwise, if Digraph is not Graph, this calls Digraph method
     add_as_edge = add_as_edges
     for edge in edges:
       self._add_edge(edge,
