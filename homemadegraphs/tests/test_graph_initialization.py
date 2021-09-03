@@ -32,42 +32,47 @@ from unittest import TestCase as unittest_TestCase
 # Internal imports
 ########################################################################
 
-from homemadegraphs.graphs_and_digraphs import Digraph
+from homemadegraphs.graphs_and_digraphs import Graph
 from homemadegraphs.tests.generic_testing_classes import GenericInitializationTestCase
 
 ########################################################################
 # Tests
 ########################################################################
 
-class TestDigraphInitialization(GenericInitializationTestCase):
+class TestGraphInitialization(GenericInitializationTestCase):
   '''
-  Tests Digraph.__init__ by trying it on many examples, as well as using
+  Tests Graph.__init__ by trying it on many examples, as well as using
   different data inputs (controlled by data_type argument on __init__)
   
-  All examples are the same Digraph corresponding to the digraph
+  All examples are the same Graph corresponding to the 3-vertex one-edge graph:
   
-  A ---> B <--- C.
+  A      B ---- C.
   
-  It will be initialized with every possible Digrah__init__ data_type option
-  (except the ones involving edges as these require a Graph).
+  It will be initialized with every possible Digraph.__init__ (called from Graph
+  due to subclassing) data_type option.
   No information on weights will be given.
   '''
   
-  class_being_tested = Digraph
+  class_being_tested = Graph
   
   # Dict to be used in many methods within this class
   @staticmethod
   def recipes_for_data_and_data_types():
     A, B, C = 'A', 'B', 'C'
-    AB, CB = ('A', 'B'), ('C', 'B')
+    BC, CB = ('B', 'C'), ('C', 'B') # Can be turned into arrows or edges
     return {
-        'all_arrows': [AB, CB],
-        'some_vertices_and_all_arrows': ([A], [AB, CB]),
-        'all_vertices_and_all_arrows': ([A, B, C], [AB, CB]),
-        'full_arrows_out_as_dict': {A: [AB], B: [], C:[CB]},
-        'arrows_out_as_dict': {A: [AB], C:[CB]},
-        'full_arrows_out_as_list': [[A, AB], [B], [C, CB]],
-        'arrows_out_as_list': [[A, AB], [C, CB]],
+        'some_vertices_and_all_arrows': ([A], [BC, CB]),
+        'all_vertices_and_all_arrows': ([A, B, C], [BC, CB]),
+        'some_vertices_and_all_edges': ([A], [BC]),
+        'all_vertices_and_all_edges': ([A, B, C], [BC]),
+        'full_arrows_out_as_dict': {A: [], B: [BC], C: [CB]},
+        'arrows_out_as_dict': {A: [], B: [BC], C: [CB]},
+        'full_arrows_out_as_list': [[A], [B, CB], [C, CB]],
+        'arrows_out_as_list': [[A], [B, CB], [C, CB]],
+        'full_edges_out_as_dict': {A:[], B:[], C:[CB]},
+        'edges_out_as_dict': {A:[], C:[CB]},
+        'full_edges_out_as_list': [[A], [B], [C, [CB]]],
+        'edges_out_as_list': [[A], [C, [CB]]],
         'full_neighbors_out_as_dict': {A:[B], B:[], C:[B]},
         'neighbors_out_as_dict': {A:[B], C:[B]},
         'full_neighbors_out_as_list': [[A, B], [B], [C, B]],

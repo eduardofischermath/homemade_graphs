@@ -234,7 +234,7 @@ class Digraph(object):
         require_vertices_in = True
       else:
         raise ValueError('Option not recognized')
-      init_tuplees = init_arrows
+      init_tuplees = init_edges
       use_edges_instead_of_arrows = True
     elif 'as_dict' in data_type.lower() or 'as_list' in data_type.lower():
       # We need to format the information
@@ -286,7 +286,7 @@ class Digraph(object):
             require_vertex_namedtuple = False)
         use_edges_instead_of_arrows = False
         init_tuplees = init_arrows
-      elif 'neighbors_as_' in data_type_lower():
+      elif 'neighbors_as_' in data_type.lower():
         # There is some complexity and so we defer to another method
         init_edges = OperationsVAE.get_namedtuples_from_neighbors(data_as_dict,
             output_as = 'list',
@@ -519,17 +519,15 @@ class Digraph(object):
       # We now work on the arrows: every edge also makes two arrows.
       # We call Digraph._add_arrow, skipping all checks
       # We produce two namedtuples Arrow using get_arrows_from_edge
-      two_arrows = OperationsVAE.get_arrows_from_edge(
+      two_arrows = OperationsVAE.get_arrows_from_edge(edge,
           require_namedtuple = True,
           request_vertex_sanitization = False,
-          require_vertex_namedtuple = True,
-          output_as_generator = False)
+          require_vertex_namedtuple = True)
       for arrow in two_arrows:
         # All checks done already, don't need to put any requirement
         # (Note that edges have been sanitized already.)
         self._add_arrow(arrow,
             require_vertices_in = False,
-            also_add_formed_edges = False,
             require_namedtuple = True,
             require_vertex_namedtuple = True)      
     else:
@@ -836,8 +834,10 @@ class Digraph(object):
     #to build, with the given arrows, a Graph [an undirected graph]
     # We use the static method get_edges_from_sanitized_arrows, which returns
     #None when the arrows cannot be used to form edges
-    new_edges = OperationsVAE.get_edges_from_sanitized_arrows(data = self,
-        are_arrows_from_digraph = True, is_multiarrow_free = False)
+    new_edges = OperationsVAE.get_edges_from_sanitized_arrows(
+        self,
+        is_data_a_digraph_instead_of_arrows = True,
+        is_multiarrow_free_guaranteed = False)
     # We are explicit on what we're doing
     is_undirected = (new_edges is not None)
     return is_undirected
