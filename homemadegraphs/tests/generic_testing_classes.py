@@ -69,8 +69,8 @@ class GenericInitializationTestCase(unittest_TestCase):
     #in every class (overriding the base class's), which is not the goal
     # Note: unittest doesn't call setUpClass for skipped tests, so this is
     #closer to what we want to accomplish with this generic testing class
-    if not hasattr(cls, 'recipes_for_data_and_data_types') or not hasattr(cls, 'class_being_tested'):
-      raise unittest_SkipTest(f'Need recipes for initialization of the tested classes')
+    if not hasattr(cls, 'recipes_for_data_and_data_types'):
+      raise unittest_SkipTest('Need recipes for initialization of the tested classes.')
 
   def test_initialization(self, deactivate_assertions = False):
     '''
@@ -91,6 +91,7 @@ class GenericInitializationTestCase(unittest_TestCase):
           self.assertIsInstance(dict_of_instances[data_type], cls.class_being_tested)
     return dict_of_instances
 
+  @unittest_skip('Probably redundant given test_equality_against_specific')
   def test_pairwise_equality(self):
     '''
     Tests equality for all pairs of instances emerging from different input types.
@@ -123,6 +124,32 @@ class GenericInitializationTestCase(unittest_TestCase):
         with self.subTest(fixed_key = fixed_key, variable_key = variable_key):
           variable_instance = dict_of_instances[variable_key]
           self.assertEqual(fixed_instance, variable_instance)
+          
+  def test_intended_instance_properties(self):
+    '''
+    Checks whether inputs produce instance with the speficied qualities.
+    '''
+    cls = self.__class__
+    if not hasattr(cls, 'intended_instance_properties'):
+      raise unittest_SkipTest('Need standard properties to compare instances against.')
+    # We determine how to obtain the variables (all callable attributes)
+    recipe_to_obtain_property = {
+        'number_of_vertices': 'get_number_of_vertices',
+        'number_of_arrows': 'get_number_of_arrows',
+        'number_of_edges': 'get_number_of_edges'
+        }
+    # We bring all the instances
+    dict_of_instances = self.test_initialization(deactivate_assertions = True)
+    # We check if each instance has each property as specified
+    # (Note property is a reserved word so we might write propertyy in code)
+    for examined_property in cls.intended_instance_properties:
+      callable_attribute_for_property = recipe_to_obtain_property[examined_property]
+      for instance_key in dict_of_instances:
+        with self.subTest(examined_property = examined_property, instance_key = instance_key):
+          instance = dict_of_instances[instance_key]
+          self.assertEqual(
+              getattr(instance, callable_attribute_for_property)(), # callable
+              cls.intended_instance_properties[examined_property])
 
 ########################################################################
 

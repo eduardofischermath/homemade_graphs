@@ -449,7 +449,7 @@ class Digraph(object):
           require_namedtuple = False,
           request_vertex_sanitization = False,
           require_vertex_namedtuple = False,
-          raise_error_if_edges_not_formed = False)
+          raise_error_if_edges_not_formed = True)
     else:
       arrows = OperationsVAE.sanitize_arrows_or_edges(arrows,
           use_edges_instead_of_arrows = False,
@@ -465,8 +465,10 @@ class Digraph(object):
     if also_add_formed_edges:
       # Easiest way is to call _add_edges, and of course, ask to not add arrows
       # (Otherwise they would be added in double)
+      # We can set require_vertices_in = True as the vertices of any edge
+      #would have been already added as an arrow previously
       self._add_edges(edges,
-          require_vertices_in = False,
+          require_vertices_in = True,
           add_as_edges = True,
           add_as_arrows = False,
           require_namedtuple = require_namedtuple,
@@ -2223,6 +2225,8 @@ class Graph(Digraph):
     '''
     Returns the edges inciding on a vertex.
     '''
+    # Important to note that in Digraph.__init__, inputting as 'edges'
+    #does not correspond to this notion of _inciding_edges
     if not skip_checks:
       assert vertex in self
     return self._inciding_edges[vertex]
@@ -2239,6 +2243,8 @@ class Graph(Digraph):
     #the vertex itself might be the first or second
     # For this reason, we use self._arrows_out instead
     # [For self-loops: a vertex will be a neighbor of itself]
+    # Also important to note that in Digraph.__init__, the meaning of
+    #'neighbors' in the possible values of data_type is other than this
     return [arrow.target for arrow in self._arrows_out[vertex]] 
   
   def get_degree_of_vertex(self, vertex, skip_checks = False):

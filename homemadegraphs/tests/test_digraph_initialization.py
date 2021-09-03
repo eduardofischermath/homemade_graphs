@@ -55,6 +55,10 @@ class TestDigraphInitialization(GenericInitializationTestCase):
   
   class_being_tested = Digraph
   
+  intended_instance_properties = {
+      'number_of_vertices': 3,
+      'number_of_arrows': 2}
+  
   # Dict to be used in many methods within this class
   @staticmethod
   def recipes_for_data_and_data_types():
@@ -71,11 +75,7 @@ class TestDigraphInitialization(GenericInitializationTestCase):
         'full_neighbors_out_as_dict': {A:[B], B:[], C:[B]},
         'neighbors_out_as_dict': {A:[B], C:[B]},
         'full_neighbors_out_as_list': [[A, B], [B], [C, B]],
-        'neighbors_out_as_list': [[A, B], [C, B]],
-        'full_neighbors_as_dict': {A:[], B:[C], C:[B]},
-        'neighbors_as_dict': {A:[], B:[C], C:[B]},
-        'full_neighbors_as_list': [[A], [B, C], [C, B]],
-        'neighbors_as_list': [[A], [B, C], [C, B]]}
+        'neighbors_out_as_list': [[A, B], [C, B]]}
 
 ########################################################################
 # Commands to be run on execution

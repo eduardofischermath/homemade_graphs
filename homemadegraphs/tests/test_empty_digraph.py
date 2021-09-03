@@ -45,6 +45,10 @@ class TestEmptyDigraph(GenericInitializationTestCase):
   '''
   
   class_being_tested = Digraph
+  
+  intended_instance_properties = {
+      'number_of_vertices': 0,
+      'number_of_arrows': 0}
 
   # Dict to be used in many methods within this class
   @staticmethod

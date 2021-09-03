@@ -55,11 +55,16 @@ class TestGraphInitialization(GenericInitializationTestCase):
   
   class_being_tested = Graph
   
+  intended_instance_properties = {
+      'number_of_vertices': 3,
+      'number_of_arrows': 2,
+      'number_of_edges': 1}
+  
   # Dict to be used in many methods within this class
   @staticmethod
   def recipes_for_data_and_data_types():
     A, B, C = 'A', 'B', 'C'
-    BC, CB = ('B', 'C'), ('C', 'B') # Can be turned into arrows or edges
+    BC, CB = ('B', 'C'), ('C', 'B') # Can be turned into Arrows or Edges
     return {
         'some_vertices_and_all_arrows': ([A], [BC, CB]),
         'all_vertices_and_all_arrows': ([A, B, C], [BC, CB]),
@@ -67,20 +72,20 @@ class TestGraphInitialization(GenericInitializationTestCase):
         'all_vertices_and_all_edges': ([A, B, C], [BC]),
         'full_arrows_out_as_dict': {A: [], B: [BC], C: [CB]},
         'arrows_out_as_dict': {A: [], B: [BC], C: [CB]},
-        'full_arrows_out_as_list': [[A], [B, CB], [C, CB]],
-        'arrows_out_as_list': [[A], [B, CB], [C, CB]],
+        'full_arrows_out_as_list': [[A], [B, BC], [C, CB]],
+        'arrows_out_as_list': [[A], [B, BC], [C, CB]],
         'full_edges_out_as_dict': {A:[], B:[], C:[CB]},
         'edges_out_as_dict': {A:[], C:[CB]},
-        'full_edges_out_as_list': [[A], [B], [C, [CB]]],
-        'edges_out_as_list': [[A], [C, [CB]]],
-        'full_neighbors_out_as_dict': {A:[B], B:[], C:[B]},
-        'neighbors_out_as_dict': {A:[B], C:[B]},
-        'full_neighbors_out_as_list': [[A, B], [B], [C, B]],
-        'neighbors_out_as_list': [[A, B], [C, B]],
-        'full_neighbors_as_dict': {A:[], B:[C], C:[B]},
-        'neighbors_as_dict': {A:[], B:[C], C:[B]},
-        'full_neighbors_as_list': [[A], [B, C], [C, B]],
-        'neighbors_as_list': [[A], [B, C], [C, B]]}
+        'full_edges_out_as_list': [[A], [B], [C, CB]],
+        'edges_out_as_list': [[A], [C, CB]],
+        'full_neighbors_out_as_dict': {A:[], B:[C], C:[B]},
+        'neighbors_out_as_dict': {A:[], B:[C], C:[B]},
+        'full_neighbors_out_as_list': [[A], [B, C], [C, B]],
+        'neighbors_out_as_list': [[A], [B, C], [C, B]],
+        'full_neighbors_as_dict': {A:[], B:[], C:[B]},
+        'neighbors_as_dict': {A:[], C:[B]},
+        'full_neighbors_as_list': [[A], [B], [C, B]],
+        'neighbors_as_list': [[A], [C, B]]}
 
 ########################################################################
 # Commands to be run on execution
