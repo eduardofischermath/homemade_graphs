@@ -39,10 +39,61 @@ from unittest import TestCase as unittest_TestCase
 
 
 ########################################################################
-# Generic test procedures
+# Generic testing procedures
 ########################################################################
 
-class GenericInitializationTestCase(unittest_TestCase):
+class GenericObjectTestCase(unittest_TestCase):
+  '''
+  Generic testing scheme for classes which define a main object for their testing.
+  '''
+
+  def get_object_for_testing(self):
+    '''
+    Produces the object in which the tests will be performed (often method invocation).
+    '''
+    # Typically this will be defined in each subclass
+    # In case it isn't, it defaults to raising an exception
+    # (This has somewhat the flavor of an abstract method)
+    raise TypeError('GenericPropertyTestCase has no object to test')
+
+########################################################################
+
+class GenericPropertyTestCase(GenericObjectTestCase):
+  '''
+  Provides a generic testing scheme for use with unittest.
+  
+  A class derived from this will create one object and then verify a multitude
+  of methods work on it as specified.
+  '''
+  
+  # We define a namedtuple to standartize functions/methods/attributes in tests
+  # See method test_property_specifications
+  # If non-callable, expect PropertySpecification.arguments to be None.
+  # Otherwise, for no arguments (beside self which is automatic in regular methods)
+  #use the empty tuple, tuple()
+  PropertySpecification = collections_namedtuple('PropertySpecification', 'attribute,output,is_callable,arguments', defaults = (False, None))
+
+  def test_property_specifications(self):
+    '''
+    Checks whether inputs produce instance with the speficied qualities.
+    '''
+    if not hasattr(self, 'property_specifications'):
+      raise unittest_SkipTest('Need standard properties to compare instances against.')
+    # (Note property is a reserved word so we might write propertyy in code)
+    for property_specification in self.property_specifications():
+      with self.subTest(property_specification = property_specification):
+        # We compare property computed with property given
+        # Note object is computed each time anew (ideal for independence)
+        property_given = property_specification.output
+        if property_specification.is_callable:
+          property_computed = getattr(self.get_object_for_testing(), property_specification.attribute)(*property_specification.arguments)
+        else:
+          property_computed = getattr(self.get_object_for_testing(), property_specification.attribute)
+        self.assertEqual(property_computed, property_given)
+
+########################################################################
+
+class GenericInitializationTestCase(GenericPropertyTestCase):
   '''
   Provides some generic and enhanced version of unittest.TestCase by
   providing a few generic class methods related to initialization.
@@ -54,12 +105,6 @@ class GenericInitializationTestCase(unittest_TestCase):
   (stored in a class variable) of the "same" instance (of a class which
   is being tested) and verify they all produce the "same" instance.
   '''
-
-  # We define a namedtuple to standartize functions/methods/attributes in tests
-  # See method test_property_specifications
-  # If non-callable, expect arguments to be None. Otherwise, for no arguments
-  #(beside self which is automatic) use the empty tuple, tuple()
-  PropertySpecification = collections_namedtuple('PropertySpecification', 'attribute,output,is_callable,arguments', defaults = (False, None))
 
   @classmethod
   def setUpClass(cls):
@@ -78,12 +123,21 @@ class GenericInitializationTestCase(unittest_TestCase):
     #closer to what we want to accomplish with this generic testing class
     if not hasattr(cls, 'recipes_for_data_and_data_types'):
       raise unittest_SkipTest('Need recipes for initialization of the tested classes.')
+    # To maintain __mro__ flexibility:
+    super().setUpClass()
 
-  def test_initialization(self, deactivate_assertions = False):
+  def get_object_for_testing(self):
+    '''
+    Creates standard object for testing in its derived classes.
+    '''
+    return list(self.test_multiple_initialization(deactivate_assertions = False).values())[0]
+
+  def test_multiple_initialization(self, deactivate_assertions = False):
     '''
     Initializes one instance by all multiple input types.
+    
+    Only works with functions whose arguments are 'data' and 'data_type'.
     '''
-    cls = self.__class__
     dict_of_instances = {}
     data_and_data_types = self.recipes_for_data_and_data_types()
     # We use subTest to discriminate what we are doing
@@ -92,10 +146,10 @@ class GenericInitializationTestCase(unittest_TestCase):
       with self.subTest(data_type = key):
         data_type = key
         data = data_and_data_types[key]
-        dict_of_instances[data_type] = cls.class_being_tested(data = data, data_type = data_type)
+        dict_of_instances[data_type] = self.class_being_tested(data = data, data_type = data_type)
         if not deactivate_assertions:
           # We want to test this only when called directly by unittest
-          self.assertIsInstance(dict_of_instances[data_type], cls.class_being_tested)
+          self.assertIsInstance(dict_of_instances[data_type], self.class_being_tested)
     return dict_of_instances
 
   @unittest_skip('Probably redundant given test_equality_against_specific')
@@ -103,8 +157,8 @@ class GenericInitializationTestCase(unittest_TestCase):
     '''
     Tests equality for all pairs of instances emerging from different input types.
     '''
-    # Creating all instances, using the test_initialization for better separation
-    dict_of_instances = self.test_initialization(deactivate_assertions = True)
+    # Creating all instances, using the test_multiple_initialization for better separation
+    dict_of_instances = self.test_multiple_initialization(deactivate_assertions = True)
     count = 0
     for key_1 in dict_of_instances:
       for key_2 in dict_of_instances:
@@ -120,40 +174,15 @@ class GenericInitializationTestCase(unittest_TestCase):
   def test_equality_against_specific(self):
     '''
     Compares equality for all instances emerging from different inputs
-    against one specific among them.
+    against one specific object (often chosen as one of them).
     '''
-    dict_of_instances = self.test_initialization(deactivate_assertions = True)
+    dict_of_instances = self.test_multiple_initialization(deactivate_assertions = True)
     # Pick only one of them, and compare all others to this special fixed instance
     if dict_of_instances:
-      fixed_key = list(dict_of_instances)[0]
-      fixed_instance = dict_of_instances[fixed_key]
       for variable_key in dict_of_instances:
-        with self.subTest(fixed_key = fixed_key, variable_key = variable_key):
+        with self.subTest(variable_key = variable_key):
           variable_instance = dict_of_instances[variable_key]
-          self.assertEqual(fixed_instance, variable_instance)
-          
-  def test_property_specifications(self):
-    '''
-    Checks whether inputs produce instance with the speficied qualities.
-    '''
-    cls = self.__class__
-    if not hasattr(cls, 'property_specifications'):
-      raise unittest_SkipTest('Need standard properties to compare instances against.')
-    # We bring all the instances
-    dict_of_instances = self.test_initialization(deactivate_assertions = True)
-    # We check if each instance has each property as specified
-    # (Note property is a reserved word so we might write propertyy in code)
-    for property_specification in self.property_specifications():
-      for instance_key in dict_of_instances:
-        with self.subTest(property_specification = property_specification, instance_key = instance_key):
-          instance = dict_of_instances[instance_key]
-          # We compare property computed with property given
-          property_given = property_specification.output
-          if property_specification.is_callable:
-            property_computed = getattr(instance, property_specification.attribute)(*property_specification.arguments)
-          else:
-            property_computed = getattr(instance, property_specification.attribute)
-          self.assertEqual(property_computed, property_given)
+          self.assertEqual(self.get_object_for_testing(), variable_instance)
             
 ########################################################################
 
