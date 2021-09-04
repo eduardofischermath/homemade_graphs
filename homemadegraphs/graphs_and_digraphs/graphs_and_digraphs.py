@@ -234,7 +234,7 @@ class Digraph(object):
         require_vertices_in = True
       else:
         raise ValueError('Option not recognized')
-      init_tuplees = init_arrows
+      init_tuplees = init_edges
       use_edges_instead_of_arrows = True
     elif 'as_dict' in data_type.lower() or 'as_list' in data_type.lower():
       # We need to format the information
@@ -286,7 +286,7 @@ class Digraph(object):
             require_vertex_namedtuple = False)
         use_edges_instead_of_arrows = False
         init_tuplees = init_arrows
-      elif 'neighbors_as_' in data_type_lower():
+      elif 'neighbors_as_' in data_type.lower():
         # There is some complexity and so we defer to another method
         init_edges = OperationsVAE.get_namedtuples_from_neighbors(data_as_dict,
             output_as = 'list',
@@ -449,7 +449,7 @@ class Digraph(object):
           require_namedtuple = False,
           request_vertex_sanitization = False,
           require_vertex_namedtuple = False,
-          raise_error_if_edges_not_formed = False)
+          raise_error_if_edges_not_formed = True)
     else:
       arrows = OperationsVAE.sanitize_arrows_or_edges(arrows,
           use_edges_instead_of_arrows = False,
@@ -465,8 +465,10 @@ class Digraph(object):
     if also_add_formed_edges:
       # Easiest way is to call _add_edges, and of course, ask to not add arrows
       # (Otherwise they would be added in double)
+      # We can set require_vertices_in = True as the vertices of any edge
+      #would have been already added as an arrow previously
       self._add_edges(edges,
-          require_vertices_in = False,
+          require_vertices_in = True,
           add_as_edges = True,
           add_as_arrows = False,
           require_namedtuple = require_namedtuple,
@@ -484,6 +486,9 @@ class Digraph(object):
     Edge appears as as two arrows in self._arrows, among other attributes
     It also appears as one edge in self._edges (in Graph instance only)
     '''
+    # This method is used for Graphs and for non-Graph Digraphs
+    # For non-Graph Digraphs, add_as_edges should be False, as there would be
+    #no attributes self._edges and self._inciding_edges
     # We first put the edge into a namedtuple, if not already [sanitize it]
     edge = OperationsVAE.sanitize_arrow_or_edge(edge,
         use_edges_instead_of_arrows = True,
@@ -491,6 +496,7 @@ class Digraph(object):
         request_vertex_sanitization = True,
         require_vertex_namedtuple = require_vertex_namedtuple)
     # We check whether the vertices are already present
+    # Note this will be conducted even if add_as_edge and add_as_arrows are False
     if not self.belongs_to_as_vertex_after_sanitization(edge.first, require_vertex_namedtuple = False):
       if require_vertices_in:
         raise ValueError('Source of edge needs to be in (di)graph.')
@@ -507,29 +513,28 @@ class Digraph(object):
             require_vertex_namedtuple = False)
     # We care about adding the edges (depend on instance class)
     # Note that if Digraph is Graph we need to deal with more attributes
-    # We will trust our flag add_as_edge for the discrimination
+    # We will trust our flag add_as_edge for the proper discrimination
+    # (Otherwise we run into an AttributeError)
     if add_as_edge:
       # That is, we need to add the edge information as an edge:
       self._edges.append(edge)
       self._inciding_edges[edge.first].append(edge)
       self._inciding_edges[edge.second].append(edge)
     # It may or may not be the case that we will add the arrows
-    # That is, it depends on the request
+    # That is, it depends on the request, independently of add_as_edge
     if add_as_arrows:
       # We now work on the arrows: every edge also makes two arrows.
-      # We call Digraph._add_arrow, skipping all checks
-      # We produce two namedtuples Arrow using get_arrows_from_edge
-      two_arrows = OperationsVAE.get_arrows_from_edge(
+      # We produce a list of two Arrows using get_arrows_from_edge,
+      #then use self._add_arrow
+      two_arrows = OperationsVAE.get_arrows_from_edge(edge,
           require_namedtuple = True,
           request_vertex_sanitization = False,
-          require_vertex_namedtuple = True,
-          output_as_generator = False)
+          require_vertex_namedtuple = True)
       for arrow in two_arrows:
         # All checks done already, don't need to put any requirement
         # (Note that edges have been sanitized already.)
         self._add_arrow(arrow,
             require_vertices_in = False,
-            also_add_formed_edges = False,
             require_namedtuple = True,
             require_vertex_namedtuple = True)      
     else:
@@ -541,8 +546,6 @@ class Digraph(object):
     '''
     Adds an iterable of edges to the (di)graph.
     '''
-    # Note that if Digraph is Graph this will call Graph method
-    # Otherwise, if Digraph is not Graph, this calls Digraph method
     add_as_edge = add_as_edges
     for edge in edges:
       self._add_edge(edge,
@@ -836,8 +839,10 @@ class Digraph(object):
     #to build, with the given arrows, a Graph [an undirected graph]
     # We use the static method get_edges_from_sanitized_arrows, which returns
     #None when the arrows cannot be used to form edges
-    new_edges = OperationsVAE.get_edges_from_sanitized_arrows(data = self,
-        are_arrows_from_digraph = True, is_multiarrow_free = False)
+    new_edges = OperationsVAE.get_edges_from_sanitized_arrows(
+        self,
+        is_data_a_digraph_instead_of_arrows = True,
+        is_multiarrow_free_guaranteed = False)
     # We are explicit on what we're doing
     is_undirected = (new_edges is not None)
     return is_undirected
@@ -2223,6 +2228,8 @@ class Graph(Digraph):
     '''
     Returns the edges inciding on a vertex.
     '''
+    # Important to note that in Digraph.__init__, inputting as 'edges'
+    #does not correspond to this notion of _inciding_edges
     if not skip_checks:
       assert vertex in self
     return self._inciding_edges[vertex]
@@ -2239,6 +2246,8 @@ class Graph(Digraph):
     #the vertex itself might be the first or second
     # For this reason, we use self._arrows_out instead
     # [For self-loops: a vertex will be a neighbor of itself]
+    # Also important to note that in Digraph.__init__, the meaning of
+    #'neighbors' in the possible values of data_type is other than this
     return [arrow.target for arrow in self._arrows_out[vertex]] 
   
   def get_degree_of_vertex(self, vertex, skip_checks = False):

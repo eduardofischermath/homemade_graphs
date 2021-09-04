@@ -206,7 +206,7 @@ a specific key/vertex.
 Since many methods have many arguments, consider always "towering" them
 (that is, putting one in each line, as doen for a few function/method calls)
 
-## ISSUE #0036 ONGOING
+## ISSUE #0036 COMPLETE
 
 Generalize testing by the use of generic testing classes. For example,
 a class for initialization (that tests all ways something can be initialized

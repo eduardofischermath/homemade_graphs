@@ -190,13 +190,13 @@ class OperationsVAE(object):
       return list(as_generator)
 
   @staticmethod
-  def get_edges_from_sanitized_arrows(data, are_arrows_from_digraph = False,
-      is_multiarrow_free = False):
+  def get_edges_from_sanitized_arrows(data, is_data_a_digraph_instead_of_arrows = False,
+      is_multiarrow_free_guaranteed = False):
     '''
     From some sanitized arrows returns the edges which would form them
     (if each edge was decomposed into two mutually-reverse arrows).
     
-    Using are_arrows_from_digraph, we obtain all edges derived from the arrows of
+    Using is_data_a_digraph_instead_of_arrows, we obtain all edges derived from the arrows of
     the digraph given as data (using data.get_arrows(), which doesn't read its edges).
     All arrows should automatically be Arrow nameduples.
     
@@ -207,7 +207,7 @@ class OperationsVAE(object):
     If pairing arrows into edges is not possible, returns None.
     '''
     # We first obtain the arrows
-    if are_arrows_from_digraph:
+    if is_data_a_digraph_instead_of_arrows:
       # In this case data is a Digraph instance
       # Note no import is needed at this moment
       arrows = data.get_arrows()
@@ -218,7 +218,7 @@ class OperationsVAE(object):
     if len(arrows) % 2 == 1: 
       return None
     else:
-      if is_multiarrow_free:
+      if is_multiarrow_free_guaranteed:
         # Algorithm with frozenset and hashing: we do it with lists in multiple steps
         #to facilitate understanding, even if it might cost more memory
         # Note we assume everything is sanitized already, and so we won't overburden
@@ -258,9 +258,10 @@ class OperationsVAE(object):
         # If we arrive at [] as final list, we are done
         # We use a list to store the new edges (for the possibility we return them)
         new_edges = []
-        found_arrow_without_edge = False
-        while new_edges: # i. e. new_edges nonempty
-          last_arrow = arrows.pop() # pop() removes last and return it
+        found_arrow_without_reverse_forming_edge = False
+        while arrows: # i. e. arrows nonempty
+          last_arrow = arrows.pop() # pop() removes last from list and return it
+          # Note it is supposed to be already sanitized, so we skip all the work we can
           last_arrow_reversed = OperationsVAE.get_reversed_arrow_or_equivalent_edge(
               last_arrow,
               use_edges_instead_of_arrows = False,
@@ -270,10 +271,13 @@ class OperationsVAE(object):
           # Try to remove the reversed arrow. If it fails, they don't form edges
           try:
             arrows.remove(last_arrow_reversed)
+            # For the following we could use either last_arrow or last_arrow_reversed
+            edge_to_append = Edge(last_arrow.source, last_arrow.target, last_arrow.weight)
+            new_edges.append(edge_to_append)
           except ValueError:
-            found_arrow_without_edge = True
+            found_arrow_without_reverse_forming_edge = True
             break
-        if found_arrow_without_edge:
+        if found_arrow_without_reverse_forming_edge:
           return None
         else:
           return new_edges
@@ -288,12 +292,14 @@ class OperationsVAE(object):
     Returns a tuple (arrows, edges). If edges cannot be formed, raise an error
     or return (arrows, None) depending on raise_error_if_edges_not_formed.
     '''
-    new_arrows = sanitize_arrows_or_edges(arrows,
+    new_arrows = OperationsVAE.sanitize_arrows_or_edges(arrows,
         use_edges_instead_of_arrows = False,
         require_namedtuple = require_namedtuple,
         request_vertex_sanitization = request_vertex_sanitization,
         require_vertex_namedtuple = require_vertex_namedtuple)
-    new_edges = get_edges_from_sanitized_arrows(new_arrows,)
+    new_edges = OperationsVAE.get_edges_from_sanitized_arrows(new_arrows,
+        is_data_a_digraph_instead_of_arrows = False,
+        is_multiarrow_free_guaranteed = False)
     # We deal with the situation in which we couldn't properly form edges
     if new_edges is None:
       # In this case we could not form the edges correctly
@@ -355,10 +361,13 @@ class OperationsVAE(object):
     From an edge creates a list with the two corresponding arrows.
     
     Has the option to accept or not a tuple which is not Edge.
+    
+    [Since the output is two Arrows there is no output_as_generator option;
+    the output is always a two-item list.]
     '''
     # To save time we factor though sanitization
     edge = OperationsVAE.sanitize_arrow_or_edge(edge,
-        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
+        use_edges_instead_of_arrows = True,
         require_namedtuple = require_namedtuple,
         request_vertex_sanitization = request_vertex_sanitization,
         require_vertex_namedtuple = require_vertex_namedtuple)

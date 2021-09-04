@@ -33,12 +33,13 @@ from unittest import TestCase as unittest_TestCase
 ########################################################################
 
 from homemadegraphs.graphs_and_digraphs import Digraph
+from homemadegraphs.tests.generic_testing_classes import GenericInitializationTestCase
 
 ########################################################################
 # Tests
 ########################################################################
 
-class TestDigraphInitialization(unittest_TestCase):
+class TestDigraphInitialization(GenericInitializationTestCase):
   '''
   Tests Digraph.__init__ by trying it on many examples, as well as using
   different data inputs (controlled by data_type argument on __init__)
@@ -51,6 +52,20 @@ class TestDigraphInitialization(unittest_TestCase):
   (except the ones involving edges as these require a Graph).
   No information on weights will be given.
   '''
+  
+  class_being_tested = Digraph
+  
+  @classmethod
+  def property_specifications(cls):
+    return [
+        cls.PropertySpecification('get_number_of_vertices',
+        3,
+        True,
+        tuple()),
+        cls.PropertySpecification('get_number_of_arrows',
+        2,
+        True,
+        tuple())]
   
   # Dict to be used in many methods within this class
   @staticmethod
@@ -69,40 +84,6 @@ class TestDigraphInitialization(unittest_TestCase):
         'neighbors_out_as_dict': {A:[B], C:[B]},
         'full_neighbors_out_as_list': [[A, B], [B], [C, B]],
         'neighbors_out_as_list': [[A, B], [C, B]]}
-
-  def test_initialization(self, deactivate_assertions = False):
-    '''
-    Initializes one digraph by all multiple methods.
-    '''
-    dict_of_digraphs = {}
-    data_and_data_types = self.recipes_for_data_and_data_types()
-    # We use subTest to discriminate what we are doing
-    # It accepts any keyword parameters for parametrization
-    for key in data_and_data_types:
-      with self.subTest(data_type = key):
-        data_type = key
-        data = data_and_data_types[key]
-        dict_of_digraphs[data_type] = Digraph(data = data, data_type = data_type)
-        if not deactivate_assertions:
-          # We want to test this only when called directly by unittest
-          self.assertIsInstance(dict_of_digraphs[data_type], Digraph)
-    return dict_of_digraphs
-  
-  #@unittest_skip
-  def test_pairwise_equality(self):
-    # Creating all instances, using the other method for better separation
-    dict_of_digraphs = self.test_initialization(deactivate_assertions = True)
-    count = 0
-    for key_1 in dict_of_digraphs:
-      for key_2 in dict_of_digraphs:
-        with self.subTest(data_types = (key_1, key_2)):
-          digraph_1 = dict_of_digraphs[key_1]
-          digraph_2 = dict_of_digraphs[key_2]
-          count += 1
-          self.assertEqual(digraph_1, digraph_2)
-    # We also verify this testing tests all (total_digraphs)**2 pairs
-    total_digraphs = len(dict_of_digraphs)
-    self.assertEqual(count, total_digraphs**2)
 
 ########################################################################
 # Commands to be run on execution
