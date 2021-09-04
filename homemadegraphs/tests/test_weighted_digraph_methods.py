@@ -32,58 +32,57 @@ from unittest import TestCase as unittest_TestCase
 # Internal imports
 ########################################################################
 
-from homemadegraphs.graphs_and_digraphs import Digraph
-from homemadegraphs.tests.generic_testing_classes import GenericInitializationTestCase
+from homemadegraphs.graphs_and_digraphs import WeightedDigraph
+from homemadegraphs.tests.generic_testing_classes import GenericPropertyTestCase
 
 ########################################################################
 # Tests
 ########################################################################
 
-class TestDigraphInitialization(GenericInitializationTestCase):
+class TestWeightedDigraphMethods(GenericPropertyTestCase):
   '''
-  Tests Digraph.__init__ by trying it on many examples, as well as using
-  different data inputs (controlled by data_type argument on __init__)
-  
-  All examples are the same Digraph corresponding to the digraph
-  
-  A ---> B <--- C.
-  
-  It will be initialized with every possible Digrah__init__ data_type option
-  (except the ones involving edges as these require a Graph).
-  No information on weights will be given.
+  Tests all methods for WeightedDigraph on a specific instance.
   '''
   
-  class_being_tested = Digraph
-  
+  def get_object_for_testing(self):
+    '''
+    Produces the WeightedDigraph
+    
+    A ----> B <---- C
+    |       |       |
+    |       |       |
+    V       V       V
+    D ----> E ----> F
+    
+    where each arrow has a specified weight.
+    '''
+    A, B, C, D, E, F = 'A', 'B', 'C', 'D', 'E', 'F'
+    AB = (A, B, 10)
+    CB = (C, B, 8)
+    DE = (D, E, 15)
+    EF = (E, F, 5)
+    AD = (A, D, 16)
+    BE = (B, E, 9)
+    CF = (C, F, 3)
+    return WeightedDigraph(
+        data = (
+            ['A', 'B'],
+            [AB, CB, DE, EF, AD, BE, CF]),
+        data_type = 'all_vertices_and_all_arrows')
+
   @classmethod
   def property_specifications(cls):
     return [
         cls.PropertySpecification('get_number_of_vertices',
-        3,
+        6,
         True,
         tuple()),
         cls.PropertySpecification('get_number_of_arrows',
-        2,
+        14,
         True,
         tuple())]
   
-  # Dict to be used in many methods within this class
-  @staticmethod
-  def recipes_for_data_and_data_types():
-    A, B, C = 'A', 'B', 'C'
-    AB, CB = ('A', 'B'), ('C', 'B')
-    return {
-        'all_arrows': [AB, CB],
-        'some_vertices_and_all_arrows': ([A], [AB, CB]),
-        'all_vertices_and_all_arrows': ([A, B, C], [AB, CB]),
-        'full_arrows_out_as_dict': {A: [AB], B: [], C:[CB]},
-        'arrows_out_as_dict': {A: [AB], C:[CB]},
-        'full_arrows_out_as_list': [[A, AB], [B], [C, CB]],
-        'arrows_out_as_list': [[A, AB], [C, CB]],
-        'full_neighbors_out_as_dict': {A:[B], B:[], C:[B]},
-        'neighbors_out_as_dict': {A:[B], C:[B]},
-        'full_neighbors_out_as_list': [[A, B], [B], [C, B]],
-        'neighbors_out_as_list': [[A, B], [C, B]]}
+
 
 ########################################################################
 # Commands to be run on execution
