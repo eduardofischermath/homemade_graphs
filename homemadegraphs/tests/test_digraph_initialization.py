@@ -55,9 +55,17 @@ class TestDigraphInitialization(GenericInitializationTestCase):
   
   class_being_tested = Digraph
   
-  intended_instance_properties = {
-      'number_of_vertices': 3,
-      'number_of_arrows': 2}
+  @classmethod
+  def property_specifications(cls):
+    return [
+        cls.PropertySpecification('get_number_of_vertices',
+        3,
+        True,
+        tuple()),
+        cls.PropertySpecification('get_number_of_arrows',
+        2,
+        True,
+        tuple())]
   
   # Dict to be used in many methods within this class
   @staticmethod

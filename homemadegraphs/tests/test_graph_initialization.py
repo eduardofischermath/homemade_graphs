@@ -55,10 +55,21 @@ class TestGraphInitialization(GenericInitializationTestCase):
   
   class_being_tested = Graph
   
-  intended_instance_properties = {
-      'number_of_vertices': 3,
-      'number_of_arrows': 2,
-      'number_of_edges': 1}
+  @classmethod
+  def property_specifications(cls):
+    return [
+        cls.PropertySpecification('get_number_of_vertices',
+        3,
+        True,
+        tuple()),
+        cls.PropertySpecification('get_number_of_arrows',
+        2,
+        True,
+        tuple()),
+        cls.PropertySpecification('get_number_of_edges',
+        1,
+        True,
+        tuple())]
   
   # Dict to be used in many methods within this class
   @staticmethod

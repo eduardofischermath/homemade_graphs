@@ -26,6 +26,7 @@
 
 from abc import ABCMeta as abc_ABCMeta
 from abc import abstractmethod as abc_abstractmethod
+from collections import namedtuple as collections_namedtuple
 from unittest import skip as unittest_skip
 from unittest import skipIf as unittest_skipIf
 from unittest import SkipTest as unittest_SkipTest
@@ -53,6 +54,12 @@ class GenericInitializationTestCase(unittest_TestCase):
   (stored in a class variable) of the "same" instance (of a class which
   is being tested) and verify they all produce the "same" instance.
   '''
+
+  # We define a namedtuple to standartize functions/methods/attributes in tests
+  # See method test_property_specifications
+  # If non-callable, expect arguments to be None. Otherwise, for no arguments
+  #(beside self which is automatic) use the empty tuple, tuple()
+  PropertySpecification = collections_namedtuple('PropertySpecification', 'attribute,output,is_callable,arguments', defaults = (False, None))
 
   @classmethod
   def setUpClass(cls):
@@ -125,32 +132,29 @@ class GenericInitializationTestCase(unittest_TestCase):
           variable_instance = dict_of_instances[variable_key]
           self.assertEqual(fixed_instance, variable_instance)
           
-  def test_intended_instance_properties(self):
+  def test_property_specifications(self):
     '''
     Checks whether inputs produce instance with the speficied qualities.
     '''
     cls = self.__class__
-    if not hasattr(cls, 'intended_instance_properties'):
+    if not hasattr(cls, 'property_specifications'):
       raise unittest_SkipTest('Need standard properties to compare instances against.')
-    # We determine how to obtain the variables (all callable attributes)
-    recipe_to_obtain_property = {
-        'number_of_vertices': 'get_number_of_vertices',
-        'number_of_arrows': 'get_number_of_arrows',
-        'number_of_edges': 'get_number_of_edges'
-        }
     # We bring all the instances
     dict_of_instances = self.test_initialization(deactivate_assertions = True)
     # We check if each instance has each property as specified
     # (Note property is a reserved word so we might write propertyy in code)
-    for examined_property in cls.intended_instance_properties:
-      callable_attribute_for_property = recipe_to_obtain_property[examined_property]
+    for property_specification in self.property_specifications():
       for instance_key in dict_of_instances:
-        with self.subTest(examined_property = examined_property, instance_key = instance_key):
+        with self.subTest(property_specification = property_specification, instance_key = instance_key):
           instance = dict_of_instances[instance_key]
-          self.assertEqual(
-              getattr(instance, callable_attribute_for_property)(), # callable
-              cls.intended_instance_properties[examined_property])
-
+          # We compare property computed with property given
+          property_given = property_specification.output
+          if property_specification.is_callable:
+            property_computed = getattr(instance, property_specification.attribute)(*property_specification.arguments)
+          else:
+            property_computed = getattr(instance, property_specification.attribute)
+          self.assertEqual(property_computed, property_given)
+            
 ########################################################################
 
 
