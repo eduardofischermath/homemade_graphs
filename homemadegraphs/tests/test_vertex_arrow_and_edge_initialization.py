@@ -42,6 +42,10 @@ class TestVertexArrowEdgeInitialization(unittest_TestCase):
   '''
   Tests the namedtuples Vertex, Arrow and Edge.
   '''
+  # Note this is not derived from any Generic test case
+  # This test case is closest to GenericPropertyTestCase, but since it
+  #has multiple objects (at least in this formulation) this testcase
+  #will not conform to those Generic classes
   
   @staticmethod
   def recipes_for_initialization():
@@ -66,6 +70,21 @@ class TestVertexArrowEdgeInitialization(unittest_TestCase):
             3)}
     return data
 
+  def test_namedtuple_initialization(self):
+    '''
+    Tests the correct initialization of namedtuples, as well as their
+    named attributes.
+    '''
+    data = self.recipes_for_initialization()
+    for namedtuple_name in data:
+      with self.subTest(namedtuple_name = namedtuple_name):
+        recipe = data[namedtuple_name]
+        init_class, init_arguments, expected_attributes, expected_length = recipe
+        obj = init_class(*init_arguments)
+        for attribute in expected_attributes:
+          self.assertTrue(hasattr(obj, attribute))
+        self.assertEqual(len(obj), expected_length)
+    
 ########################################################################
 # Commands to be run on execution
 ########################################################################
