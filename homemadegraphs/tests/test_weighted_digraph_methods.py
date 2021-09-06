@@ -66,7 +66,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
     CF = (C, F, 3)
     return WeightedDigraph(
         data = (
-            ['A', 'B'],
+            [A, B, C, D, E, F],
             [AB, CB, DE, EF, AD, BE, CF]),
         data_type = 'all_vertices_and_all_arrows')
 
@@ -78,9 +78,13 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         True,
         tuple()),
         cls.PropertySpecification('get_number_of_arrows',
-        14,
+        7,
         True,
-        tuple())]
+        tuple()),
+        cls.PropertySpecification('solve_traveling_salesman_problem',
+        None,
+        True,
+        (False,))]
   
 
 

@@ -2027,7 +2027,7 @@ class WeightedDigraph(Digraph):
     # WORK HERE
     # Bug: Currently algorithm may fail to produce correct requested_data
     #if is_negative_cycle_free == False. Only remedy is to not output the negative cycle
-    #butonly announce its existence
+    #but only announce its existence
     ###################
     if not is_negative_cycle_free:
       requested_data = 'There is a negative cycle.'
@@ -2042,7 +2042,10 @@ class WeightedDigraph(Digraph):
     
     If no such path or cycle exists, returns None.
     '''
-    # We use a separate class
+    ###############
+    # WORK HERE
+    # We use a separate class, need to point there
+    ###############
     raise NotImplementedError('WORK HERE')
 
 ########################################################################
