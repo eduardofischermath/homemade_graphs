@@ -289,7 +289,7 @@ class StateDigraphSolveTSP(object):
     also one of these minimizing paths as VertexPath instance. (If request is
     for its ommission, produces None as such path to fill the space.)
     
-    [Note this method is only about paths without self-crossings, never cycles.]
+    [Note this method is only about paths without self-crossings, not about cycles.]
     '''
     # Our subproblems are: Consider we have a fixed initial vertex
     #(which might be passed as argument as source_vertex), a fixed
@@ -389,8 +389,10 @@ class StateDigraphSolveTSP(object):
     '''
     Solves the Traveling Salesman Problem for the graph.
     
-    output_as: 'path', 'vertices', 'vertices_and_arrows', 'arrows', 'length'
+    output_as goes through VertexPath.reformat_paths()
     '''
+    initial_vertex, final_vertex = self.prepare_initial_final_vertices(initial_vertex, final_vertex)
+    
     # Normalize the vertices to be Vertex namedtuples
     initial_vertex = OperationsVAE.sanitize_vertex(initial_vertex, require_vertex_namedtuple = False)
     final_vertex = OperationsVAE.sanitize_vertex(final_vertex, require_vertex_namedtuple = False)
@@ -404,7 +406,8 @@ class StateDigraphSolveTSP(object):
     if not bool(self.digraph):
       # Returns path/cycle with no vertices
       if compute_path_instead_of_cycle:
-        return VertexPath(self.digraph, [], 'vertices')
+        path = VertexPath(self.digraph, [], 'vertices')
+        return path.reformat_paths(reformat)
       else:
         return VertexCycle(self.digraph, [], 'vertices')
     else:

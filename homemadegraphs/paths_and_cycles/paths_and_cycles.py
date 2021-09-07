@@ -310,6 +310,7 @@ class VertexPath(object):
     data_type = data_type.lower()
     output_as = output_as.lower()
     # We return None if asked to return nothing [it is useful to do this first]
+    # (This makes the method completely useless, but we like the option)
     if output_as == 'nothing':
       return None
     # We build an instance from the data (if not already starting with one)
@@ -368,6 +369,28 @@ class VertexPath(object):
         return pre_data[0]
       else:
         raise ValueError('Option not recognized')
+
+  def reformat_path_from_path(self, output_as, skip_checks = False):
+    '''
+    Calls reformat_path() with data_type = 'path'.
+    '''
+    return self.reformat_path(
+        underlying_digraph = self.underlying_digraph,
+        data = self,
+        data_type = 'path',
+        output_as = output_as,
+        skip_checks = skip_checks)
+    
+  def reformat_path_from_cycle(self, output_as, skip_checks = False):
+    '''
+    Calls reformat_path() with data_type = 'cycle'.
+    '''
+    return self.reformat_path(
+        underlying_digraph = self.underlying_digraph,
+        data = self,
+        data_type = 'cycle',
+        output_as = output_as,
+        skip_checks = skip_checks)
 
   def is_hamiltonian_path(self):
     '''
