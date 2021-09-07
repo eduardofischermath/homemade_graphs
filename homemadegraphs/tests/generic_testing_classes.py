@@ -71,7 +71,9 @@ class GenericPropertyTestCase(GenericObjectTestCase):
   # If non-callable, expect PropertySpecification.arguments to be None.
   # Otherwise, for no arguments (beside self which is automatic in regular methods)
   #use the empty tuple, tuple()
-  PropertySpecification = collections_namedtuple('PropertySpecification', 'attribute,output,is_callable,arguments', defaults = (False, None))
+  PropertySpecification = collections_namedtuple('PropertySpecification',
+      'attribute,output,is_callable,arguments,keyword_arguments',
+      defaults = (False, None, None))
 
   def test_property_specifications(self):
     '''
@@ -86,7 +88,8 @@ class GenericPropertyTestCase(GenericObjectTestCase):
         # Note object is computed each time anew (ideal for independence)
         property_given = property_specification.output
         if property_specification.is_callable:
-          property_computed = getattr(self.get_object_for_testing(), property_specification.attribute)(*property_specification.arguments)
+          property_computed = getattr(self.get_object_for_testing(), property_specification.attribute)(
+              *property_specification.arguments, **property_specification.keyword_arguments)
         else:
           property_computed = getattr(self.get_object_for_testing(), property_specification.attribute)
         self.assertEqual(property_computed, property_given)

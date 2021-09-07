@@ -49,9 +49,9 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
     Produces the WeightedDigraph
     
     A ----> B <---- C
+    |       |       ^
     |       |       |
-    |       |       |
-    V       V       V
+    V       V       |
     D ----> E ----> F
     
     where each arrow has a specified weight.
@@ -63,11 +63,11 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
     EF = (E, F, 5)
     AD = (A, D, 16)
     BE = (B, E, 9)
-    CF = (C, F, 3)
+    FC = (F, C, 3)
     return WeightedDigraph(
         data = (
             [A, B, C, D, E, F],
-            [AB, CB, DE, EF, AD, BE, CF]),
+            [AB, CB, DE, EF, AD, BE, FC]),
         data_type = 'all_vertices_and_all_arrows')
 
   @classmethod
@@ -76,17 +76,23 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         cls.PropertySpecification('get_number_of_vertices',
         6,
         True,
-        tuple()),
+        tuple(),
+        {}),
         cls.PropertySpecification('get_number_of_arrows',
         7,
         True,
-        tuple()),
+        tuple(),
+        {}),
         cls.PropertySpecification('solve_traveling_salesman_problem',
         None,
         True,
-        (False,))]
-  
-
+        (False,),
+        {}),
+        cls.PropertySpecification('solve_traveling_salesman_problem',
+        None,
+        True,
+        (False,),
+        {})]
 
 ########################################################################
 # Commands to be run on execution
