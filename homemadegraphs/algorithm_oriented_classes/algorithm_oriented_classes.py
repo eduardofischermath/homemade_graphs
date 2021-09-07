@@ -44,6 +44,7 @@ else:
 ########################################################################
 
 from homemadegraphs.paths_and_cycles import VertexPath, VertexCycle
+from homemadegraphs.vertices_arrows_and_edges import OperationsVAE
 
 ########################################################################
 # Class StateDigraphGetCC
@@ -389,6 +390,9 @@ class StateDigraphSolveTSP(object):
     
     output_as: 'path', 'vertices', 'vertices_and_arrows', 'arrows', 'length'
     '''
+    # Normalize the vertices to be Vertex namedtuples
+    initial_vertex = OperationsVAE.sanitize_vertex(initial_vertex, require_vertex_namedtuple = False)
+    final_vertex = OperationsVAE.sanitize_vertex(final_vertex, require_vertex_namedtuple = False)
     # We determine whether full determination of path is required.
     # This is derived from output_as
     if output_as in ['length']:

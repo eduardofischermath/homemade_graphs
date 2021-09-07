@@ -92,13 +92,12 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         41,
         True,
         tuple(),
-        {'compute_path_instead_of_cycle': False})]
-        #{'compute_path_instead_of_cycle': True,
-            #'initial_vertex': 'A',
-            #'final_vertex': 'B',
-            #'use_top_down_instead_of_bottom_up': False,
-            #'output_as': 'length',
-            #'skip_checks': False})]
+        {'compute_path_instead_of_cycle': True,
+            'initial_vertex': 'A',
+            'final_vertex': 'B',
+            'use_top_down_instead_of_bottom_up': True,
+            'output_as': 'length',
+            'skip_checks': False})]
 
 ########################################################################
 # Commands to be run on execution
