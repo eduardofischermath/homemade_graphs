@@ -302,11 +302,12 @@ class StateDigraphSolveTSP(object):
     initial_number = self.number_by_vertex[initial_vertex]
     final_number = self.number_by_vertex[final_vertex]
     if not skip_checks:
+      print(f'{self.n=}\n{initial_number=} ({initial_vertex=})\n{final_number} ({final_vertex=})\n{presence_set=}\n')
       # Expect arg to be a tuple of Booleans with length n
-      assert len(presence_set) == self.n, 'Internal logic error'
+      assert len(presence_set) == self.n, 'Internal logic error, presence_set should be as long as the number of vertices'
       # Check that initial_vertex and final_vertex are present [i. e. True]
-      assert presence_set[initial_number], 'Internal logic error'
-      assert presence_set[final_number], 'Internal logic error'
+      assert presence_set[initial_number], 'Internal logic error, initial vertex must be in presence set'
+      assert presence_set[final_number], 'Internal logic error, final vertex must be in presence set'
     # We get rid of the boundary cases
     # We impose that if the final vertex coincides with the initial vertex,
     #the only possible path is the no-arrow path (of length 0)
@@ -533,6 +534,7 @@ class StateDigraphSolveTSP(object):
         # If passed as argument, we keep it [it doesn't really matter]
         if initial_vertex is None:
           initial_vertex = self.vertex_by_number[0]
+          initial_number = 0
         # We consider all cycles starting at given cycle
         # We consider all possibilities for the penultimate vertex of the cycle
         #(the final vertex, by definition, coincides with the initial)
