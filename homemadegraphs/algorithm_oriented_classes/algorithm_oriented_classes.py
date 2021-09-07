@@ -179,7 +179,7 @@ class StateGraphGetCC(object):
     # To make it easy, let's do component 0, 1, 2, and so on
     # Two vertices will have the same label iff they are in the same component
     # Let's do it with a dictionary. We start with the None label
-    self.components = {vertex:None for vertex in self.get_vertices()}
+    self.components = {vertex:None for vertex in self._graph.get_vertices()}
     # We assign labels to unlabeled vertices, starting from 0
     self.current_label = 0
     # We also control the vertices with each existing label using a dict
@@ -251,9 +251,9 @@ class StateDigraphSolveTSP(object):
     self.number_by_vertex = {}
     self.vertex_by_number = {}
     # Note Vertex is a namedtuple and thus it is hasheable
-    for idx, vertex in enumerate(self.get_vertices()):
-      number_by_vertex[vertex] = idx
-      vertex_by_number[idx] = vertex
+    for idx, vertex in enumerate(self.digraph.get_vertices()):
+      self.number_by_vertex[vertex] = idx
+      self.vertex_by_number[idx] = vertex
 
   @functools_cache
   def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
@@ -318,7 +318,7 @@ class StateDigraphSolveTSP(object):
         # arrow has information arrow.source, arrow.target which is final
         #vertex, and arrow.weight.
         # We verify the source does belong to the presence_set
-        arrow_source_as_number = number_by_vertex[arrow.source]
+        arrow_source_as_number = self.number_by_vertex[arrow.source]
         if presence_set[arrow_source_as_number]:
           # We "remove" arrow.source by flipping True to False
           # We need to create a temporary mutable object first
