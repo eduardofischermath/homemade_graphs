@@ -86,13 +86,18 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         cls.PropertySpecification('solve_traveling_salesman_problem',
         None,
         True,
-        (False,),
-        {}),
+        tuple(),
+        {'compute_path_instead_of_cycle': False}),
         cls.PropertySpecification('solve_traveling_salesman_problem',
-        None,
+        41,
         True,
-        (False,),
-        {})]
+        tuple(),
+        {'compute_path_instead_of_cycle': True,
+            'initial_vertex': 'A',
+            'final_vertex': 'B',
+            'use_top_down_instead_of_bottom_up': True,
+            'output_as': 'length',
+            'skip_checks': False})]
 
 ########################################################################
 # Commands to be run on execution

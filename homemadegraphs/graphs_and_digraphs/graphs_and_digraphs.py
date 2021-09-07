@@ -2046,8 +2046,8 @@ class WeightedDigraph(Digraph):
     '''
     # We create an instance of the specialized class StateDigraphSolveTSP
     specialized_object = StateDigraphSolveTSP(self)
-    # We use its method solve_full_problem to do all the work
-    return specialized_object.solve_full_problem(self,
+    # We unload all the work to its method solve_full_problem
+    return specialized_object.solve_full_problem(
         compute_path_instead_of_cycle = compute_path_instead_of_cycle,
         initial_vertex = initial_vertex,
         final_vertex = final_vertex,
@@ -2167,7 +2167,9 @@ class UnweightedDigraph(Digraph):
     ###############
     return super_source_graph.get_single_source_shortest_paths_via_Bellman_Fords(the_super_source)
 
-  def get_hamiltonian_cycle(self, source_vertex = None, output_as = None):
+  def get_hamiltonian_cycle(self, initial_vertex = None,
+      use_top_down_instead_of_bottom_up = False, output_as = None,
+      skip_checks = False):
     '''
     Returns a Hamiltonian cycle of the unweighted digraph. That is, any
     cycle that travels through all vertices through the available arrows.
@@ -2189,10 +2191,15 @@ class UnweightedDigraph(Digraph):
     weighted_copy = self.make_graph_weighted(modify_self = False)
     return weighted_copy.solve_traveling_salesman_problem(
         compute_path_instead_of_cycle = False,
-        source_vertex = source_vertex,
-        output_as = output_as)
+        initial_vertex = initial_vertex,
+        final_vertex = None, # No info on final vertex for cycles
+        use_top_down_instead_of_bottom_up = use_top_down_instead_of_bottom_up,
+        output_as = output_as,
+        skip_checks = skip_checks)
 
-  def get_hamiltonian_path(self, source_vertex = None, output_as = None):
+  def get_hamiltonian_path(self, initial_vertex = None, final_vertex = None,
+      use_top_down_instead_of_bottom_up = False, output_as = None,
+      skip_checks = False):
     '''
     Returns a Hamiltonian path of the unweighted digraph. That is, a path
     through all the vertices traveling through the available arrows.
@@ -2208,8 +2215,11 @@ class UnweightedDigraph(Digraph):
     weighted_copy = self.make_graph_weighted(modify_self = False)
     return weighted_copy.solve_traveling_salesman_problem(
         compute_path_instead_of_cycle = False,
-        source_vertex = source_vertex,
-        output_as = output_as)
+        initial_vertex = initial_vertex,
+        final_vertex = final_vertex,
+        use_top_down_instead_of_bottom_up = use_top_down_instead_of_bottom_up,
+        output_as = output_as,
+        skip_checks = skip_checks)
 
 ########################################################################
 # Class Graph

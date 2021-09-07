@@ -24,7 +24,7 @@
 # External imports
 ########################################################################
 
-from itertools import combinations as itertools_combinations
+from itertools import product as itertools_product
 from math import inf as math_inf
 # Since cache from functools was introduced in Python version >= 3.9,
 #we check for it. If not new enough, we go with lru_cache(maxsize = None)
@@ -44,6 +44,7 @@ else:
 ########################################################################
 
 from homemadegraphs.paths_and_cycles import VertexPath, VertexCycle
+from homemadegraphs.vertices_arrows_and_edges import OperationsVAE
 
 ########################################################################
 # Class StateDigraphGetCC
@@ -255,6 +256,27 @@ class StateDigraphSolveTSP(object):
       self.number_by_vertex[vertex] = idx
       self.vertex_by_number[idx] = vertex
 
+  @staticmethod
+  def produce_boolean_tuples_with_fixed_sum(given_length, given_sum,
+      output_as_generator = False):
+    '''
+    Returns the tuples of True/False with a specific number of each.
+    
+    Used to generate presence sets with a specific number of total vertices
+    [given_length] and a specific number of present vertices [given_sum]
+    '''
+    # We generate all tuples of given length with True/False values
+    generator_of_all_tuples = itertools_product((True, False), repeat = given_length)
+    # We restrict the tuples to the ones with given number of True and Falses
+    # (Given by sum, meaning this sum is the number of True values)
+    # We use a Boolean lambda function and a filter
+    filter_criterion = lambda tuplee: (sum(tuplee) == given_sum)
+    generator_for_needed_tuples = filter(filter_criterion, generator_of_all_tuples)
+    if output_as_generator:
+      return generator_for_needed_tuples
+    else:
+      return list(generator_for_needed_tuples)
+
   @functools_cache
   def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
       use_top_down_instead_of_bottom_up = False, omit_minimizing_path = False, skip_checks = False):
@@ -280,11 +302,12 @@ class StateDigraphSolveTSP(object):
     initial_number = self.number_by_vertex[initial_vertex]
     final_number = self.number_by_vertex[final_vertex]
     if not skip_checks:
+      print(f'{self.n=}\n{initial_number=} ({initial_vertex=})\n{final_number} ({final_vertex=})\n{presence_set=}\n')
       # Expect arg to be a tuple of Booleans with length n
-      assert len(presence_set) == self.n, 'Internal logic error'
+      assert len(presence_set) == self.n, 'Internal logic error, presence_set should be as long as the number of vertices'
       # Check that initial_vertex and final_vertex are present [i. e. True]
-      assert presence_set[initial_number], 'Internal logic error'
-      assert presence_set[final_number], 'Internal logic error'
+      assert presence_set[initial_number], 'Internal logic error, initial vertex must be in presence set'
+      assert presence_set[final_number], 'Internal logic error, final vertex must be in presence set'
     # We get rid of the boundary cases
     # We impose that if the final vertex coincides with the initial vertex,
     #the only possible path is the no-arrow path (of length 0)
@@ -368,6 +391,9 @@ class StateDigraphSolveTSP(object):
     
     output_as: 'path', 'vertices', 'vertices_and_arrows', 'arrows', 'length'
     '''
+    # Normalize the vertices to be Vertex namedtuples
+    initial_vertex = OperationsVAE.sanitize_vertex(initial_vertex, require_vertex_namedtuple = False)
+    final_vertex = OperationsVAE.sanitize_vertex(final_vertex, require_vertex_namedtuple = False)
     # We determine whether full determination of path is required.
     # This is derived from output_as
     if output_as in ['length']:
@@ -445,9 +471,9 @@ class StateDigraphSolveTSP(object):
           # Note that tabulation is done in order of incresing vertices present
           # That is, the "size" (number of Trues) of presence_set
           for length_of_path in range(1, self.n + 1):
-            # Use itertools_combinations on (True, ..., True, False, ..., False)
-            true_false_list = [number < length_of_path for number in range(self.n)]
-            right_size_presence_sets = itertools_combinations(true_false_list)
+            # We find all presence sets
+            right_size_presence_sets = self.produce_boolean_tuples_with_fixed_sum(
+                self.n, length_of_path, output_as_generator = True)
             for presence_set in right_size_presence_sets:
               # Verify initial and last vertices are present in presence_set
               # We have the possible initial and final on initial_and_final
@@ -508,6 +534,7 @@ class StateDigraphSolveTSP(object):
         # If passed as argument, we keep it [it doesn't really matter]
         if initial_vertex is None:
           initial_vertex = self.vertex_by_number[0]
+          initial_number = 0
         # We consider all cycles starting at given cycle
         # We consider all possibilities for the penultimate vertex of the cycle
         #(the final vertex, by definition, coincides with the initial)
@@ -555,9 +582,9 @@ class StateDigraphSolveTSP(object):
           # We iterate through the arguments
           # Recall the first is the number of vertices in path (controlled by presence_set)
           for length_of_path in range(1, self.n + 1):
-            # Use itertools_combinations on (True, ..., True, False, ..., False)
-            true_false_list = [number < length_of_path for number in range(self.n)]
-            right_size_presence_sets = itertools_combinations(true_false_list)
+            # All presence sets using a special method
+            right_size_presence_sets = self.produce_boolean_tuples_with_fixed_sum(
+                self.n, length_of_path, output_as_generator = True)
             for presence_set in right_size_presence_sets:
               for final_number in range(self.n):
                 # We now verify the arguments make sense
