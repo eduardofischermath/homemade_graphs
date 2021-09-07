@@ -39,6 +39,7 @@ from random import choices as random_choices
 ########################################################################
 
 from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
+from homemadegraphs.algorithm_oriented_classes import StateGraphGetCC, StateDigraphGetSCC, StateDigraphSolveTSP
 
 ########################################################################
 # Declaration of Digraph class and initialization
@@ -2034,7 +2035,8 @@ class WeightedDigraph(Digraph):
     return (is_negative_cycle_free, requested_data)
 
   def solve_traveling_salesman_problem(self, compute_path_instead_of_cycle,
-        initial_vertex = None, output_as = None):
+        initial_vertex = None, final_vertex = None, use_top_down_instead_of_bottom_up = False,
+        output_as = None, skip_checks = False):
     '''
     Solves the Traveling Salesman Problem. That is, produces the shortest
     (by sum of weights of traveled arrows) path or cycle going through all
@@ -2042,11 +2044,16 @@ class WeightedDigraph(Digraph):
     
     If no such path or cycle exists, returns None.
     '''
-    ###############
-    # WORK HERE
-    # We use a separate class, need to point there
-    ###############
-    raise NotImplementedError('WORK HERE')
+    # We create an instance of the specialized class StateDigraphSolveTSP
+    specialized_object = StateDigraphSolveTSP(self)
+    # We use its method solve_full_problem to do all the work
+    return specialized_object.solve_full_problem(self,
+        compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+        initial_vertex = initial_vertex,
+        final_vertex = final_vertex,
+        use_top_down_instead_of_bottom_up = use_top_down_instead_of_bottom_up,
+        output_as = output_as,
+        skip_checks = skip_checks)
 
 ########################################################################
 # Class UnweightedDigraph
