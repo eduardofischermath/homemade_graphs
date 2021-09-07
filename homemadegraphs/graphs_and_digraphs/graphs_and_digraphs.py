@@ -2047,7 +2047,7 @@ class WeightedDigraph(Digraph):
     # We create an instance of the specialized class StateDigraphSolveTSP
     specialized_object = StateDigraphSolveTSP(self)
     # We use its method solve_full_problem to do all the work
-    return specialized_object.solve_full_problem(self,
+    return specialized_object.solve_full_problem(
         compute_path_instead_of_cycle = compute_path_instead_of_cycle,
         initial_vertex = initial_vertex,
         final_vertex = final_vertex,

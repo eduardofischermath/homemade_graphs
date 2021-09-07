@@ -106,7 +106,7 @@ instead of src.vertices_arrows_and_edges.Vertex or anything like that.
 "import homemade_graphs" instead of "from homemade_graphs import \*".)
 (P.S.: In MarkDown, \* triggers italic, so we precede it by a backslash.)
 
-## ISSUE #0018 OPEN
+## ISSUE #0018 ONGOING
 
 Work on methods in Graph/Digraph connected to TSP problem.
 (Right now most of the work is in the class StateDigraphSolveTSP
