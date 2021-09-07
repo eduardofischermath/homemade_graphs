@@ -39,6 +39,7 @@ from random import choices as random_choices
 ########################################################################
 
 from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
+from homemadegraphs.algorithm_oriented_classes import StateGraphGetCC, StateDigraphGetSCC, StateDigraphSolveTSP
 
 ########################################################################
 # Declaration of Digraph class and initialization
@@ -714,7 +715,7 @@ class Digraph(object):
     Returns in-degree of vertex in digraph: the number of arrows in.
     '''
     if not ignore_checks:
-      assert vertex in self
+      assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in digraph'
     return len(self._arrows_in[vertex])
     
   def get_out_degree_of_vertex(self, vertex, skip_checks = False):
@@ -722,7 +723,7 @@ class Digraph(object):
     Returns out-degree of vertex in digraph: the number of arrows out.
     '''
     if not ignore_checks:
-      assert vertex in self
+      assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in digraph'
     return len(self._arrows_out[vertex])
 
   def get_neighbors_in(self, vertex, skip_checks = False):
@@ -732,7 +733,7 @@ class Digraph(object):
     In a multigraph, these neighbors are repeated in the output.
     '''
     if not skip_checks:
-      assert vertex in self
+      assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in digraph'
     return [arrow_in.source for arrow_in in self._arrows_in[vertex]]
     
   def get_neighbors_out(self, vertex, skip_checks = False):
@@ -742,7 +743,7 @@ class Digraph(object):
     In a multigraph, these neighbors are repeated in the output.
     '''
     if not skip_checks:
-      assert vertex in self
+      assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in digraph'
     return [arrow_out.target for arrow_out in self._arrows_out[vertex]]    
     
   def get_arrows(self, output_as = None):
@@ -771,7 +772,7 @@ class Digraph(object):
     Returns arrows going out of a vertex.
     '''
     if not skip_checks:
-      assert vertex in self, 'Vertex must be in digraph'
+      assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in digraph'
     return self._arrows_out[vertex]
 
   def get_arrows_in_as_dict(self):
@@ -785,7 +786,7 @@ class Digraph(object):
     Returns arrows coming into a vertex.
     '''
     if not skip_checks:
-      assert vertex in self, 'Vertex must be in digraph'
+      assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in digraph'
     return self._arrows_in[vertex]
 
 ########################################################################
@@ -1157,8 +1158,8 @@ class Digraph(object):
     any of those arrows might be returned.
     '''
     if not skip_checks:
-      assert source in self, 'Need source to be a vertex'
-      assert target in self, 'Need target to be a vertex'
+      assert self.belongs_to_as_vertex_after_sanitization(source, require_vertex_namedtuple = False), 'Need source to be a vertex'
+      assert self.belongs_to_as_vertex_after_sanitization(target, require_vertex_namedtuple = False), 'Need target to be a vertex'
     # We try to make this the most efficient possible
     # Easiest way is by looking at self._arrows_out
     shortest_arrow = None
@@ -1474,7 +1475,7 @@ class WeightedDigraph(Digraph):
     # We need all weights to be nonnegative.
     assert self.are_weights_nonnegative(), 'Need weights to be nonnegative'
     # We also need base_vertex to be one of the vertices from the self
-    assert base_vertex in self, 'Base vertex must be in the graph'
+    assert self.belongs_to_as_vertex_after_sanitization(base_vertex, require_vertex_namedtuple = False), 'Base vertex must be in the graph'
     # We use the algorithm from class.
     # We implement set_X and set_Y (set_X with vertices whose shortest paths have been computed)
     # set_Y starts as all vertives (no shortest paths computed), and set_X as empty
@@ -1569,7 +1570,7 @@ class WeightedDigraph(Digraph):
     cycle given by its length, its vertices or arrows.
     '''
     # Check if the vertex is indeed in the graph
-    assert source_vertex in self, 'Source vertex must be in the graph'
+    assert self.belongs_to_as_vertex_after_sanitization(source_vertex, require_vertex_namedtuple = False), 'Source vertex must be in the graph'
     # At each moment, each vertex will have a number, A, and a pointer, B
     # The dict A carries information on the shortest length from the source
     # The dict B carries info on the last arrow for this shortest path
@@ -2027,14 +2028,15 @@ class WeightedDigraph(Digraph):
     # WORK HERE
     # Bug: Currently algorithm may fail to produce correct requested_data
     #if is_negative_cycle_free == False. Only remedy is to not output the negative cycle
-    #butonly announce its existence
+    #but only announce its existence
     ###################
     if not is_negative_cycle_free:
       requested_data = 'There is a negative cycle.'
     return (is_negative_cycle_free, requested_data)
 
   def solve_traveling_salesman_problem(self, compute_path_instead_of_cycle,
-        initial_vertex = None, output_as = None):
+        initial_vertex = None, final_vertex = None, use_top_down_instead_of_bottom_up = False,
+        output_as = None, skip_checks = False):
     '''
     Solves the Traveling Salesman Problem. That is, produces the shortest
     (by sum of weights of traveled arrows) path or cycle going through all
@@ -2042,8 +2044,16 @@ class WeightedDigraph(Digraph):
     
     If no such path or cycle exists, returns None.
     '''
-    # We use a separate class
-    raise NotImplementedError('WORK HERE')
+    # We create an instance of the specialized class StateDigraphSolveTSP
+    specialized_object = StateDigraphSolveTSP(self)
+    # We use its method solve_full_problem to do all the work
+    return specialized_object.solve_full_problem(self,
+        compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+        initial_vertex = initial_vertex,
+        final_vertex = final_vertex,
+        use_top_down_instead_of_bottom_up = use_top_down_instead_of_bottom_up,
+        output_as = output_as,
+        skip_checks = skip_checks)
 
 ########################################################################
 # Class UnweightedDigraph
@@ -2231,7 +2241,7 @@ class Graph(Digraph):
     # Important to note that in Digraph.__init__, inputting as 'edges'
     #does not correspond to this notion of _inciding_edges
     if not skip_checks:
-      assert vertex in self
+      assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in graph'
     return self._inciding_edges[vertex]
     
   def get_neighbors(self, vertex, skip_checks = False):
@@ -2241,7 +2251,7 @@ class Graph(Digraph):
     In a multigraph, these neighbors are repeated in the output.
     '''
     if not skip_checks:
-      assert vertex in self
+      assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in graph'
     # We need to be careful that in an Edge(first, second, weight)
     #the vertex itself might be the first or second
     # For this reason, we use self._arrows_out instead
@@ -2256,7 +2266,7 @@ class Graph(Digraph):
     '''
     # Can do it with self._inciding_edgfes, self._arrows_in or self._arrows_out
     if not skip_checks:
-      assert vertex in self
+      assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in graph'
     return len(self._inciding_edges[vertex])
 
   def find_cut(self):

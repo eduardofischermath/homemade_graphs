@@ -32,59 +32,68 @@ from unittest import TestCase as unittest_TestCase
 # Internal imports
 ########################################################################
 
-from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
+from homemadegraphs.graphs_and_digraphs import WeightedDigraph
+from homemadegraphs.tests.generic_testing_classes import GenericPropertyTestCase
 
 ########################################################################
 # Tests
 ########################################################################
 
-class TestVertexArrowEdgeInitialization(unittest_TestCase):
+class TestWeightedDigraphMethods(GenericPropertyTestCase):
   '''
-  Tests the namedtuples Vertex, Arrow and Edge.
+  Tests all methods for WeightedDigraph on a specific instance.
   '''
-  # Note this is not derived from any Generic test case
-  # This test case is closest to GenericPropertyTestCase, but since it
-  #has multiple objects (at least in this formulation) this testcase
-  #will not conform to those Generic classes
   
-  @staticmethod
-  def recipes_for_initialization():
+  def get_object_for_testing(self):
     '''
-    Provides recipes for formation of the namedtuples.
-    '''
-    data = {
-        'vertex': (
-            Vertex,
-            ('String for vertex',),
-            ('name',),
-            1),
-        'arrow': (
-            Arrow,
-            (400, 'String for arrow', 0.35),
-            ('source', 'target', 'weight'),
-            3),
-        'edge': (
-            Edge,
-            (400, 'String for edge', 0.35),
-            ('first', 'second', 'weight'),
-            3)}
-    return data
-
-  def test_namedtuple_initialization(self):
-    '''
-    Tests the correct initialization of namedtuples, as well as their
-    named attributes.
-    '''
-    data = self.recipes_for_initialization()
-    for namedtuple_name in data:
-      with self.subTest(namedtuple_name = namedtuple_name):
-        recipe = data[namedtuple_name]
-        init_class, init_arguments, expected_attributes, expected_length = recipe
-        obj = init_class(*init_arguments)
-        for attribute in expected_attributes:
-          self.assertTrue(hasattr(obj, attribute))
-        self.assertEqual(len(obj), expected_length)
+    Produces the WeightedDigraph
     
+    A ----> B <---- C
+    |       |       ^
+    |       |       |
+    V       V       |
+    D ----> E ----> F
+    
+    where each arrow has a specified weight.
+    '''
+    A, B, C, D, E, F = 'A', 'B', 'C', 'D', 'E', 'F'
+    AB = (A, B, 10)
+    CB = (C, B, 8)
+    DE = (D, E, 15)
+    EF = (E, F, 5)
+    AD = (A, D, 16)
+    BE = (B, E, 9)
+    FC = (F, C, 3)
+    return WeightedDigraph(
+        data = (
+            [A, B, C, D, E, F],
+            [AB, CB, DE, EF, AD, BE, FC]),
+        data_type = 'all_vertices_and_all_arrows')
+
+  @classmethod
+  def property_specifications(cls):
+    return [
+        cls.PropertySpecification('get_number_of_vertices',
+        6,
+        True,
+        tuple(),
+        {}),
+        cls.PropertySpecification('get_number_of_arrows',
+        7,
+        True,
+        tuple(),
+        {}),
+        cls.PropertySpecification('solve_traveling_salesman_problem',
+        None,
+        True,
+        (False,),
+        {}),
+        cls.PropertySpecification('solve_traveling_salesman_problem',
+        None,
+        True,
+        (False,),
+        {})]
+
 ########################################################################
 # Commands to be run on execution
 ########################################################################
@@ -93,4 +102,3 @@ if __name__ == '__main__':
   unittest_main()
 
 ########################################################################
-

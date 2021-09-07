@@ -52,11 +52,13 @@ class TestEmptyDigraph(GenericInitializationTestCase):
         cls.PropertySpecification('get_number_of_vertices',
         0,
         True,
-        tuple()),
+        tuple(),
+        {}),
         cls.PropertySpecification('get_number_of_arrows',
         0,
         True,
-        tuple())]
+        tuple(),
+        {})]
 
   # Dict to be used in many methods within this class
   @staticmethod

@@ -61,15 +61,18 @@ class TestGraphInitialization(GenericInitializationTestCase):
         cls.PropertySpecification('get_number_of_vertices',
         3,
         True,
-        tuple()),
+        tuple(),
+        {}),
         cls.PropertySpecification('get_number_of_arrows',
         2,
         True,
-        tuple()),
+        tuple(),
+        {}),
         cls.PropertySpecification('get_number_of_edges',
         1,
         True,
-        tuple())]
+        tuple()),
+        {}]
   
   # Dict to be used in many methods within this class
   @staticmethod

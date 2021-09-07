@@ -212,3 +212,8 @@ Generalize testing by the use of generic testing classes. For example,
 a class for initialization (that tests all ways something can be initialized
 and whether they return the correct results) which is subclassed and
 applied in different contexts (p. ex. Digraphs, Graphs, empty digraph)
+
+## ISSUE #0037 OPEN
+
+Create even more categories/generic classes for testing. For example,
+testing multiple properties of multiple objects.
