@@ -2043,6 +2043,10 @@ class WeightedDigraph(Digraph):
     vertices of the Digraph.
     
     If no such path or cycle exists, returns None.
+    
+    The option use_memoization_instead_of_tabulation can be used according to
+    what the user believe it might be best for the specific problem; being
+    True or False does not alter the result.
     '''
     # We create an instance of the specialized class StateDigraphSolveTSP
     specialized_object = StateDigraphSolveTSP(self)

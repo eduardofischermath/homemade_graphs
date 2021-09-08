@@ -81,7 +81,7 @@ Should be done after #0012
 
 Add option require namedtuple to methods of VertexPath (to add flexibility).
 
-## ISSUE #0015 ONGOING
+## ISSUE #0015 COMPLETE
 
 Simplify/strealine the flow of method StateDigraphSolveTSP.solve_full_problem,
 which has currently about 350 lines and many if/else's.
