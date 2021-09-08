@@ -416,14 +416,20 @@ class StateDigraphSolveTSP(object):
         #paths starting on initial_vertex, passing through all others exactly once
         #and ending on them
         if use_memoization_instead_of_tabulation:
-          pre_output = self._solve_full_problem_for_path_and_memoization()
+          pre_output = self._solve_full_problem_for_path_and_memoization(
+              initial_and_final_vertices = initial_and_final_vertices,
+              output_as = output_as, # for omit_minimizing_path only
+              skip_checks = skip_checks)
         else:
           pre_output = self._solve_full_problem_for_path_and_tabulation(
               initial_vertex = initial_vertex,
               final_vertex = final_vertex,
-              initial_and_final_vertices = initial_and_final_vertices)
+              initial_and_final_vertices = initial_and_final_vertices,
+              output_as = output_as, # for omit_minimizing_path only
+              skip_checks = skip_checks)
       else:
         # Here: compute_path_instead_of_cycle == False
+        # We briefly explain the logic
         # We consider all cycles starting at given cycle
         # We consider all possibilities for the penultimate vertex of the cycle
         #(the final vertex, by definition, coincides with the initial)
@@ -436,7 +442,7 @@ class StateDigraphSolveTSP(object):
         else:
           pre_output = self._solve_full_problem_for_cycle_and_tabulation()
       # Prepares output
-      final_output = _prepare_output(pre_output, output_as)
+      final_output = self._prepare_output(pre_output, compute_path_instead_of_cycle, output_as)
       return output
 
   def _prepare_initial_and_final_vertices(self, compute_path_instead_of_cycle,
@@ -493,8 +499,8 @@ class StateDigraphSolveTSP(object):
         assert final_vertex == initial_vertex, 'Cycles start and end at same place'
       # Thus, a cycle will always have the same initial and final vertex
       initial_and_final_vertices = [(initial_vertex, final_vertex)] # Both are the same
-    # We return initial_and_final vertices as well as the sanitized inputs
-    return initial_vertex, final_vertex, initial_and_final_vertices
+    # We return initial_and_final vertices as well as the sanitized inputs (which might be None)
+    return (initial_vertex, final_vertex, initial_and_final_vertices)
 
   def _produce_auxiliary_constructs(self, output_as):
     '''
@@ -524,14 +530,17 @@ class StateDigraphSolveTSP(object):
     else:
       omit_minimizing_path = False
     # Return all
-    return tuple_of_trues, min_distance_overall, min_path_overall, omit_minimizing_path
+    return (tuple_of_trues, min_distance_overall, min_path_overall, omit_minimizing_path)
         
-  def _solve_full_problem_for_path_and_memoization(self):
+  def _solve_full_problem_for_path_and_memoization(self, initial_and_final_vertices,
+      output_as, skip_checks = False):
     '''
     Subroutine of method solve_full_problem invoked when
     compute_path_instead_of_cycle is True and use_memoization_instead_of_tabulation is True
     '''
-    # Here: use_memoization_instead_of_tabulation == True, use_memoization_instead_of_tabulation == True
+    # Create useful objects
+    tuple_of_trues, min_distance_overall, min_path_overall, omit_minimizing_path = self._produce_auxiliary_constructs(
+          output_as = output_as)
     # We compute all possibilities, and record the best
     # Dynamic programming [memoization] is automatically done within solve_subproblem
     for pair in initial_and_final_vertices:
@@ -542,19 +551,23 @@ class StateDigraphSolveTSP(object):
           use_memoization_instead_of_tabulation = True,
           omit_minimizing_path = omit_minimizing_path,
           skip_checks = skip_checks)
-      #############
-      # COMMENT BELOW MIGHT BE OUTDATED
-      # Note local_last_arrow is ignored... we still don't know how to
-      #build the data using the arrows
+      # Since initial_and_final_vertices might not be a singleton:
       if local_distance < min_distance_overall:
         min_distance_overall = local_distance
+        min_path_overall = local_path
+    # Return is pre_output which is the best distance and the best path
+    pre_output = (min_distance_overall, min_path_overall)
+    return pre_output
 
-  def _solve_full_problem_for_path_and_tabulation(self):
+  def _solve_full_problem_for_path_and_tabulation(self, initial_vertex, final_vertex,
+      initial_and_final_vertices, output_as, skip_checks):
     '''
     Subroutine of method solve_full_problem invoked when
     compute_path_instead_of_cycle is True and use_memoization_instead_of_tabulation is False
     '''
-    # Here: compute_path_instead_of_cycle == True, use_memoization_instead_of_tabulation == False
+    # Create useful objects
+    tuple_of_trues, min_distance_overall, min_path_overall, omit_minimizing_path = self._produce_auxiliary_constructs(
+          output_as = output_as)
     # The table for the tabulation process:
     self._table_of_results = {}
     # Note that tabulation is done in order of incresing vertices present
@@ -605,6 +618,9 @@ class StateDigraphSolveTSP(object):
         min_path_overall = local_min_path
     # To reinforce that we achieved the minimum we sought, we delete the table
     del self._table_of_results
+    # Return is pre_output which is the best distance and the best path
+    pre_output = (min_distance_overall, min_path_overall)
+    return pre_output
 
   def _solve_full_problem_for_cycle_and_memoization(self):
     '''
@@ -638,6 +654,9 @@ class StateDigraphSolveTSP(object):
             min_path_overall = path_up_to_penultimate.append_to_path(
                 data = arrow, data_type = 'arrow', modify_self = False,
                 verify_validity_on_initiation = not skip_checks)
+    # Return is pre_output which is the best distance and the best path
+    pre_output = (min_distance_overall, min_path_overall)
+    return pre_output
     
   def _solve_full_problem_for_cycle_and_tabulation(self):
     '''
@@ -700,24 +719,29 @@ class StateDigraphSolveTSP(object):
               skip_checks = skip_checks)
     # To reinforce that we achieved the minimum we sought, we delete the table
     del self._table_of_results
+    # Return is pre_output which is the best distance and the best path
+    pre_output = (min_distance_overall, min_path_overall)
+    return pre_output
 
-  def _prepare_output(self):
+  def _prepare_output(self, pre_output, compute_path_instead_of_cycle, output_as,
+      skip_checks = False):
     '''
     Prepares requested output from information provided.
     
     Last step of solve_full_problem.
     '''
-    # This is the end of method, for paths/cycles/memoization/tabulation
-    # By now, we have min_distance_overall and minimizing_path
-    # Formatting is carried out by output_as, which offloads to reformat_paths
+    # pre_output is collected from methods split into paths/cycles/memoization/tabulation
+    # Formatting is carried out according to output_as, which offloads to reformat_paths
+    min_distance_overall, min_path_overall = pre_output
     if min_path_overall is None:
       min_path_overall = 'Minimizing path not calculated'
     else:
       min_path_overall = min_path_overall.reformat_paths(
           underlying_graph = self.digraph,
-          data = minimizing_path,
+          data = min_path_overall,
           data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
-          output_as = output_as)
+          output_as = output_as,
+          skip_checks = skip_checks)
     return (min_distance_overall, min_path_overall)
 
 ########################################################################
