@@ -391,6 +391,9 @@ class StateDigraphSolveTSP(object):
     
     output_as goes through VertexPath.reformat_paths()
     '''
+    # Default output_as = None to a better option: 'length'
+    if output_as is None:
+      output_as = 'length'
     # Prepare initial and final vertices for path/cycle-searching
     initial_vertex, final_vertex, initial_and_final_vertices = self._prepare_initial_and_final_vertices(
         compute_path_instead_of_cycle, initial_vertex, final_vertex)
@@ -438,9 +441,15 @@ class StateDigraphSolveTSP(object):
         # Note also this penultimate cannot be the initial vertex
         # (To read arrows ending at initial=final, we use get_arrows_in)
         if use_memoization_instead_of_tabulation:
-          pre_output = self._solve_full_problem_for_cycle_and_memoization()
+          pre_output = self._solve_full_problem_for_cycle_and_memoization(
+              initial_vertex = initial_vertex,
+              output_as = output_as, # for omit_minimizing_path only
+              skip_checks = skip_checks)
         else:
-          pre_output = self._solve_full_problem_for_cycle_and_tabulation()
+          pre_output = self._solve_full_problem_for_cycle_and_tabulation(
+              initial_vertex = initial_vertex,
+              output_as = output_as, # for omit_minimizing_path only
+              skip_checks = skip_checks)
       # Prepares output
       final_output = self._prepare_output(pre_output, compute_path_instead_of_cycle, output_as)
       return output
@@ -622,12 +631,15 @@ class StateDigraphSolveTSP(object):
     pre_output = (min_distance_overall, min_path_overall)
     return pre_output
 
-  def _solve_full_problem_for_cycle_and_memoization(self):
+  def _solve_full_problem_for_cycle_and_memoization(self, initial_vertex,
+      output_as, skip_checks = False):
     '''
     Subroutine of method solve_full_problem invoked when
     compute_path_instead_of_cycle is False and use_memoization_instead_of_tabulation is True
     '''
-    # Here: compute_path_instead_of_cycle == False, use_memoization_instead_of_tabulation == False
+    # Create useful objects
+    tuple_of_trues, min_distance_overall, min_path_overall, omit_minimizing_path = self._produce_auxiliary_constructs(
+          output_as = output_as)
     # In this case a direct call does the job (but we need to search all last arrows)
     # Note that this is easier as an algorithm, but might consume more memory
     # (Also has the risk of breaking the default Python shell recursion limit)
@@ -658,12 +670,17 @@ class StateDigraphSolveTSP(object):
     pre_output = (min_distance_overall, min_path_overall)
     return pre_output
     
-  def _solve_full_problem_for_cycle_and_tabulation(self):
+  def _solve_full_problem_for_cycle_and_tabulation(self, initial_vertex,
+      output_as, skip_checks = False):
     '''
     Subroutine of method solve_full_problem invoked when
     compute_path_instead_of_cycle is False and use_memoization_instead_of_tabulation is False
     '''
-    # Here: compute_path_instead_of_cycle == True, use_memoization_instead_of_tabulation == False
+    # Create useful objects
+    tuple_of_trues, min_distance_overall, min_path_overall, omit_minimizing_path = self._produce_auxiliary_constructs(
+          output_as = output_as)
+    # We have a initial vertex. We associate to it its number
+    initial_number = self.number_by_vertex[initial_vertex]
     # In this case we must organize the variables for tabulation
     # Note that every recurrence of the subproblem is for a path which
     #is one vertex shorter
@@ -683,7 +700,7 @@ class StateDigraphSolveTSP(object):
           # Need initial and final vertex present [controlled by numbers]
           if presence_set[initial_number] and presence_set[final_number]:
             # Need arrow from last to initial
-            final_vertex = self.number_to_vertex[final_number]
+            final_vertex = self.vertex_by_number[final_number]
             if final_vertex in neighbors_in_as_dict:
               # In this case we go ahead
               length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
@@ -734,6 +751,8 @@ class StateDigraphSolveTSP(object):
     # Formatting is carried out according to output_as, which offloads to reformat_paths
     min_distance_overall, min_path_overall = pre_output
     if min_path_overall is None:
+      # This can be either because there is no path meeting the conditions
+      #or because omit_minimizing_path was triggered to True
       min_path_overall = 'Minimizing path not calculated'
     else:
       min_path_overall = min_path_overall.reformat_paths(
