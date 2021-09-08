@@ -391,11 +391,83 @@ class StateDigraphSolveTSP(object):
     
     output_as goes through VertexPath.reformat_paths()
     '''
-    initial_vertex, final_vertex = self.prepare_initial_final_vertices(initial_vertex, final_vertex)
-    
-    # Normalize the vertices to be Vertex namedtuples
-    initial_vertex = OperationsVAE.sanitize_vertex(initial_vertex, require_vertex_namedtuple = False)
-    final_vertex = OperationsVAE.sanitize_vertex(final_vertex, require_vertex_namedtuple = False)
+    # Prepare initial and final vertices for path/cycle-searching
+    initial_and_final_vertices = self._prepare_initial_and_final_vertices(
+        compute_path_instead_of_cycle, initial_vertex, final_vertex)
+    # Subdivide into the four possible cases according to the variables
+    #compute_path_instead_of_cycle and use_top_down_instead_of_bottom_up
+    if compute_path_instead_of_cycle:
+      if use_top_down_instead_of_bottom_up:
+        pre_output = self._solve_full_problem_for_path_and_memoization()
+      else:
+        pre_output = self._solve_full_problem_for_path_and_tabulation()
+    else:
+      if use_top_down_instead_of_bottom_up:
+        pre_output = self._solve_full_problem_for_cycle_and_memoization()
+      else:
+        pre_output = self._solve_full_problem_for_cycle_and_tabulation()
+    # Prepares output
+    pass
+
+  def _prepare_initial_and_final_vertices(self, compute_path_instead_of_cycle,
+      initial_vertex, final_vertex, skip_checks = False):
+    '''
+    Prepares possible values for initial_vertex and final_vertex for use in solve_full_problem method.
+    '''
+    # We first sanitize the input vertices (if not None)
+    if initial_vertex is not None:
+      initial_vertex = OperationsVAE.sanitize_vertex(initial_vertex, require_vertex_namedtuple = False)
+    if final_vertex is not None:
+      final_vertex = OperationsVAE.sanitize_vertex(final_vertex, require_vertex_namedtuple = False)
+    # Produce initial_and_final_vertices tailored for paths and for cycles
+    if compute_path_instead_of_cycle:
+      # In this case, if there is no initial given vertex (i. e. None),
+      #we assume we must scan paths through all possible initial vertices
+      # (There might be a non-None explicitly given final_vertex, no problem)
+      # We need to ensure final_vertex is different than initial_vertex,
+      #if those are given
+      if (not initial_vertex is None) and (not final_vertex is None):
+        assert final_vertex != initial_vertex, 'Solution of shortest path cannot be a cycle'
+      # We will generate all possible paths for given initial and final vertices
+      # Note initial and final vertices cannot coincide
+      if initial_vertex is None:
+        # All are allowed as initial. We use list on dict self.number_by_vertex
+        initial_vertices = all_vertices
+      else:
+        initial_vertices = [initial_vertex]
+      initial_and_final_vertices = []
+      for vertex in initial_vertices:
+        # If final_vertex is specified, only such vertex can be final
+        # Otherwise, all (except initial_vertex; would form cycle) are allowed
+        if final_vertex is None:
+          for another_vertex in all_vertices:
+            if vertex != another_vertex:
+              initial_and_final_vertices.append((vertex, another_vertex))
+        else:
+          if vertex != final_vertex:
+            initial_and_final_vertices.append((vertex, final_vertex))
+      return initial_and_final_vertices
+    else:
+      # If we want a cycle, a specified initial_vertex is only for convenience
+      #of the output (will be displayed with that initial vertex)
+      # There should be no specified final_vertex, unless it is equal to initial_vertex,
+      #which would be a redundant way to reinforce the request for a cycle
+      if initial_vertex is None:
+        # As mentioned, final_vertex should be None, otherwise it introduces potential to confusion
+        #[would final_vertex mean the final or the last before the final?]
+        assert final_vertex is None, 'Cannot specify end of cycle if start is not specified'
+        # In this case we pick a "random one" to be initial, for the reasons above
+        #[it matters only for exhibition, not for calculation]
+        initial_vertex = self.vertex_by_number[0]
+        final_vertex = initial_vertex
+      else:
+        assert final_vertex == initial_vertex, 'Cycles start and end at same place'
+      # Thus, a cycle will always have the same initial and final vertex
+      initial_and_final_vertices = [(initial_vertex, final_vertex)] # Both are the same
+      return initial_and_final_vertices
+        
+      
+
     # We determine whether full determination of path is required.
     # This is derived from output_as
     if output_as in ['length']:
@@ -407,9 +479,10 @@ class StateDigraphSolveTSP(object):
       # Returns path/cycle with no vertices
       if compute_path_instead_of_cycle:
         path = VertexPath(self.digraph, [], 'vertices')
-        return path.reformat_paths(reformat)
+        return path.reformat_path_from_path(output_as = output_as, skip_checks = skip_checks)
       else:
-        return VertexCycle(self.digraph, [], 'vertices')
+        cycle = VertexCycle(self.digraph, [], 'vertices')
+        return path.reformat_path_from_cycle(output_as = output_as, skip_checks = skip_checks)
     else:
       # To solve the problem for a path (for a cycle it involves an extra step;
       #we will do it at the end, and only if required), we need to use some
@@ -428,34 +501,10 @@ class StateDigraphSolveTSP(object):
       min_path_overall = None
       if compute_path_instead_of_cycle:
         # Here: compute_path_instead_of_cycle == True
-        # In this case, if there is no initial given vertex (i. e. None),
-        #we assume we must scan through all possible initial vertices
-        # We need to ensure final_vertex is different than initial_vertex,
-        #if those are given
-        if (not initial_vertex is None) and (not final_vertex is None):
-          assert final_vertex != initial_vertex, 'Hamiltonian path cannot be a cycle'
-        # We will generate all possible paths for given initial and final vertices
-        # Note initial and final vertices cannot coincide
-        if initial_vertex is None:
-          # All are allowed. We use list on dict self.number_by_vertex
-          initial_vertices = all_vertices
-        else:
-          initial_vertices = [initial_vertex]
-        initial_and_final = []
-        for vertex in initial_vertices:
-          # If final_vertex is specified, only such vertex can be final
-          # Otherwise, all (except initial_vertex; would form cycle) are allowed
-          if final_vertex is None:
-            for another_vertex in all_vertices:
-              if vertex != another_vertex:
-                initial_and_final.append((vertex, another_vertex))
-          else:
-            if vertex != final_vertex:
-              initial_and_final.append((vertex, final_vertex))
         if use_top_down_instead_of_bottom_up:
           # Here: use_top_down_instead_of_bottom_up == True, use_top_down_instead_of_bottom_up == True
           # We compute all possibilities, and record the best
-          for pair in initial_and_final:
+          for pair in initial_and_final_vertices:
             local_distance, local_path = self.solve_subproblem(
                 initial_vertex = pair[0],
                 final_vertex = pair[1],
@@ -479,7 +528,7 @@ class StateDigraphSolveTSP(object):
                 self.n, length_of_path, output_as_generator = True)
             for presence_set in right_size_presence_sets:
               # Verify initial and last vertices are present in presence_set
-              # We have the possible initial and final on initial_and_final
+              # We have the possible initial and final on initial_and_final_vertices
               # But that is only for the full-sized paths
               # But for intermediate paths, the final vertex may be anything
               #while the initial is still the initial
@@ -507,8 +556,8 @@ class StateDigraphSolveTSP(object):
                               local_min_distance, local_min_path)
           # We now use the opportunity to update the best overall
           # For that, we measure the paths with length self.n
-          # We use initial_and_final and tuple_of_trues, already available
-          for pair in initial_and_final:
+          # We use initial_and_final_vertices and tuple_of_trues, already available
+          for pair in initial_and_final_vertices:
             # Simply consult table
             local_min_distance, local_min_path = self._table_of_results[(
                 pair[0], pair[1], tuple_of_trues)]
@@ -520,24 +569,6 @@ class StateDigraphSolveTSP(object):
           del self._table_of_results
       else:
         # Here: compute_path_instead_of_cycle == False
-        # If we want a cycle, there should be no specified final_vertex
-        # [Unless the same vertex is entered as initial_vertex, which would be allowed
-        #under certain interpretation to reinforce the request for a cycle]
-        if initial_vertex is None:
-          assert final_vertex is None, 'Cannot specify end of cycle if start is not specified'
-        else:
-          assert final_vertex == initial_vertex, 'Cycles start and end at same place'
-        # In any case, the variable final_vertex will be ignored
-        # We only want to raise the error to make it clearer
-        # We will even delete the variable from this scope to reinforce the idea
-        del final_vertex
-        # In this case, the same cycle will be generated independently
-        #of the first vertex
-        # We pick the first listed if not given as argument
-        # If passed as argument, we keep it [it doesn't really matter]
-        if initial_vertex is None:
-          initial_vertex = self.vertex_by_number[0]
-          initial_number = 0
         # We consider all cycles starting at given cycle
         # We consider all possibilities for the penultimate vertex of the cycle
         #(the final vertex, by definition, coincides with the initial)
@@ -642,5 +673,7 @@ class StateDigraphSolveTSP(object):
             data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
             output_as = output_as)
       return (min_distance_overall, min_path_overall)
+
+
 
 ########################################################################
