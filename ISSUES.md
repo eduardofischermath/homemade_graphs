@@ -81,7 +81,7 @@ Should be done after #0012
 
 Add option require namedtuple to methods of VertexPath (to add flexibility).
 
-## ISSUE #0015 OPEN
+## ISSUE #0015 ONGOING
 
 Simplify/strealine the flow of method StateDigraphSolveTSP.solve_full_problem,
 which has currently about 350 lines and many if/else's.
@@ -91,7 +91,7 @@ Can also split into the path and the cycle variants.
 Maybe store variables in class attributes, or carry them as method arguments,
 as the operations and procedures demand.
 
-## ISSUE #0016 OPEN
+## ISSUE #0016 COMPLETE
 
 Consider renaming top-down/bottom-up to memoization/tabulation in
 solve_full_problem and solve_subproblem from class StateDigraphSolveTSP.
