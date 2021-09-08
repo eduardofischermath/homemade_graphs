@@ -279,7 +279,7 @@ class StateDigraphSolveTSP(object):
 
   @functools_cache
   def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
-      use_top_down_instead_of_bottom_up = False, omit_minimizing_path = False, skip_checks = False):
+      use_memoization_instead_of_tabulation = False, omit_minimizing_path = False, skip_checks = False):
     '''
     Computes the minimal path length given specific parameters: given
     initial and final vertices and a set of vertices [given by a tuple of
@@ -352,7 +352,7 @@ class StateDigraphSolveTSP(object):
           #plus the weight of this last arrow
           # Note that we also keep a list of arrows going back to start
           # It's probably easier than start a VertexPath instance every time
-          if use_top_down_instead_of_bottom_up:
+          if use_memoization_instead_of_tabulation:
             # In this case we simply call the suproblem method again
             solution_of_smaller_subproblem = self.solve_subproblem(
                 initial_vertex = initial_vertex,
@@ -385,7 +385,7 @@ class StateDigraphSolveTSP(object):
 
   def solve_full_problem(self, compute_path_instead_of_cycle,
       initial_vertex = None, final_vertex = None,
-      use_top_down_instead_of_bottom_up = False, output_as = None, skip_checks = False):
+      use_memoization_instead_of_tabulation = False, output_as = None, skip_checks = False):
     '''
     Solves the Traveling Salesman Problem for the graph.
     
@@ -395,14 +395,14 @@ class StateDigraphSolveTSP(object):
     initial_and_final_vertices = self._prepare_initial_and_final_vertices(
         compute_path_instead_of_cycle, initial_vertex, final_vertex)
     # Subdivide into the four possible cases according to the variables
-    #compute_path_instead_of_cycle and use_top_down_instead_of_bottom_up
+    #compute_path_instead_of_cycle and use_memoization_instead_of_tabulation
     if compute_path_instead_of_cycle:
-      if use_top_down_instead_of_bottom_up:
+      if use_memoization_instead_of_tabulation:
         pre_output = self._solve_full_problem_for_path_and_memoization()
       else:
         pre_output = self._solve_full_problem_for_path_and_tabulation()
     else:
-      if use_top_down_instead_of_bottom_up:
+      if use_memoization_instead_of_tabulation:
         pre_output = self._solve_full_problem_for_cycle_and_memoization()
       else:
         pre_output = self._solve_full_problem_for_cycle_and_tabulation()
@@ -501,15 +501,15 @@ class StateDigraphSolveTSP(object):
       min_path_overall = None
       if compute_path_instead_of_cycle:
         # Here: compute_path_instead_of_cycle == True
-        if use_top_down_instead_of_bottom_up:
-          # Here: use_top_down_instead_of_bottom_up == True, use_top_down_instead_of_bottom_up == True
+        if use_memoization_instead_of_tabulation:
+          # Here: use_memoization_instead_of_tabulation == True, use_memoization_instead_of_tabulation == True
           # We compute all possibilities, and record the best
           for pair in initial_and_final_vertices:
             local_distance, local_path = self.solve_subproblem(
                 initial_vertex = pair[0],
                 final_vertex = pair[1],
                 presence_set = tuple_of_trues,
-                use_top_down_instead_of_bottom_up = True,
+                use_memoization_instead_of_tabulation = True,
                 omit_minimizing_path = omit_minimizing_path,
                 skip_checks = skip_checks)
             # Note local_last_arrow is ignored... we still don't know how to
@@ -517,7 +517,7 @@ class StateDigraphSolveTSP(object):
             if local_distance < min_distance_overall:
               min_distance_overall = local_distance
         else:
-          # Here: compute_path_instead_of_cycle == True, use_top_down_instead_of_bottom_up == False
+          # Here: compute_path_instead_of_cycle == True, use_memoization_instead_of_tabulation == False
           # The table for the tabulation process:
           self._table_of_results = {}
           # Note that tabulation is done in order of incresing vertices present
@@ -549,7 +549,7 @@ class StateDigraphSolveTSP(object):
                               initial_vertex = local_initial_vertex,
                               final_vertex = local_final_vertex,
                               presence_set = presence_set,
-                              use_top_down_instead_of_bottom_up = False,
+                              use_memoization_instead_of_tabulation = False,
                               omit_minimizing_path = omit_minimizing_path,
                               skip_checks = skip_checks)
                           self._table_of_results[(initial_vertex, final_vertex, presence_set)] = (
@@ -576,8 +576,8 @@ class StateDigraphSolveTSP(object):
         #(from the penultimate to the initial/final vertex)
         # Note also this penultimate cannot be the initial vertex
         # (To read arrows ending at initial=final, we use get_arrows_in)
-        if use_top_down_instead_of_bottom_up:
-          # Here: compute_path_instead_of_cycle == False, use_top_down_instead_of_bottom_up == False
+        if use_memoization_instead_of_tabulation:
+          # Here: compute_path_instead_of_cycle == False, use_memoization_instead_of_tabulation == False
           # In this case a direct call does the job (but we need to search all last arrows)
           # Note that this is easier as an algorithm, but might consume more memory
           # (Also has the risk of breaking the default Python shell recursion limit)
@@ -588,7 +588,7 @@ class StateDigraphSolveTSP(object):
                   initial_vertex = initial_vertex,
                   final_vertex = arrow.source,
                   presence_set = tuple_of_trues,
-                  use_top_down_instead_of_bottom_up = True,
+                  use_memoization_instead_of_tabulation = True,
                   omit_minimizing_path = omit_minimizing_path,
                   skip_checks = skip_checks)
               # Comparisons involves always the last edge, whose weight must be factored in
@@ -605,7 +605,7 @@ class StateDigraphSolveTSP(object):
                       data = arrow, data_type = 'arrow', modify_self = False,
                       verify_validity_on_initiation = not skip_checks)
         else:
-          # Here: compute_path_instead_of_cycle == True, use_top_down_instead_of_bottom_up == False
+          # Here: compute_path_instead_of_cycle == True, use_memoization_instead_of_tabulation == False
           # In this case we must organize the variables for tabulation
           # Note that every recurrence of the subproblem is for a path which
           #is one vertex shorter
@@ -632,7 +632,7 @@ class StateDigraphSolveTSP(object):
                         initial_vertex = initial_vertex,
                         final_vertex = final_vertex,
                         presence_set = presence_set,
-                        use_top_down_instead_of_bottom_up = False,
+                        use_memoization_instead_of_tabulation = False,
                         omit_minimizing_path = omit_minimizing_path,
                         skip_checks = skip_checks)
                     # We do the tabulation

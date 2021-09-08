@@ -2035,7 +2035,7 @@ class WeightedDigraph(Digraph):
     return (is_negative_cycle_free, requested_data)
 
   def solve_traveling_salesman_problem(self, compute_path_instead_of_cycle,
-        initial_vertex = None, final_vertex = None, use_top_down_instead_of_bottom_up = False,
+        initial_vertex = None, final_vertex = None, use_memoization_instead_of_tabulation = False,
         output_as = None, skip_checks = False):
     '''
     Solves the Traveling Salesman Problem. That is, produces the shortest
@@ -2051,7 +2051,7 @@ class WeightedDigraph(Digraph):
         compute_path_instead_of_cycle = compute_path_instead_of_cycle,
         initial_vertex = initial_vertex,
         final_vertex = final_vertex,
-        use_top_down_instead_of_bottom_up = use_top_down_instead_of_bottom_up,
+        use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
         output_as = output_as,
         skip_checks = skip_checks)
 
@@ -2168,7 +2168,7 @@ class UnweightedDigraph(Digraph):
     return super_source_graph.get_single_source_shortest_paths_via_Bellman_Fords(the_super_source)
 
   def get_hamiltonian_cycle(self, initial_vertex = None,
-      use_top_down_instead_of_bottom_up = False, output_as = None,
+      use_memoization_instead_of_tabulation = False, output_as = None,
       skip_checks = False):
     '''
     Returns a Hamiltonian cycle of the unweighted digraph. That is, any
@@ -2193,12 +2193,12 @@ class UnweightedDigraph(Digraph):
         compute_path_instead_of_cycle = False,
         initial_vertex = initial_vertex,
         final_vertex = None, # No info on final vertex for cycles
-        use_top_down_instead_of_bottom_up = use_top_down_instead_of_bottom_up,
+        use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
         output_as = output_as,
         skip_checks = skip_checks)
 
   def get_hamiltonian_path(self, initial_vertex = None, final_vertex = None,
-      use_top_down_instead_of_bottom_up = False, output_as = None,
+      use_memoization_instead_of_tabulation = False, output_as = None,
       skip_checks = False):
     '''
     Returns a Hamiltonian path of the unweighted digraph. That is, a path
@@ -2217,7 +2217,7 @@ class UnweightedDigraph(Digraph):
         compute_path_instead_of_cycle = False,
         initial_vertex = initial_vertex,
         final_vertex = final_vertex,
-        use_top_down_instead_of_bottom_up = use_top_down_instead_of_bottom_up,
+        use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
         output_as = output_as,
         skip_checks = skip_checks)
 
