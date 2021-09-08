@@ -85,7 +85,7 @@ Add option require namedtuple to methods of VertexPath (to add flexibility).
 
 Simplify/strealine the flow of method StateDigraphSolveTSP.solve_full_problem,
 which has currently about 350 lines and many if/else's.
-Idea: se submethods to split top-down/bottom-up (memoization/tabulation) variants.
+Idea: use submethods to split top-down/bottom-up (memoization/tabulation) variants.
 The logic for each case discriminated by the if/else's goes into a submethod.
 Can also split into the path and the cycle variants.
 Maybe store variables in class attributes, or carry them as method arguments,
