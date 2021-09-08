@@ -282,14 +282,15 @@ class StateDigraphSolveTSP(object):
       use_memoization_instead_of_tabulation = False, omit_minimizing_path = False, skip_checks = False):
     '''
     Computes the minimal path length given specific parameters: given
-    initial and final vertices and a set of vertices [given by a tuple of
-    Booleans], finds minimal among paths traveling once though each vertex.
+    initial and final vertices and a set of vertices of underlying graph
+    self.digraph [given by a tuple of Booleans], finds minimal among paths
+    traveling once though each vertex satisfyng the boundary conditions.
     
     Returns the minimal weight of such path, and also, if requested,
     also one of these minimizing paths as VertexPath instance. (If request is
     for its ommission, produces None as such path to fill the space.)
     
-    [Note this method is only about paths without self-crossings, not about cycles.]
+    [Note this method is only about paths without any self-crossings, not about cycles.]
     '''
     # Our subproblems are: Consider we have a fixed initial vertex
     #(which might be passed as argument as source_vertex), a fixed
@@ -303,21 +304,24 @@ class StateDigraphSolveTSP(object):
     final_number = self.number_by_vertex[final_vertex]
     if not skip_checks:
       print(f'{self.n=}\n{initial_number=} ({initial_vertex=})\n{final_number} ({final_vertex=})\n{presence_set=}\n')
-      # Expect arg to be a tuple of Booleans with length n
+      # Expect arg to be a tuple of Booleans with length self.n
       assert len(presence_set) == self.n, 'Internal logic error, presence_set should be as long as the number of vertices'
       # Check that initial_vertex and final_vertex are present [i. e. True]
       assert presence_set[initial_number], 'Internal logic error, initial vertex must be in presence set'
       assert presence_set[final_number], 'Internal logic error, final vertex must be in presence set'
     # We get rid of the boundary cases
     # We impose that if the final vertex coincides with the initial vertex,
-    #the only possible path is the no-arrow path (of length 0)
+    #the only possible path is the no-arrow path (of length 0 arrows)
     if initial_number == final_number:
-      # Want only that vertex as True, otherwise no path (distance math_inf)
+      # Want that vertex as the only True, otherwise no path (distance math_inf)
       sought_presence_set = tuple((idx == initial_number) for idx in range(self.n))
-      if presence_set == sought_presence_set:
+      assert presence_set == sought_presence_set, 'Internal logic error, cannot have cycles [with more than one vertex] in subproblem'
+
         # No previous vertex, so previous path should be the "quasi empty path" to work well later
         # By "quasi empty path" we mean the path with initial_vertex and no arrows
-        quasi_empty_path = VertexPath(data = [initial_vertex], data_type = 'vertices',
+        quasi_empty_path = VertexPath(
+            data = [initial_vertex],
+            data_type = 'vertices',
             verify_validity_on_initialization = not skip_checks)
         # (This is a nondegenerate path, and works fine with arrow addition)
         # If only lengths are asked, we produce None instead of [], for consistency
@@ -325,11 +329,7 @@ class StateDigraphSolveTSP(object):
           return (0, None)
         else:
           return (0, quasi_empty_path)
-      else:
-        if omit_minimizing_path:
-          return (math_inf, None)
-        else:
-          return (math_inf, quasi_empty_path)
+
     else:
       # We essentially recur on "previous subproblems"
       # That is, for all arrows landing on final_vertex, we ask which
@@ -337,16 +337,16 @@ class StateDigraphSolveTSP(object):
       #weight (assuming we solve the subproblems without this last vertex)
       min_among_all_last_arrows = math_inf
       whole_path_as_arrows = None
-      for arrow in self.digraph.get_arrows_in(final_vertex):
-        # arrow has information arrow.source, arrow.target which is final
-        #vertex, and arrow.weight.
+      for last_arrow in self.digraph.get_arrows_in(final_vertex):
+        # last_arrow has information last_arrow.source, last_arrow.target
+        #which is final_vertex, and last_arrow.weight.
         # We verify the source does belong to the presence_set
-        arrow_source_as_number = self.number_by_vertex[arrow.source]
-        if presence_set[arrow_source_as_number]:
-          # We "remove" arrow.source by flipping True to False
+        last_arrow_source_as_number = self.number_by_vertex[last_arrow.source]
+        if presence_set[last_arrow_source_as_number]:
+          # We "remove" last_arrow.source by flipping True to False
           # We need to create a temporary mutable object first
           presence_set_as_list = list(presence_set)
-          presence_set_as_list[arrow_source_as_number] = False
+          presence_set_as_list[last_arrow_source_as_number] = False
           last_off_presence_set = tuple(presence_set_as_list)
           # Total weight is then the solution of that problem,
           #plus the weight of this last arrow
@@ -356,7 +356,7 @@ class StateDigraphSolveTSP(object):
             # In this case we simply call the suproblem method again
             solution_of_smaller_subproblem = self.solve_subproblem(
                 initial_vertex = initial_vertex,
-                final_vertex = arrow.source,
+                final_vertex = last_arrow.source,
                 presence_set = last_off_presence_set,
                 omit_minimizing_path = omit_minimizing_path,
                 skip_checks = skip_checks)
