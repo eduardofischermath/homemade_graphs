@@ -319,19 +319,26 @@ class StateDigraphSolveTSP(object):
     if initial_number == final_number:
       # Want that vertex as the only True, otherwise no path (distance math_inf)
       sought_presence_set = tuple((idx == initial_number) for idx in range(self.n))
-      assert presence_set == sought_presence_set, 'Internal logic error, cannot have cycles [with more than one vertex] in subproblem'
-      # No previous vertex, so previous path should be the "quasi empty path" to work well later
-      # By "quasi empty path" we mean the path with initial_vertex and no arrows
-      quasi_empty_path = VertexPath(
-          data = [initial_vertex],
-          data_type = 'vertices',
-          verify_validity_on_initialization = not skip_checks)
-      # (This is a nondegenerate path, and works fine with arrow addition)
-      # If only lengths are asked, we produce None instead of [], for consistency
-      if omit_minimizing_path:
-        return (0, None)
+      if presence_set == sought_presence_set:
+        # No previous vertex, so previous path should be the "quasi empty path" to work well later
+        # By "quasi empty path" we mean the path with initial_vertex and no arrows
+        quasi_empty_path = VertexPath(
+            data = [initial_vertex],
+            data_type = 'vertices',
+            verify_validity_on_initialization = not skip_checks)
+        # [This is a nondegenerate path, and works fine with arrow addition]
+        # If only lengths are asked, we produce None instead of [], for consistency
+        if omit_minimizing_path:
+          return (0, None)
+        else:
+          return (0, quasi_empty_path)
       else:
-        return (0, quasi_empty_path)
+        # In this case there are more than one vertex, thus making it impossible
+        #to provide a solution to the subproblem
+        if omit_minimizing_path:
+          return (math_inf, None)
+        else:
+          return (math_inf, None)
     else:
       # We essentially recur on "previous subproblems"
       # That is, for all arrows landing on final_vertex, we ask which
