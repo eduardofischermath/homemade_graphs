@@ -25,8 +25,8 @@
 ########################################################################
 
 from unittest import main as unittest_main
-from unittest import skip as unittest_skip
-from unittest import TestCase as unittest_TestCase
+#from unittest import skip as unittest_skip
+#from unittest import TestCase as unittest_TestCase
 
 ########################################################################
 # Internal imports
@@ -83,11 +83,12 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         True,
         tuple(),
         {}),
-        cls.PropertySpecification('solve_traveling_salesman_problem',
-        None,
-        True,
-        tuple(),
-        {'compute_path_instead_of_cycle': False}),
+        # Temporarily disable cycle-finding to focus on path-finding
+        #cls.PropertySpecification('solve_traveling_salesman_problem',
+        #None,
+        #True,
+        #tuple(),
+        #{'compute_path_instead_of_cycle': False}),
         cls.PropertySpecification('solve_traveling_salesman_problem',
         41,
         True,
