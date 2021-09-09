@@ -48,26 +48,30 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
     '''
     Produces the WeightedDigraph
     
-    A ----> B <---- C
+    A ----> B <---> C
     |       |       ^
     |       |       |
     V       V       |
     D ----> E ----> F
-    
+     \             7 
+      \___________/
+       
     where each arrow has a specified weight.
     '''
     A, B, C, D, E, F = 'A', 'B', 'C', 'D', 'E', 'F'
     AB = (A, B, 10)
+    BC = (B, C, 8)
     CB = (C, B, 8)
     DE = (D, E, 15)
     EF = (E, F, 5)
     AD = (A, D, 16)
     BE = (B, E, 9)
     FC = (F, C, 3)
+    DF = (D, F, 17)
     return WeightedDigraph(
         data = (
             [A, B, C, D, E, F],
-            [AB, CB, DE, EF, AD, BE, FC]),
+            [AB, CB, DE, EF, AD, BE, FC, DF]),
         data_type = 'all_vertices_and_all_arrows')
 
   @classmethod
@@ -79,7 +83,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         tuple(),
         {}),
         cls.PropertySpecification('get_number_of_arrows',
-        7,
+        9,
         True,
         tuple(),
         {}),
@@ -96,7 +100,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         {'compute_path_instead_of_cycle': True,
             'initial_vertex': 'A',
             'final_vertex': 'B',
-            'use_memoization_instead_of_tabulation': True,
+            'use_memoization_instead_of_tabulation': False,
             'output_as': 'length',
             'skip_checks': False})]
 

@@ -357,28 +357,28 @@ class StateDigraphSolveTSP(object):
         # We verify the source does belong to the presence_set
         last_arrow_source_as_number = self.number_by_vertex[last_arrow.source]
         if presence_set[last_arrow_source_as_number]:
-          # We "remove" last_arrow.source by flipping True to False
+          # We "remove" final_number by flipping True to False
           # We need to create a temporary mutable object first
           presence_set_as_list = list(presence_set)
           presence_set_as_list[final_number] = False
           last_off_presence_set = tuple(presence_set_as_list)
           # Total weight is then the solution of that problem,
           #plus the weight of this last arrow
-          # Note that we also keep a list of arrows going back to start
-          # It's probably easier than start a VertexPath instance every time
+          # Note that adding this last arrow is done using a VertexPath method
+          # [It's probably easier than build a VertexPath instance every time]
           if use_memoization_instead_of_tabulation:
             # In this case we simply call the suproblem method again
             solution_of_smaller_subproblem = self.solve_subproblem(
                 initial_vertex = initial_vertex,
                 final_vertex = last_arrow.source,
                 presence_set = last_off_presence_set,
-                use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation, # True
+                use_memoization_instead_of_tabulation = True,
                 omit_minimizing_path = omit_minimizing_path,
                 skip_checks = skip_checks)
           else:
             # In this case the result should be stored in self._subproblem_solutions
             solution_of_smaller_subproblem = self._subproblem_solutions[
-                (initial_vertex, final_vertex, last_off_presence_set)]
+                (initial_vertex, last_arrow.source, last_off_presence_set)]
           previous_length, previous_path = solution_of_smaller_subproblem
           this_distance = last_arrow.weight + previous_length
           # Update the minimal distance, if it is minimal
@@ -392,10 +392,13 @@ class StateDigraphSolveTSP(object):
             else:
               # Need to update the last arrow (last arrow in path)
               # We will use the VertexPath method, returning a new instance
-              whole_path_as_arrows = previous_path.append_to_path(data = arrow,
-                  data_type = 'arrow', modify_self = False, skip_checks = skip_checks)
-      # With the loop ended, the best should be recorded
-      # (None whole_path_as_arrows contains None if output_as is 'length')
+              whole_path_as_arrows = previous_path.append_to_path(
+                  data = arrow,
+                  data_type = 'arrow',
+                  modify_self = False,
+                  skip_checks = skip_checks)
+      # With the loop ended, the best should be recorded [unless omit_minimizing_path
+      #is True, in which case whole_path_as_arrows is simply None]
       return (min_among_all_last_arrows, whole_path_as_arrows)
 
   def solve_full_problem(self, compute_path_instead_of_cycle,
@@ -411,7 +414,9 @@ class StateDigraphSolveTSP(object):
       output_as = 'length'
     # Prepare initial and final vertices for path/cycle-searching
     initial_vertex, final_vertex, initial_and_final_vertices = self._prepare_initial_and_final_vertices(
-        compute_path_instead_of_cycle, initial_vertex, final_vertex)
+        compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+        initial_vertex = initial_vertex,
+        final_vertex = final_vertex)
     # We check that there is at least one vertex
     if not bool(self.digraph):
       # Returns path/cycle with no vertices
@@ -426,13 +431,13 @@ class StateDigraphSolveTSP(object):
       # Subdivide into the four possible cases according to the variables
       #compute_path_instead_of_cycle and use_memoization_instead_of_tabulation
       if compute_path_instead_of_cycle:
-        # To solve the problem for a path (for a cycle it involves an extra step;
-        #we will do it at the end, and only if required), we need to use some
+        # To solve the problem for a path (for a cycle it would involves
+        #an extra step, done obviously only for cycles), we need to use some
         #form or recursion, or dynamic programming, which is carried out
         #in a separate method, solve_subproblem
         # For all vertices but the initial_vertex, we compute the possible
         #paths starting on initial_vertex, passing through all others exactly once
-        #and ending on them
+        #(no non-trivial cycles allowed) and ending on final_vertex
         if use_memoization_instead_of_tabulation:
           pre_output = self._solve_full_problem_for_path_and_memoization(
               initial_and_final_vertices = initial_and_final_vertices,
@@ -446,6 +451,11 @@ class StateDigraphSolveTSP(object):
               output_as = output_as, # for omit_minimizing_path only
               skip_checks = skip_checks)
       else:
+        ###############
+        # WORK HERE
+        # Need to work on cycles, maybe make most of work depend on finding paths
+        # Also explaining it well is a good thing to do
+        ###############
         # Here: compute_path_instead_of_cycle == False
         # We briefly explain the logic
         # We consider all cycles starting at given cycle
@@ -491,8 +501,7 @@ class StateDigraphSolveTSP(object):
       # We will generate all possible paths for given initial and final vertices
       # Note initial and final vertices cannot coincide
       if initial_vertex is None:
-        # All are allowed as initial. We use list on dict self.number_by_vertex
-        initial_vertices = all_vertices
+        initial_vertices = self.digraph.get_vertices()
       else:
         initial_vertices = [initial_vertex]
       initial_and_final_vertices = []
@@ -500,7 +509,7 @@ class StateDigraphSolveTSP(object):
         # If final_vertex is specified, only such vertex can be final
         # Otherwise, all (except initial_vertex; would form cycle) are allowed
         if final_vertex is None:
-          for another_vertex in all_vertices:
+          for another_vertex in self.digraph.get_vertices():
             if vertex != another_vertex:
               initial_and_final_vertices.append((vertex, another_vertex))
         else:
@@ -594,29 +603,32 @@ class StateDigraphSolveTSP(object):
           output_as = output_as)
     # The table (a dictionary) for the tabulation process:
     self._subproblem_solutions = {}
-    # Note that tabulation is done in order of incresing vertices present
+    # Note that tabulation is done in increasing order of number of vertices present
     # That is, the "size" (number of Trues) of presence_set
     for length_of_path in range(1, self.n + 1):
       # We find all presence sets of size length_of_path
       right_size_presence_sets = self.produce_boolean_tuples_with_fixed_sum(
           self.n, length_of_path, output_as_generator = True)
       for presence_set in right_size_presence_sets:
-        # Verify initial and last vertices are present in presence_set
-        # We have the possible initial and final on initial_and_final_vertices
-        # But that is only for the full-sized paths
-        # But for intermediate paths, the final vertex may be anything
-        #while the initial is still the initial
-        # We will do the following: read the initial and final from presence_set
-        for initial_index in range(self.n):
-          for final_index in range(self.n):
-            if length_of_path == 1 or initial_index != final_index:
-              # Only tabulate cases that matter
-              if presence_set[initial_index] and presence_set[final_index]:
-                # We now check that the initial_index correspond to a valid
-                #choice of initial vertex in initial_and_final_vertices
-                local_initial_vertex = self.vertex_by_number[initial_index]
+        # To determine initial_vertex and final_vertex passed to subproblem
+        #[note final_vertex is not the same as the one or None given to
+        #solve_full_problem, since there we do a recursion on the last vertex]
+        #we will scan through all possible values but only compute the subproblem
+        #when the values make sense and are useful
+        for local_initial_index in range(self.n):
+          for local_final_index in range(self.n):
+            # Only tabulate cases that matter. For that there are many conditions
+            # Eliminate nontrivial [more than one vertex] cycles:
+            if length_of_path == 1 or local_initial_index != local_final_index:
+              # Ensure the vertices corresponding to the indices are present in presence_set
+              if presence_set[local_initial_index] and presence_set[local_final_index]:
+                # We now check that the local_initial_index correspond 
+                #to a valid choice under the initial_vertex input
+                local_initial_vertex = self.vertex_by_number[local_initial_index]
                 if initial_vertex is None or local_initial_vertex == initial_vertex:
-                  local_final_vertex = self.vertex_by_number[final_index]
+                  local_final_vertex = self.vertex_by_number[local_final_index]
+                  # If the path is full-sized, the local_final_vertex variable
+                  #has to match the final_vertex input (unless this is None)
                   if (length_of_path < self.n) or (
                       final_vertex is None or local_final_vertex == final_vertex):
                     # We compute the value and store it on the table
@@ -632,6 +644,9 @@ class StateDigraphSolveTSP(object):
     # We now use the opportunity to update the best overall
     # For that, we measure the paths with length self.n
     # We use initial_and_final_vertices and tuple_of_trues, already available
+    # (If initial_and_final_vertices has a single pair, then it is the only
+    #pair of local initial and local final vertices usen during the tabulation
+    #with maximum length_of_path, showing there is no waste of computing time)
     for pair in initial_and_final_vertices:
       # Simply consult table
       local_min_distance, local_min_path = self._subproblem_solutions[(

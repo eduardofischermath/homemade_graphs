@@ -286,7 +286,7 @@ class VertexPath(object):
     
     [With the exception that if the underlying digraph is a weighted multidigraph,
     giving information by the vertices picks the arrows of least weight.
-    Nonetheless, we consider the information determines the path or cycle uniquely.]
+    Nonetheless, the information determines the path or cycle uniquely.]
     
     Options for data_type:
     'path'
@@ -297,22 +297,17 @@ class VertexPath(object):
     
     Options for output_as:
     [all options for data_type are acceptable for output_as]
+    'str'
+    'repr'
     'length'
     'length_and_vertices'
     'length_and_arrows'
     'length_and_vertices_and_arrows'
-    'str'
-    'repr'
-    'nothing'
     '''
     # We prepare the strings to have only lowercase characters
     # This is useful as they will be evaluated multiple times
     data_type = data_type.lower()
     output_as = output_as.lower()
-    # We return None if asked to return nothing [it is useful to do this first]
-    # (This makes the method completely useless, but we like the option)
-    if output_as == 'nothing':
-      return None
     # We build an instance from the data (if not already starting with one)
     if data_type == 'cycle':
       as_instance = data
@@ -362,7 +357,7 @@ class VertexPath(object):
       # We now return the output
       # If pre_data has 2 or more items, it is returned as a tuple
       # If it has 1 item, we return that single item
-      # If it has 0 items, this means the request was bed
+      # If it has 0 items, this means the request was bad, so raise ValueError
       if len(pre_data) >= 2:
         return tuple(pre_data)
       elif len(pre_data) == 1:
