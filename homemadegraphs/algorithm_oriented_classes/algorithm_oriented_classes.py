@@ -310,7 +310,7 @@ class StateDigraphSolveTSP(object):
     # Printing as primitive debugging tool
     # This is used to see the order in which this subproblem is called
     ##############
-    print(f'SOLVING SUBPROBLEM\n{initial_number=}, {initial_vertex=}\n{final_number=}, {final_vertex=}\n{presence_set=}\n')
+    print(f'\nSOLVING SUBPROBLEM\n{initial_number=}, {initial_vertex=}\n{final_number=}, {final_vertex=}\n{presence_set=} (Total: {sum(presence_set)})')
     if not skip_checks:
       # Expect arg to be a tuple of Booleans with length self.n
       assert len(presence_set) == self.n, 'Internal logic error, presence_set should be as long as the number of vertices'
@@ -333,6 +333,11 @@ class StateDigraphSolveTSP(object):
             verify_validity_on_initialization = not skip_checks)
         # [This is a nondegenerate path, and works fine with arrow addition]
         # If only lengths are asked, we produce None instead of [], for consistency
+        ##############
+        # Printing as primitive debugging tool
+        # This is used to see the order in which this subproblem is called
+        ##############
+        print(f'Solution (one-vertex path): {0}')
         if omit_minimizing_path:
           return (0, None)
         else:
@@ -340,11 +345,17 @@ class StateDigraphSolveTSP(object):
       else:
         # In this case there are more than one vertex, thus making it impossible
         #to provide a solution to the subproblem
+        ##############
+        # Printing as primitive debugging tool
+        # This is used to see the order in which this subproblem is called
+        ##############
+        print(f'Solution (impossible set): {math_inf}')
         if omit_minimizing_path:
           return (math_inf, None)
         else:
           return (math_inf, None)
     else:
+      # In this case final_number != initial_number
       # We essentially recur on "previous subproblems"
       # That is, for all arrows landing on final_vertex, we ask which
       #could be the last one, and pick the one producing the smallest
@@ -352,53 +363,64 @@ class StateDigraphSolveTSP(object):
       min_among_all_last_arrows = math_inf
       whole_path_as_arrows = None
       for last_arrow in self.digraph.get_arrows_in(final_vertex):
-        # last_arrow has information last_arrow.source, last_arrow.target
-        #which is final_vertex, and last_arrow.weight.
-        # We verify the source does belong to the presence_set
-        last_arrow_source_as_number = self.number_by_vertex[last_arrow.source]
-        if presence_set[last_arrow_source_as_number]:
-          # We "remove" final_number by flipping True to False
-          # We need to create a temporary mutable object first
-          presence_set_as_list = list(presence_set)
-          presence_set_as_list[final_number] = False
-          last_off_presence_set = tuple(presence_set_as_list)
-          # Total weight is then the solution of that problem,
-          #plus the weight of this last arrow
-          # Note that adding this last arrow is done using a VertexPath method
-          # [It's probably easier than build a VertexPath instance every time]
-          if use_memoization_instead_of_tabulation:
-            # In this case we simply call the suproblem method again
-            solution_of_smaller_subproblem = self.solve_subproblem(
-                initial_vertex = initial_vertex,
-                final_vertex = last_arrow.source,
-                presence_set = last_off_presence_set,
-                use_memoization_instead_of_tabulation = True,
-                omit_minimizing_path = omit_minimizing_path,
-                skip_checks = skip_checks)
-          else:
-            # In this case the result should be stored in self._subproblem_solutions
-            solution_of_smaller_subproblem = self._subproblem_solutions[
-                (initial_vertex, last_arrow.source, last_off_presence_set)]
-          previous_length, previous_path = solution_of_smaller_subproblem
-          this_distance = last_arrow.weight + previous_length
-          # Update the minimal distance, if it is minimal
-          if this_distance < min_among_all_last_arrows:
-            min_among_all_last_arrows = this_distance
-            if omit_minimizing_path:
-              # To save memory during execution, if we only want the minimal length
-              #we will not conserve information on how to reconstruct the path
-              # We use the very default object None for this objective
-              whole_path_as_arrows = None
-            else:
-              # Need to update the last arrow (last arrow in path)
-              # We will use the VertexPath method, returning a new instance
-              whole_path_as_arrows = previous_path.append_to_path(
-                  data = arrow,
-                  data_type = 'arrow',
-                  modify_self = False,
+        # We need to exclude self-arrows as they might throw the algorithm into a loop
+        if OperationsVAE.is_self_arrow_or_self_edge(last_arrow,
+            use_edges_instead_of_arrows = False,
+            require_namedtuple = False,
+            request_vertex_sanitization = False,
+            require_vertex_namedtuple = False):
+          # last_arrow has information last_arrow.source, last_arrow.target
+          #which is final_vertex, and last_arrow.weight.
+          # We verify the source does belong to the presence_set
+          last_arrow_source_as_number = self.number_by_vertex[last_arrow.source]
+          if presence_set[last_arrow_source_as_number]:
+            # We "remove" final_number by flipping True to False
+            # We need to create a temporary mutable object first
+            presence_set_as_list = list(presence_set)
+            presence_set_as_list[final_number] = False
+            last_off_presence_set = tuple(presence_set_as_list)
+            # Total weight is then the solution of that problem,
+            #plus the weight of this last arrow
+            # Note that adding this last arrow is done using a VertexPath method
+            # [It's probably easier than build a VertexPath instance every time]
+            if use_memoization_instead_of_tabulation:
+              # In this case we simply call the suproblem method again
+              solution_of_smaller_subproblem = self.solve_subproblem(
+                  initial_vertex = initial_vertex,
+                  final_vertex = last_arrow.source,
+                  presence_set = last_off_presence_set,
+                  use_memoization_instead_of_tabulation = True,
+                  omit_minimizing_path = omit_minimizing_path,
                   skip_checks = skip_checks)
+            else:
+              # In this case the result should be stored in self._subproblem_solutions
+              solution_of_smaller_subproblem = self._subproblem_solutions[
+                  (initial_vertex, last_arrow.source, last_off_presence_set)]
+            previous_length, previous_path = solution_of_smaller_subproblem
+            this_distance = last_arrow.weight + previous_length
+            # Update the minimal distance, if it is minimal
+            if this_distance < min_among_all_last_arrows:
+              min_among_all_last_arrows = this_distance
+              if omit_minimizing_path:
+                # To save memory during execution, if we only want the minimal length
+                #we will not conserve information on how to reconstruct the path
+                # We use the very default object None for this objective
+                whole_path_as_arrows = None
+              else:
+                # Need to update the last arrow (last arrow in path)
+                # We will use the VertexPath method, returning a new instance
+                whole_path_as_arrows = previous_path.append_to_path(
+                    data = arrow,
+                    data_type = 'arrow',
+                    modify_self = False,
+                    skip_checks = skip_checks)
       # With the loop ended, the best should be recorded [unless omit_minimizing_path
       #is True, in which case whole_path_as_arrows is simply None]
+      ##############
+      # Printing as primitive debugging tool
+      # This is used to see the results
+      ##############
+      print(f'Solution (after recurrence): {min_among_all_last_arrows}')
       return (min_among_all_last_arrows, whole_path_as_arrows)
 
   def solve_full_problem(self, compute_path_instead_of_cycle,
@@ -538,6 +560,8 @@ class StateDigraphSolveTSP(object):
   def _produce_auxiliary_constructs(self, output_as):
     '''
     Produces useful objects for solve_full_problem.
+    
+    More specifically, it creates:
     
     tuple_of_trues
     min_distance_overall

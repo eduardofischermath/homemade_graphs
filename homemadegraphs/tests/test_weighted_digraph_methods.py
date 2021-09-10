@@ -71,7 +71,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
     return WeightedDigraph(
         data = (
             [A, B, C, D, E, F],
-            [AB, CB, DE, EF, AD, BE, FC, DF]),
+            [AB, BC, CB, DE, EF, AD, BE, FC, DF]),
         data_type = 'all_vertices_and_all_arrows')
 
   @classmethod
@@ -101,7 +101,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
             'initial_vertex': 'A',
             'final_vertex': 'B',
             'use_memoization_instead_of_tabulation': False,
-            'output_as': 'length',
+            'output_as': 'length_and_arrows',
             'skip_checks': False})]
 
 ########################################################################

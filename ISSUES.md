@@ -217,3 +217,12 @@ applied in different contexts (p. ex. Digraphs, Graphs, empty digraph)
 
 Create even more categories/generic classes for testing. For example,
 testing multiple properties of multiple objects.
+
+## ISSUE #0038 OPEN
+
+Changed StateDigraphSolveTSP to only essentially handle cycles.
+In case of paths, modify graph to have a new vertex. This vertex would have
+arrows of weight 0 going into all original initial vertices and receiving
+arrows of weight 0 from all final vertices. The solution of the path problem
+would be the solution of the cycle problem for the extended graph (removing
+the new vertex).
