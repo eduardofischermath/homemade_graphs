@@ -507,6 +507,26 @@ class OperationsVAE(object):
       return list(as_generator)
 
   @staticmethod
+  def is_self_arrow_or_self_edge(tuplee, use_edges_instead_of_arrows,
+      require_namedtuple = False, request_vertex_sanitization = False,
+      require_vertex_namedtuple = False):
+    '''
+    Returns whether arrow is self-arrow or edge is self-edge (also known as loops).
+    '''
+    # Sanitize according to parameters
+    tuplee = OperationsVAE.sanitize_arrow_or_edge(
+        tuplee = tuplee,
+        use_edges_instead_of_arrows = use_edges_instead_of_arrows,
+        require_namedtuple = require_namedtuple,
+        request_vertex_sanitization = request_vertex_sanitization,
+        require_vertex_namedtuple = require_vertex_namedtuple)
+    # Depending on being arrow or edge different name fields are read
+    if use_edges_instead_of_arrows:
+      return tuplee.first == tuplee.second
+    else:
+      return tuplee.source == tuplee.target
+
+  @staticmethod
   def get_namedtuples_from_neighbors(dict_of_neighbors, output_as, namedtuple_choice = None,
       require_namedtuple = False, request_vertex_sanitization = False,
       require_vertex_namedtuple = False):

@@ -85,7 +85,7 @@ Add option require namedtuple to methods of VertexPath (to add flexibility).
 
 Simplify/strealine the flow of method StateDigraphSolveTSP.solve_full_problem,
 which has currently about 350 lines and many if/else's.
-Idea: se submethods to split top-down/bottom-up (memoization/tabulation) variants.
+Idea: use submethods to split top-down/bottom-up (memoization/tabulation) variants.
 The logic for each case discriminated by the if/else's goes into a submethod.
 Can also split into the path and the cycle variants.
 Maybe store variables in class attributes, or carry them as method arguments,
@@ -217,3 +217,17 @@ applied in different contexts (p. ex. Digraphs, Graphs, empty digraph)
 
 Create even more categories/generic classes for testing. For example,
 testing multiple properties of multiple objects.
+
+## ISSUE #0038 OPEN
+
+Changed StateDigraphSolveTSP to only essentially handle cycles.
+In case of paths, modify graph to have a new vertex. This vertex would have
+arrows of weight 0 going into all original initial vertices and receiving
+arrows of weight 0 from all final vertices. The solution of the path problem
+would be the solution of the cycle problem for the extended graph (removing
+the new vertex).
+
+## ISSUE #0039 OPEN
+
+Consider splitting off the determination of omit_minimizing_path from
+StateDigraphSolveSTP._produce_auxiliary_constructs into separate method

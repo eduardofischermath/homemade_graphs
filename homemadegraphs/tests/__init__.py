@@ -31,10 +31,15 @@
 ########################################################################
 
 # Bring all functions and classes into homemadegraphs.tests scope
+#############
+# This might need more testing!
+#############
 
 from . import all_tests
+from . import generic_testing_classes
 from . import test_digraph_initialization
 from . import test_empty_digraph
 from . import test_vertex_arrow_and_edge_initialization
+from . import test_weighted_digraph_methods
 
 ########################################################################
