@@ -364,7 +364,7 @@ class StateDigraphSolveTSP(object):
       whole_path_as_arrows = None
       for last_arrow in self.digraph.get_arrows_in(final_vertex):
         # We need to exclude self-arrows as they might throw the algorithm into a loop
-        if OperationsVAE.is_self_arrow_or_self_edge(last_arrow,
+        if not OperationsVAE.is_self_arrow_or_self_edge(last_arrow,
             use_edges_instead_of_arrows = False,
             require_namedtuple = False,
             request_vertex_sanitization = False,
@@ -801,20 +801,34 @@ class StateDigraphSolveTSP(object):
     
     Last step of solve_full_problem.
     '''
+    # We need omit_minimizing_path
+    tuple_of_trues, min_distance_overall, min_path_overall, omit_minimizing_path = self._produce_auxiliary_constructs(
+          output_as = output_as)
+    del tuple_of_trues, min_distance_overall, min_path_overall
     # pre_output is collected from methods split into paths/cycles/memoization/tabulation
     # Formatting is carried out according to output_as, which offloads to reformat_paths
+    # (With the exception of when omit_minimizing_path is True)
     min_distance_overall, min_path_overall = pre_output
-    if min_path_overall is None:
-      # This can be either because there is no path meeting the conditions
-      #or because omit_minimizing_path was triggered to True
-      min_path_overall = 'Minimizing path not calculated'
+    if omit_minimizing_path:
+      return min_distance_overall
     else:
-      min_path_overall = min_path_overall.reformat_paths(
-          underlying_graph = self.digraph,
-          data = min_path_overall,
-          data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
-          output_as = output_as,
-          skip_checks = skip_checks)
-    return (min_distance_overall, min_path_overall)
+      # In this case min_distance_overall is obsolete, since it should be
+      #the length of the resulting path (unless there was no solution to
+      #the problem, which resulted in min_path_overall being None)
+      if min_path_overall is None:
+        assert min_distance_overall == math_inf, 'Without an existing path or cycle solution the distance shuld be infinite.'
+        return (math_inf, 'Minimizing path not calculated')
+      else:
+        # min_distance_overall is discarded; should be the same as length of VertexPath
+        #as calculated by method VertexPath.get_total_weight(self, request_none_if_unweighted = False
+        length_of_min_path = min_path_overall.get_total_weight(request_none_if_unweighted = False)
+        assert length_of_min_path == min_distance_overall, 'Total weight/length of Path/cycle solution should match the value in the solution.'
+        # To return use formatting from VertexPath.reformat_path
+        return min_path_overall.reformat_paths(
+            underlying_graph = self.digraph,
+            data = min_path_overall,
+            data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
+            output_as = output_as,
+            skip_checks = skip_checks)
 
 ########################################################################

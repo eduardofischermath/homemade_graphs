@@ -94,14 +94,14 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         #tuple(),
         #{'compute_path_instead_of_cycle': False}),
         cls.PropertySpecification('solve_traveling_salesman_problem',
-        (47, 'Minimizing path not calculated'),
+        47,
         True,
         tuple(),
         {'compute_path_instead_of_cycle': True,
             'initial_vertex': 'A',
             'final_vertex': 'B',
             'use_memoization_instead_of_tabulation': False,
-            'output_as': 'length_and_arrows',
+            'output_as': 'length',
             'skip_checks': False})]
 
 ########################################################################

@@ -226,3 +226,8 @@ arrows of weight 0 going into all original initial vertices and receiving
 arrows of weight 0 from all final vertices. The solution of the path problem
 would be the solution of the cycle problem for the extended graph (removing
 the new vertex).
+
+## ISSUE #0039 OPEN
+
+Consider splitting off the determination of omit_minimizing_path from
+StateDigraphSolveSTP._produce_auxiliary_constructs into separate method
