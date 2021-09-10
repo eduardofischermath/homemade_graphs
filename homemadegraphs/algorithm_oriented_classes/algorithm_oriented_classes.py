@@ -641,16 +641,23 @@ class StateDigraphSolveTSP(object):
         #when the values make sense and are useful
         for local_initial_index in range(self.n):
           for local_final_index in range(self.n):
-            # Only tabulate cases that matter. For that there are many conditions
+            local_initial_vertex = self.vertex_by_number[local_initial_index]
+            local_final_vertex = self.vertex_by_number[local_final_index]
+            # We would like to tabulate only cases that matter.
+            # However, sometimes a recursion asks the solution of a subproblem
+            #which obviously has no solution (for example in violation of
+            #any condition below). In this case it becomes necessary,
+            #for the recursion process, to have such entries stored in the
+            #table as problems without solution, that is, (math.inf, None)
+            # We control it using the variable: is_subproblem_certainly_impossible
+            is_subproblem_certainly_impossible = False
             # Eliminate nontrivial [more than one vertex] cycles:
             if length_of_path == 1 or local_initial_index != local_final_index:
               # Ensure the vertices corresponding to the indices are present in presence_set
               if presence_set[local_initial_index] and presence_set[local_final_index]:
                 # We now check that the local_initial_index correspond 
                 #to a valid choice under the initial_vertex input
-                local_initial_vertex = self.vertex_by_number[local_initial_index]
                 if initial_vertex is None or local_initial_vertex == initial_vertex:
-                  local_final_vertex = self.vertex_by_number[local_final_index]
                   # If the path is full-sized, the local_final_vertex variable
                   #has to match the final_vertex input (unless this is None)
                   if (length_of_path < self.n) or (
@@ -663,8 +670,25 @@ class StateDigraphSolveTSP(object):
                         use_memoization_instead_of_tabulation = False,
                         omit_minimizing_path = omit_minimizing_path,
                         skip_checks = skip_checks)
-                    self._subproblem_solutions[(initial_vertex, final_vertex, presence_set)] = (
+                    self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)] = (
                         local_min_distance, local_min_path)
+                  else:
+                    # For a full-length path, local_final_vertex has to match the final_vertex input
+                    is_subproblem_certainly_impossible = True
+                else:
+                  # Initial vertex has to always match the specified (unless initial_vertex is None)
+                  is_subproblem_certainly_impossible = True
+              else:
+                # Initial and final vertices don't belong to presence set
+                is_subproblem_certainly_impossible = True
+            else:
+              # More than one vertex, initial and final different
+              is_subproblem_certainly_impossible = True
+            # We store (math.inf, None) in the table to indicate unsolvable subproblem
+            #(for subproblems marked unsolvable)
+            if is_subproblem_certainly_impossible:
+              self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)] = (
+                  math_inf, None)
     # We now use the opportunity to update the best overall
     # For that, we measure the paths with length self.n
     # We use initial_and_final_vertices and tuple_of_trues, already available
@@ -816,8 +840,9 @@ class StateDigraphSolveTSP(object):
       #the length of the resulting path (unless there was no solution to
       #the problem, which resulted in min_path_overall being None)
       if min_path_overall is None:
+        # No solution to the full problem
         assert min_distance_overall == math_inf, 'Without an existing path or cycle solution the distance shuld be infinite.'
-        return (math_inf, 'Minimizing path not calculated')
+        return (math_inf, 'There is no path/cycle solving the Traveling Salesman Problem.')
       else:
         # min_distance_overall is discarded; should be the same as length of VertexPath
         #as calculated by method VertexPath.get_total_weight(self, request_none_if_unweighted = False
