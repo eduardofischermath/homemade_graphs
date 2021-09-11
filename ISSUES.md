@@ -235,16 +235,13 @@ The determination of omit_minimizing_path was split off from
 StateDigraphSolveSTP._produce_auxiliary_constructs into separate method
 should_omit_minimizing_path
 
-## ISSUE #0040 OPEN
+## ISSUE #0040 ONGOING
 
 Consider option the vertices of a VertexPath or VertexCycle using their names only.
 That is, generate 'A' instead of Vertex(name='A').
 Can also do this on other classes such as Digraph and subclasses. For example,
 a method called get_vertex_names.
-(Other option is to implement classes such as EnhancedVertex, EnhancedArrow
-or EnhancedEdge, which are classes for the namedtuples Vertex, Arrow, Edge.
-This way, namedtuples can be used for expensive computations, and the enhanced
-versions add flexibility to the concepts.)
+This is done through method OperationsVAE.simplified_representation.
 
 ## ISSUE #0041 COMPLETE
 
@@ -255,3 +252,11 @@ to allow or disallow for repeated vertices.
 
 In VertexPath/VertexCycle, move 'arrows' and 'vertices' to be lists '_arrows' and '_vertices'.
 Define get_arrows() and get_vertices() as interface.
+
+## ISSUE #0043 OPEN
+
+Idea: implement classes such as EnhancedVertex, EnhancedArrow
+and EnhancedEdge, to be classes corresponding to the namedtuples Vertex, Arrow, Edge.
+This way, namedtuples can be used for expensive computations, and the enhanced
+versions add flexibility to the concepts and specific methods.
+Counter-argument: lot of this flexibility is already achieved by OperationsVAE.
