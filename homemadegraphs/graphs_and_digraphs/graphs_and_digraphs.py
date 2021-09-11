@@ -726,25 +726,33 @@ class Digraph(object):
       assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in digraph'
     return len(self._arrows_out[vertex])
 
-  def get_neighbors_in(self, vertex, skip_checks = False):
+  def get_neighbors_in(self, vertex, forbid_repetitions = False, skip_checks = False):
     '''
     Provides the vertices to which a vertex has arrows from.
     
-    In a multigraph, these neighbors are repeated in the output.
+    Has option to repeat or not vertices in case of multidigraph.
     '''
     if not skip_checks:
       assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in digraph'
-    return [arrow_in.source for arrow_in in self._arrows_in[vertex]]
+    list_with_possible_repetitions = [arrow_in.source for arrow_in in self._arrows_in[vertex]]
+    if forbid_repetitions:
+      return list(set(all_with_possible_repetitions))
+    else:
+      return list_with_possible_repetitions
     
-  def get_neighbors_out(self, vertex, skip_checks = False):
+  def get_neighbors_out(self, vertex, allow_repetitions = False, skip_checks = False):
     '''
     Provides the vertices to which a vertex has arrows to.
     
-    In a multigraph, these neighbors are repeated in the output.
+    Has option to repeat or not vertices in case of multidigraph.
     '''
     if not skip_checks:
       assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in digraph'
-    return [arrow_out.target for arrow_out in self._arrows_out[vertex]]    
+    list_with_possible_repetitions = [arrow_out.target for arrow_out in self._arrows_out[vertex]] 
+    if forbid_repetitions:
+      return list(set(all_with_possible_repetitions))
+    else:
+      return list_with_possible_repetitions
     
   def get_arrows(self, output_as = None):
     '''
@@ -2258,11 +2266,11 @@ class Graph(Digraph):
       assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in graph'
     return self._inciding_edges[vertex]
     
-  def get_neighbors(self, vertex, skip_checks = False):
+  def get_neighbors(self, vertex, forbid_repetitions = False, skip_checks = False):
     '''
     Return the neighbors of vertex.
     
-    In a multigraph, these neighbors are repeated in the output.
+    Has option to repeat or not vertices in case of multigraph.
     '''
     if not skip_checks:
       assert self.belongs_to_as_vertex_after_sanitization(vertex, require_vertex_namedtuple = False), 'Vertex must be in graph'
@@ -2272,8 +2280,12 @@ class Graph(Digraph):
     # [For self-loops: a vertex will be a neighbor of itself]
     # Also important to note that in Digraph.__init__, the meaning of
     #'neighbors' in the possible values of data_type is other than this
-    return [arrow.target for arrow in self._arrows_out[vertex]] 
-  
+    list_with_possible_repetitions = [arrow.target for arrow in self._arrows_out[vertex]]
+    if forbid_repetitions:
+      return list(set(all_with_possible_repetitions))
+    else:
+      return list_with_possible_repetitions
+
   def get_degree_of_vertex(self, vertex, skip_checks = False):
     '''
     Returns degree of vertex in graph: number of edges adjacent to it.
