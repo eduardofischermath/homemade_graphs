@@ -245,3 +245,8 @@ a method called get_vertex_names.
 or EnhancedEdge, which are classes for the namedtuples Vertex, Arrow, Edge.
 This way, namedtuples can be used for expensive computations, and the enhanced
 versions add flexibility to the concepts.)
+
+## ISSUE #0041 COMPLETE
+
+Allow get_neighbors/get_neighbors_in/get_neighbors/out methods in Digraph
+to allow or disallow for repeated vertices.
