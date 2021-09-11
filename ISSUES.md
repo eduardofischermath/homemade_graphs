@@ -204,7 +204,7 @@ a specific key/vertex.
 ## ISSUE #0035 OPEN
 
 Since many methods have many arguments, consider always "towering" them
-(that is, putting one in each line, as doen for a few function/method calls)
+(that is, putting one in each line, as done for a few function/method calls)
 
 ## ISSUE #0036 COMPLETE
 
@@ -250,3 +250,8 @@ versions add flexibility to the concepts.)
 
 Allow get_neighbors/get_neighbors_in/get_neighbors/out methods in Digraph
 to allow or disallow for repeated vertices.
+
+## ISSUE #0042 COMPLETE
+
+In VertexPath/VertexCycle, move 'arrows' and 'vertices' to be lists '_arrows' and '_vertices'.
+Define get_arrows() and get_vertices() as interface.
