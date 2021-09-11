@@ -66,11 +66,30 @@ class OperationsVAE(object):
     '''
     Magic method. Initializes the instance.
     
-    In the case, aborts it; all methods in the class are to be used without instances.
+    In the case, aborts the initialization process; all methods in the class
+    are static and are to be used without instances.
     '''
     # Technically what we should do is to rewrite __new__
     # In practice, writing this __init__ should suffice
     raise TypeError('Class cannot be instantiated.')
+
+  @staticmethod
+  def simplified_representation(vertex_arrow_or_edge):
+    '''
+    Given a Vertex, return its field_name 'name'. Given an Arrow or Edge,
+    return a tuple of the values of their three field_names.
+    
+    >>> repr(Vertex('A'))
+    Vertex(name='A')
+    >>> OperationsVAE.simplified_representation(Vertex('A'))
+    'A'
+    '''
+    if isinstance(vertex_arrow_or_edge, Vertex):
+      return vertex_arrow_or_edge.name
+    elif isinstance(vertex_arrow_or_edge, [Arrow, Edge]):
+      return tuple(vertex_arrow_or_edge) # Easiest way
+    else:
+      raise TypeError('Only operates on Vertex, Arrow or Edge.')
 
   @staticmethod
   def sanitize_vertex(obj, require_vertex_namedtuple = False):
