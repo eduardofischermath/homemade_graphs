@@ -423,6 +423,20 @@ class StateDigraphSolveTSP(object):
       print(f'Solution (after recurrence): {min_among_all_last_arrows}')
       return (min_among_all_last_arrows, whole_path_as_arrows)
 
+  def solve_full_length_subproblems_for_initial_and_final_vertices(self,
+      initial_and_final_vertices, use_memoization_instead_of_tabulation,
+      omit_minimizing_path, skip_checks = False):
+    '''
+    Solves the subproblems for paths of maximum length (goes through all vertices),
+    given the specified pairs of initial and final vertices [the boundary conditions].
+    
+    Returns a dictionary in which the keys are the pairs of possible initial
+    and final vertices, and whose values are the optimizing distances and paths.
+    
+    SEE ALSO: solve_subproblem
+    '''
+    
+
   def solve_full_problem(self, compute_path_instead_of_cycle,
       initial_vertex = None, final_vertex = None,
       use_memoization_instead_of_tabulation = False, output_as = None, skip_checks = False):
