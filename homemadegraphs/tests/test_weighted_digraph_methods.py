@@ -48,7 +48,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
     '''
     Produces the WeightedDigraph
     
-    A ----> B <---> C
+    A <---> B <---> C
     |       |       ^
     |       |       |
     V       V       |
@@ -60,6 +60,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
     '''
     A, B, C, D, E, F = 'A', 'B', 'C', 'D', 'E', 'F'
     AB = (A, B, 10)
+    BA = (B, A, 10)
     BC = (B, C, 8)
     CB = (C, B, 8)
     DE = (D, E, 15)
@@ -71,7 +72,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
     return WeightedDigraph(
         data = (
             [A, B, C, D, E, F],
-            [AB, BC, CB, DE, EF, AD, BE, FC, DF]),
+            [AB, BA, BC, CB, DE, EF, AD, BE, FC, DF]),
         data_type = 'all_vertices_and_all_arrows')
 
   @classmethod
@@ -83,16 +84,20 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         tuple(),
         {}),
         cls.PropertySpecification('get_number_of_arrows',
-        9,
+        10,
         True,
         tuple(),
         {}),
-        # Temporarily disable cycle-finding to focus on path-finding
-        #cls.PropertySpecification('solve_traveling_salesman_problem',
-        #None,
-        #True,
-        #tuple(),
-        #{'compute_path_instead_of_cycle': False}),
+        cls.PropertySpecification('solve_traveling_salesman_problem',
+        57,
+        True,
+        tuple(),
+        {'compute_path_instead_of_cycle': False,
+            'initial_vertex': 'A',
+            'final_vertex': 'A',
+            'use_memoization_instead_of_tabulation': True,
+            'output_as': 'length',
+            'skip_checks': False}),
         cls.PropertySpecification('solve_traveling_salesman_problem',
         47,
         True,
@@ -100,7 +105,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         {'compute_path_instead_of_cycle': True,
             'initial_vertex': 'A',
             'final_vertex': 'B',
-            'use_memoization_instead_of_tabulation': True,
+            'use_memoization_instead_of_tabulation': False,
             'output_as': 'length',
             'skip_checks': False})]
 

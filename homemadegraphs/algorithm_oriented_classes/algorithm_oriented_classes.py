@@ -341,11 +341,7 @@ class StateDigraphSolveTSP(object):
     #vertex in its position is an element of the set (and thus part of path)
     initial_number = self.number_by_vertex[initial_vertex]
     final_number = self.number_by_vertex[final_vertex]
-    ##############
-    # Printing as primitive debugging tool
-    # This is used to see the order in which this subproblem is called
-    ##############
-    print(f'\nSOLVING SUBPROBLEM\n{initial_number=}, {initial_vertex=}\n{final_number=}, {final_vertex=}\n{presence_set=} (Total: {sum(presence_set)})')
+    #print(f'\nSOLVING SUBPROBLEM\n{initial_number=}, {initial_vertex=}\n{final_number=}, {final_vertex=}\n{presence_set=} (Total: {sum(presence_set)})')
     if not skip_checks:
       # Expect arg to be a tuple of Booleans with length self.n
       assert len(presence_set) == self.n, 'Internal logic error, presence_set should be as long as the number of vertices'
@@ -368,11 +364,7 @@ class StateDigraphSolveTSP(object):
             verify_validity_on_initialization = not skip_checks)
         # [This is a nondegenerate path, and works fine with arrow addition]
         # If only lengths are asked, we produce None instead of [], for consistency
-        ##############
-        # Printing as primitive debugging tool
-        # This is used to see the order in which this subproblem is called
-        ##############
-        print(f'Solution (one-vertex path): {0}')
+        #print(f'Solution (one-vertex path): {0}')
         if omit_minimizing_path:
           return (0, None)
         else:
@@ -380,11 +372,7 @@ class StateDigraphSolveTSP(object):
       else:
         # In this case there are more than one vertex, thus making it impossible
         #to provide a solution to the subproblem
-        ##############
-        # Printing as primitive debugging tool
-        # This is used to see the order in which this subproblem is called
-        ##############
-        print(f'Solution (impossible set): {math_inf}')
+        #print(f'Solution (impossible set): {math_inf}')
         if omit_minimizing_path:
           return (math_inf, None)
         else:
@@ -451,11 +439,7 @@ class StateDigraphSolveTSP(object):
                     skip_checks = skip_checks)
       # With the loop ended, the best should be recorded [unless omit_minimizing_path
       #is True, in which case whole_path_as_arrows is simply None]
-      ##############
-      # Printing as primitive debugging tool
-      # This is used to see the results
-      ##############
-      print(f'Solution (after recurrence): {min_among_all_last_arrows}')
+      #print(f'Solution (after recurrence): {min_among_all_last_arrows}')
       return (min_among_all_last_arrows, whole_path_as_arrows)
 
   def solve_full_length_subproblems_for_initial_and_final_vertices(self,
@@ -613,21 +597,10 @@ class StateDigraphSolveTSP(object):
               omit_minimizing_path = omit_minimizing_path,
               skip_checks = skip_checks)
       else:
-        ###############
-        # WORK HERE
-        # Need to work on cycles, maybe make most of work depend on finding paths
-        # Also explaining it well is a good thing to do
-        ###############
-        # Here: compute_path_instead_of_cycle == False
-        # We briefly explain the logic
-        # We consider all cycles starting at given cycle
-        # We consider all possibilities for the penultimate vertex of the cycle
-        #(the final vertex, by definition, coincides with the initial)
-        # We pick the best one after closing the cycle with the last arrow
-        #(from the penultimate to the initial/final vertex)
-        # Note also this penultimate cannot be the initial vertex
-        # (To read arrows ending at initial=final, we use get_arrows_in)
-
+        # For cycle the process is similar: it is similar to a path with a last arrow
+        #which closes the cycle. We need to take special care of the last arrow
+        # This is done and explained in methods _prepare_initial_and_final_vertices
+        #and _solve_full_problem_for_cycles
         pre_output = self._solve_full_problem_for_cycles(
             initial_vertex = initial_vertex,
             final_vertex = final_vertex,
@@ -704,7 +677,7 @@ class StateDigraphSolveTSP(object):
       #solve_full_length_subproblems_for_initial_and_final_vertices
       initial_and_final_vertices = []
       for neighbor in self.digraph.get_neighbors_in(initial_vertex):
-        initial_and_final_vertices.append((initial_vertex, arrow.source))
+        initial_and_final_vertices.append((initial_vertex, neighbor))
     # We return initial_and_final vertices as well as the sanitized inputs (which might be None)
     return (initial_vertex, final_vertex, initial_and_final_vertices)
 
@@ -738,8 +711,7 @@ class StateDigraphSolveTSP(object):
   def _solve_full_problem_for_cycles(self, initial_vertex, final_vertex, initial_and_final_vertices,
       use_memoization_instead_of_tabulation, omit_minimizing_path, skip_checks = False):
     '''
-    Subroutine of method solve_full_problem invoked when
-    compute_path_instead_of_cycle is False and use_memoization_instead_of_tabulation is True
+    Subroutine of method solve_full_problem for cycles.
     '''
     # Create useful objects for minimization
     min_distance_overall, min_cycle_overall = self.produce_minimization_constructs()
@@ -757,7 +729,7 @@ class StateDigraphSolveTSP(object):
         skip_checks = skip_checks)
     # We find the minimum for this data, ensuring the weight of the last arrow
     #is also added and factored in
-    for arrow in self.get_arrows_in(initial_vertex):
+    for arrow in self.digraph.get_arrows_in(initial_vertex):
       # To ensure initial_and_final_vertices was correct
       pair = (initial_vertex, arrow.source)
       assert pair in minimizing_data, 'Internal logic error, wrong subproblems solved.'
@@ -778,75 +750,6 @@ class StateDigraphSolveTSP(object):
               verify_validity_on_initialization = True)
     # Return is pre_output which is the best distance and the best cycle
     pre_output = (min_distance_overall, min_cycle_overall)
-    return pre_output
-    
-  def _solve_full_problem_for_cycle_and_tabulation(self, initial_vertex,
-      omit_minimizing_path, skip_checks = False):
-    '''
-    Subroutine of method solve_full_problem invoked when
-    compute_path_instead_of_cycle is False and use_memoization_instead_of_tabulation is False
-    '''
-    # Create useful objects
-    min_distance_overall, min_path_overall = self.produce_minimization_constructs()
-    # We have a initial vertex. We associate to it its number
-    initial_number = self.number_by_vertex[initial_vertex]
-    # In this case we must organize the variables for tabulation
-    # Note that every recurrence of the subproblem is for a path which
-    #is one vertex shorter
-    # Thus the key is working with the presence set, which should be
-    #of ever increasing length, and always include the initial_vertex
-    # We start the "table" (a dict) for the tabulation
-    self._subproblem_solutions = {}
-    # We iterate through the arguments
-    # Recall the first is the number of vertices in path (controlled by presence_set)
-    for length_of_path in range(1, self.n + 1):
-      # All presence sets using a special method
-      right_size_presence_sets = self.produce_boolean_tuples_with_fixed_sum(
-          self.n, length_of_path, output_as_generator = True)
-      for presence_set in right_size_presence_sets:
-        for final_number in range(self.n):
-          # We now verify the arguments make sense
-          # Need initial and final vertex present [controlled by numbers]
-          if presence_set[initial_number] and presence_set[final_number]:
-            # Need arrow from last to initial
-            final_vertex = self.vertex_by_number[final_number]
-            if final_vertex in neighbors_in_as_dict:
-              # In this case we go ahead
-              length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
-                  initial_vertex = initial_vertex,
-                  final_vertex = final_vertex,
-                  presence_set = presence_set,
-                  use_memoization_instead_of_tabulation = False,
-                  omit_minimizing_path = omit_minimizing_path,
-                  skip_checks = skip_checks)
-              # We do the tabulation
-              # (functools_cache would also do it, but storing in a separate variable
-              #is more in line with the proposal of tabulation)
-              # Note the only changing arguments here are presence_set and the last/penultimate vertex
-              #but initial_vertex might change if the problem is about paths instead of cycles, so we include it
-              self._subproblem_solutions[(initial_vertex, final_vertex, presence_set)] = (length_up_to_penultimate, path_up_to_penultimate)
-    # We now look at how to close the cycle. We iterate through the possible arrows
-    # Note that unless there is a last arrow (from last to initial)
-    #it is not possible to complete the cycle (once all vertices are in, that is)
-    for arrow in self.digraph.get_arrows_in(initial_vertex):
-      length_up_to_penultimate, path_up_to_penultimate = self._subproblem_solutions[
-          (initial_vertex, arrow.source, tuple_of_trues)]
-      this_distance = length_up_to_penultimate + arrow.weight
-      if this_distance < min_distance_overall:
-        min_distance_overall = this_distance
-        # We only record the path if needed
-        # That comes from omit_minimining_path which is derived from output_as
-        if omit_minimining_path:
-          min_path_overall = None
-        else:
-          # Create new instance using append_to_path
-          min_path_overall = path_up_to_penultimate.append_to_path(
-              data = arrow, data_type = 'arrow', modify_self = False,
-              skip_checks = skip_checks)
-    # To reinforce that we achieved the minimum we sought, we delete the table
-    del self._subproblem_solutions
-    # Return is pre_output which is the best distance and the best path
-    pre_output = (min_distance_overall, min_path_overall)
     return pre_output
 
   def _prepare_output(self, pre_output, compute_path_instead_of_cycle, output_as,
