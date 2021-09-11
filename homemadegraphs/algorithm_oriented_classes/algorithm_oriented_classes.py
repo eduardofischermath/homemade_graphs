@@ -627,16 +627,14 @@ class StateDigraphSolveTSP(object):
         #(from the penultimate to the initial/final vertex)
         # Note also this penultimate cannot be the initial vertex
         # (To read arrows ending at initial=final, we use get_arrows_in)
-        if use_memoization_instead_of_tabulation:
-          pre_output = self._solve_full_problem_for_cycle_and_memoization(
-              initial_vertex = initial_vertex,
-              omit_minimizing_path = omit_minimizing_path,
-              skip_checks = skip_checks)
-        else:
-          pre_output = self._solve_full_problem_for_cycle_and_tabulation(
-              initial_vertex = initial_vertex,
-              omit_minimizing_path = omit_minimizing_path,
-              skip_checks = skip_checks)
+
+        pre_output = self._solve_full_problem_for_cycles(
+            initial_vertex = initial_vertex,
+            final_vertex = final_vertex,
+            initial_and_final_vertices = initial_and_final_vertices,
+            use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
+            omit_minimizing_path = omit_minimizing_path,
+            skip_checks = skip_checks)
       # Prepares output
       final_output = self._prepare_output(pre_output, compute_path_instead_of_cycle, output_as)
       return final_output
@@ -644,7 +642,9 @@ class StateDigraphSolveTSP(object):
   def _prepare_initial_and_final_vertices(self, compute_path_instead_of_cycle,
       initial_vertex, final_vertex, skip_checks = False):
     '''
-    Prepares possible values for initial_vertex and final_vertex for use in solve_full_problem method.
+    Prepares possible values for initial_and_final_vertices to be used in
+    method solve_full_length_subproblems_for_initial_and_final_vertices,
+    and also sanitizes initial_vertex and final_vertex.
     '''
     # We first sanitize the input vertices (if not None)
     if initial_vertex is not None:
@@ -679,21 +679,32 @@ class StateDigraphSolveTSP(object):
             initial_and_final_vertices.append((vertex, final_vertex))
     else:
       # If we want a cycle, a specified initial_vertex is only for convenience
-      #of the output (will be displayed with that initial vertex)
+      #of the output as the cycle will be essentially the same, only rotated
+      #(but will be displayed with that initial vertex nonetheless)
       # There should be no specified final_vertex, unless it is equal to initial_vertex,
       #which would be a redundant way to reinforce the request for a cycle
       if initial_vertex is None:
-        # As mentioned, final_vertex should be None, otherwise it introduces potential to confusion
-        #[would final_vertex mean the final or the last before the final?]
-        assert final_vertex is None, 'Cannot specify end of cycle if start is not specified'
         # In this case we pick a "random one" to be initial, for the reasons above
         #[it matters only for exhibition, not for calculation]
         initial_vertex = self.vertex_by_number[0]
-        final_vertex = initial_vertex
+        # As mentioned, final_vertex should be None, otherwise it introduces potential to confusion
+        #[would final_vertex mean the final or the last before the final?]
+        assert final_vertex is None, 'Cannot specify end of cycle if start is not specified'
       else:
         assert final_vertex == initial_vertex, 'Cycles start and end at same place'
-      # Thus, a cycle will always have the same initial and final vertex
-      initial_and_final_vertices = [(initial_vertex, final_vertex)] # Both are the same
+      # To make it compatible with solve_full_length_subproblems_for_initial_and_final_vertices,
+      #(done via tabulation) we set final_vertex = None
+      final_vertex = None
+      # The variable initial_and_final_vertices will be used to discriminate the boundary
+      #conditions in solve_full_length_subproblems_for_initial_and_final_vertices
+      # In particular, note initial_and_final_vertices != [(initial_vertex, final_vertex)]
+      # This is done with the arrows into the initial_vertex. (Though we use the
+      #neighbors to avoid repetitions). They are supposed to close the cycle,
+      #so the source of the arrow is exactly a possible final vertex for
+      #solve_full_length_subproblems_for_initial_and_final_vertices
+      initial_and_final_vertices = []
+      for neighbor in self.digraph.get_neighbors_in(initial_vertex):
+        initial_and_final_vertices.append((initial_vertex, arrow.source))
     # We return initial_and_final vertices as well as the sanitized inputs (which might be None)
     return (initial_vertex, final_vertex, initial_and_final_vertices)
 
@@ -724,14 +735,33 @@ class StateDigraphSolveTSP(object):
     pre_output = (min_distance_overall, min_path_overall)
     return pre_output
 
-  def _solve_full_problem_for_cycle_and_memoization(self, initial_vertex,
-      omit_minimizing_path, skip_checks = False):
+  def _solve_full_problem_for_cycles(self, initial_vertex, final_vertex, initial_and_final_vertices,
+      use_memoization_instead_of_tabulation, omit_minimizing_path, skip_checks = False):
     '''
     Subroutine of method solve_full_problem invoked when
     compute_path_instead_of_cycle is False and use_memoization_instead_of_tabulation is True
     '''
-    # Create useful objects
+    # Create useful objects for minimization
     min_distance_overall, min_path_overall = self.produce_minimization_constructs()
+    # To solve the problem, first we consider a path which is one vertex short
+    #of closing the cycle
+    # We compute all possibilities of full length subproblems by obtaining the initial
+    #and final vertices from the arrows arriving at initial vertex; note these
+    #arrows are captured correctly by initial_and_final_vertices
+    minimizing_data = self.solve_full_length_subproblems_for_initial_and_final_vertices(
+        initial_vertex = initial_vertex,
+        final_vertex = final_vertex,
+        initial_and_final_vertices = initial_and_final_vertices,
+        use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
+        omit_minimizing_path = omit_minimizing_path,
+        skip_checks = skip_checks)
+    # We find the minimum for this data, ensuring the weight of the last arrow
+    #is also added and factored in
+    for arrow in self.get_arrows_in(initial_vertex):
+      # To ensure initial_and_final_vertices was correct
+      assert
+      
+    
     # In this case a direct call does the job (but we need to search all last arrows)
     # Note that this is easier as an algorithm, but might consume more memory
     # (Also has the risk of breaking the default Python shell recursion limit)
