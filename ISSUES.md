@@ -220,14 +220,27 @@ testing multiple properties of multiple objects.
 
 ## ISSUE #0038 OPEN
 
-Changed StateDigraphSolveTSP to only essentially handle cycles.
+Change StateDigraphSolveTSP to only essentially handle cycles.
 In case of paths, modify graph to have a new vertex. This vertex would have
 arrows of weight 0 going into all original initial vertices and receiving
 arrows of weight 0 from all final vertices. The solution of the path problem
 would be the solution of the cycle problem for the extended graph (removing
 the new vertex).
+Alternatively, create a common method which serves both paths and cycles
+on collecting solutions for all the pairs of initial and final vertices.
 
 ## ISSUE #0039 OPEN
 
 Consider splitting off the determination of omit_minimizing_path from
 StateDigraphSolveSTP._produce_auxiliary_constructs into separate method
+
+## ISSUE #0040 OPEN
+
+Consider option the vertices of a VertexPath or VertexCycle using their names only.
+That is, generate 'A' instead of Vertex(name='A').
+Can also do this on other classes such as Digraph and subclasses. For example,
+a method called get_vertex_names.
+(Other option is to implement classes such as EnhancedVertex, EnhancedArrow
+or EnhancedEdge, which are classes for the namedtuples Vertex, Arrow, Edge.
+This way, namedtuples can be used for expensive computations, and the enhanced
+versions add flexibility to the concepts.)
