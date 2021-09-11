@@ -229,10 +229,11 @@ the new vertex).
 Alternatively, create a common method which serves both paths and cycles
 on collecting solutions for all the pairs of initial and final vertices.
 
-## ISSUE #0039 OPEN
+## ISSUE #0039 COMPLETE
 
-Consider splitting off the determination of omit_minimizing_path from
+The determination of omit_minimizing_path was split off from
 StateDigraphSolveSTP._produce_auxiliary_constructs into separate method
+should_omit_minimizing_path
 
 ## ISSUE #0040 OPEN
 
