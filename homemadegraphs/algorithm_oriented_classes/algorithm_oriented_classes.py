@@ -605,18 +605,11 @@ class StateDigraphSolveTSP(object):
         # For all vertices but the initial_vertex, we compute the possible
         #paths starting on initial_vertex, passing through all others exactly once
         #(no non-trivial cycles allowed) and ending on final_vertex
-        if use_memoization_instead_of_tabulation:
-          pre_output = self._solve_full_problem_for_path_and_memoization(
+        pre_output = self._solve_full_problem_for_paths(
               initial_vertex = initial_vertex,
               final_vertex = final_vertex,
               initial_and_final_vertices = initial_and_final_vertices,
-              omit_minimizing_path = omit_minimizing_path,
-              skip_checks = skip_checks)
-        else:
-          pre_output = self._solve_full_problem_for_path_and_tabulation(
-              initial_vertex = initial_vertex,
-              final_vertex = final_vertex,
-              initial_and_final_vertices = initial_and_final_vertices,
+              use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
               omit_minimizing_path = omit_minimizing_path,
               skip_checks = skip_checks)
       else:
@@ -703,38 +696,12 @@ class StateDigraphSolveTSP(object):
       initial_and_final_vertices = [(initial_vertex, final_vertex)] # Both are the same
     # We return initial_and_final vertices as well as the sanitized inputs (which might be None)
     return (initial_vertex, final_vertex, initial_and_final_vertices)
-        
-  def _solve_full_problem_for_path_and_memoization(self, initial_vertex,
-      final_vertex, initial_and_final_vertices, omit_minimizing_path, skip_checks = False):
-    '''
-    Subroutine of method solve_full_problem invoked when
-    compute_path_instead_of_cycle is True and use_memoization_instead_of_tabulation is True
-    '''
-    # Create useful objects
-    min_distance_overall, min_path_overall = self.produce_minimization_constructs()
-    # We compute all possibilities, and record the best for each pair in a dict
-    minimizing_data = self.solve_full_length_subproblems_for_initial_and_final_vertices(
-        initial_vertex = initial_vertex,
-        final_vertex = final_vertex,
-        initial_and_final_vertices = initial_and_final_vertices,
-        use_memoization_instead_of_tabulation = True,
-        omit_minimizing_path = omit_minimizing_path,
-        skip_checks = skip_checks)
-    for pair in initial_and_final_vertices:
-      local_distance, local_path = minimizing_data[pair]
-      # Since initial_and_final_vertices might not be a singleton:
-      if local_distance < min_distance_overall:
-        min_distance_overall = local_distance
-        min_path_overall = local_path
-    # Return is pre_output which is the best distance and the best path
-    pre_output = (min_distance_overall, min_path_overall)
-    return pre_output
 
-  def _solve_full_problem_for_path_and_tabulation(self, initial_vertex, final_vertex,
-      initial_and_final_vertices, omit_minimizing_path, skip_checks):
+  def _solve_full_problem_for_paths(self, initial_vertex, final_vertex,
+      initial_and_final_vertices, use_memoization_instead_of_tabulation,
+      omit_minimizing_path, skip_checks):
     '''
-    Subroutine of method solve_full_problem invoked when
-    compute_path_instead_of_cycle is True and use_memoization_instead_of_tabulation is False
+    Subroutine of method solve_full_problem for paths.
     '''
     # Create useful objects
     min_distance_overall, min_path_overall = self.produce_minimization_constructs()
@@ -743,7 +710,7 @@ class StateDigraphSolveTSP(object):
         initial_vertex = initial_vertex,
         final_vertex = final_vertex,
         initial_and_final_vertices = initial_and_final_vertices,
-        use_memoization_instead_of_tabulation = False,
+        use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
         omit_minimizing_path = omit_minimizing_path,
         skip_checks = skip_checks)
     # Simply find the shortest
