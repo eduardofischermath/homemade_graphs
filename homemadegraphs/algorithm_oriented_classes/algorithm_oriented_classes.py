@@ -742,7 +742,7 @@ class StateDigraphSolveTSP(object):
     compute_path_instead_of_cycle is False and use_memoization_instead_of_tabulation is True
     '''
     # Create useful objects for minimization
-    min_distance_overall, min_path_overall = self.produce_minimization_constructs()
+    min_distance_overall, min_cycle_overall = self.produce_minimization_constructs()
     # To solve the problem, first we consider a path which is one vertex short
     #of closing the cycle
     # We compute all possibilities of full length subproblems by obtaining the initial
@@ -759,37 +759,25 @@ class StateDigraphSolveTSP(object):
     #is also added and factored in
     for arrow in self.get_arrows_in(initial_vertex):
       # To ensure initial_and_final_vertices was correct
-      assert
-      
-    
-    # In this case a direct call does the job (but we need to search all last arrows)
-    # Note that this is easier as an algorithm, but might consume more memory
-    # (Also has the risk of breaking the default Python shell recursion limit)
-    for arrow in self.get_arrows_in(initial_vertex):
-      if arrow.source != initial_vertex:
-        # Compute the paths from initial to penultimate [using the last arrow]
-        length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
-            initial_vertex = initial_vertex,
-            final_vertex = arrow.source,
-            presence_set = tuple_of_trues,
-            use_memoization_instead_of_tabulation = True,
-            omit_minimizing_path = omit_minimizing_path,
-            skip_checks = skip_checks)
-        # Comparisons involves always the last edge, whose weight must be factored in
-        #to close the cycle
-        this_distance = length_up_to_penultimate + arrow.weight
-        if this_distance < min_distance_overall:
-          min_distance_overall = this_distance
-          # To save processing time we only record the path if required
-          if output_as.lower() == 'length':
-            min_path_overall = None
-          else:
-            # We create a new path instance using append_to_path
-            min_path_overall = path_up_to_penultimate.append_to_path(
-                data = arrow, data_type = 'arrow', modify_self = False,
-                verify_validity_on_initiation = not skip_checks)
-    # Return is pre_output which is the best distance and the best path
-    pre_output = (min_distance_overall, min_path_overall)
+      pair = (initial_vertex, arrow.source)
+      assert pair in minimizing_data, 'Internal logic error, wrong subproblems solved.'
+      local_distance, local_path = minimizing_data[pair]
+      # To minimize the cycle we need to add the weight of the last arrow
+      if local_distance + arrow.weight < min_distance_overall:
+        min_distance_overall = local_distance + arrow.weight
+        if omit_minimizing_path:
+          min_cycle_overall = None
+        else:
+          # We also need to extend the path (now cycle) to include the arrow
+          # Since it changes from VertexPath to VertexCycle we create a new instance
+          all_previous_arrows = local_path.get_arrows()
+          min_cycle_overall = VertexCycle(
+              underlying_digraph = self.digraph,
+              data = all_previous_arrows + [arrow],
+              data_type = 'arrows',
+              verify_validity_on_initialization = True)
+    # Return is pre_output which is the best distance and the best cycle
+    pre_output = (min_distance_overall, min_cycle_overall)
     return pre_output
     
   def _solve_full_problem_for_cycle_and_tabulation(self, initial_vertex,
