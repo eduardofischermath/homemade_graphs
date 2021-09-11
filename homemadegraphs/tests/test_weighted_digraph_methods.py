@@ -100,7 +100,7 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         {'compute_path_instead_of_cycle': True,
             'initial_vertex': 'A',
             'final_vertex': 'B',
-            'use_memoization_instead_of_tabulation': False,
+            'use_memoization_instead_of_tabulation': True,
             'output_as': 'length',
             'skip_checks': False})]
 
