@@ -250,9 +250,9 @@ class VertexPath(object):
     # First we ensure vertices and arrows do belong to the digraph
     # Note we use _vertices and _arrows instead of get_vertices and get_arrows
     # (It makes more sense due to the intent of the method)
-    for vertex in self._vertices():
+    for vertex in self._vertices:
       assert vertex in self.underlying_digraph
-    for arrow in self._arrows():
+    for arrow in self._arrows:
       # To facilitate searching for the arrow, we use the self._neighbors_out
       assert arrow in self.underlying_digraph.get_arrows_out(arrow.source)
     # We verify it is indeed a path, and that the vertices match with the arrows
