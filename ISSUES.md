@@ -106,7 +106,7 @@ instead of src.vertices_arrows_and_edges.Vertex or anything like that.
 "import homemade_graphs" instead of "from homemade_graphs import \*".)
 (P.S.: In MarkDown, \* triggers italic, so we precede it by a backslash.)
 
-## ISSUE #0018 ONGOING
+## ISSUE #0018 COMPLETE
 
 Work on methods in Graph/Digraph connected to TSP problem.
 (Right now most of the work is in the class StateDigraphSolveTSP
@@ -133,7 +133,7 @@ Note: always checks arrows
 
 Design way to verify two (di)graphs are isomorphic.
 
-## ISSUE #0023 OPEN
+## ISSUE #0023 ONGOING
 
 Design good ways to print a (di)graph. The solution can be a textual or a
 visual representations.
@@ -172,7 +172,7 @@ Work on sanitize_arrow_or_edge to have an optional argument
 also_sanitize_vertices which, if True, orders sanitization of the vertices
 (that is, the first and second items of the Arrow/Edge namedtuple)
 
-## ISSUE #0030 OPEN
+## ISSUE #0030 COMPLETE
 
 Make a better Digraph.__repr__ to write the name of the class without
 <class ...>.
@@ -187,6 +187,7 @@ Motivation: traveling salesman problem.
 ## ISSUE #0032 OPEN
 
 Find consistent way to raise AssertionError and other Errors in whole code.
+Maybe also do good Warnings in good places.
 
 ## ISSUE #0033 OPEN
 
@@ -201,10 +202,11 @@ For example, the current method "get_arrows_out" does not indicate in its name
 whether it returns self._arrows_out or the value of self._arrows_out at
 a specific key/vertex.
 
-## ISSUE #0035 OPEN
+## ISSUE #0035 ONGOING
 
 Since many methods have many arguments, consider always "towering" them
 (that is, putting one in each line, as done for a few function/method calls)
+in their definitions
 
 ## ISSUE #0036 COMPLETE
 
@@ -213,21 +215,26 @@ a class for initialization (that tests all ways something can be initialized
 and whether they return the correct results) which is subclassed and
 applied in different contexts (p. ex. Digraphs, Graphs, empty digraph)
 
-## ISSUE #0037 OPEN
+## ISSUE #0037 ONGOING
 
-Create even more categories/generic classes for testing. For example,
-testing multiple properties of multiple objects.
+Create template for testing classes (template meaning an "abstract" class)
+with multiple objects and methods. Test each object against a subset of the methods,
+trying to match with specification.
+Probably need a class more complicated than GenericObjectTestCase,
+and maybe more complex PropertySpecifications.
 
-## ISSUE #0038 ONGOING
+## ISSUE #0038 COMPLETE
 
+Created a common method which serves both paths and cycles
+on collecting solutions for all the pairs of initial and final vertices.
+
+Original, discarded idea (might be implemented but it is unlikely):
 Change StateDigraphSolveTSP to only essentially handle cycles.
 In case of paths, modify graph to have a new vertex. This vertex would have
 arrows of weight 0 going into all original initial vertices and receiving
 arrows of weight 0 from all final vertices. The solution of the path problem
 would be the solution of the cycle problem for the extended graph (removing
 the new vertex).
-Alternatively, create a common method which serves both paths and cycles
-on collecting solutions for all the pairs of initial and final vertices.
 
 ## ISSUE #0039 COMPLETE
 
