@@ -24,6 +24,7 @@
 # External imports
 ########################################################################
 
+from math import inf as math_inf
 from unittest import main as unittest_main
 #from unittest import skip as unittest_skip
 #from unittest import TestCase as unittest_TestCase
@@ -105,6 +106,16 @@ class TestWeightedDigraphMethods(GenericPropertyTestCase):
         {'compute_path_instead_of_cycle': True,
             'initial_vertex': 'A',
             'final_vertex': 'B',
+            'use_memoization_instead_of_tabulation': False,
+            'output_as': 'length',
+            'skip_checks': False}),
+        cls.PropertySpecification('solve_traveling_salesman_problem',
+        math_inf,
+        True,
+        tuple(),
+        {'compute_path_instead_of_cycle': True,
+            'initial_vertex': 'A',
+            'final_vertex': 'C',
             'use_memoization_instead_of_tabulation': False,
             'output_as': 'length',
             'skip_checks': False})]
