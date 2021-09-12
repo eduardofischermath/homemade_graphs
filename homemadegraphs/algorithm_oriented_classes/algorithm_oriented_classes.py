@@ -24,7 +24,7 @@
 # External imports
 ########################################################################
 
-from itertools import combinations as itertools_combinations
+from itertools import product as itertools_product
 from math import inf as math_inf
 # Since cache from functools was introduced in Python version >= 3.9,
 #we check for it. If not new enough, we go with lru_cache(maxsize = None)
@@ -43,7 +43,8 @@ else:
 # Internal imports
 ########################################################################
 
-from ..paths_and_cycles import VertexPath, VertexCycle
+from homemadegraphs.paths_and_cycles import VertexPath, VertexCycle
+from homemadegraphs.vertices_arrows_and_edges import OperationsVAE
 
 ########################################################################
 # Class StateDigraphGetCC
@@ -179,7 +180,7 @@ class StateGraphGetCC(object):
     # To make it easy, let's do component 0, 1, 2, and so on
     # Two vertices will have the same label iff they are in the same component
     # Let's do it with a dictionary. We start with the None label
-    self.components = {vertex:None for vertex in self.get_vertices()}
+    self.components = {vertex:None for vertex in self._graph.get_vertices()}
     # We assign labels to unlabeled vertices, starting from 0
     self.current_label = 0
     # We also control the vertices with each existing label using a dict
@@ -251,23 +252,84 @@ class StateDigraphSolveTSP(object):
     self.number_by_vertex = {}
     self.vertex_by_number = {}
     # Note Vertex is a namedtuple and thus it is hasheable
-    for idx, vertex in enumerate(self.get_vertices()):
-      number_by_vertex[vertex] = idx
-      vertex_by_number[idx] = vertex
+    for idx, vertex in enumerate(self.digraph.get_vertices()):
+      self.number_by_vertex[vertex] = idx
+      self.vertex_by_number[idx] = vertex
+
+  @staticmethod
+  def produce_boolean_tuples_with_fixed_sum(given_length, given_sum,
+      output_as_generator = False):
+    '''
+    Returns the tuples of True/False with a specific number of each.
+    
+    Used to generate presence sets with a specific number of total vertices
+    [given_length] and a specific number of present vertices [given_sum]
+    '''
+    # We generate all tuples of given length with True/False values
+    generator_of_all_tuples = itertools_product((True, False), repeat = given_length)
+    # We restrict the tuples to the ones with given number of True and Falses
+    # (Given by sum, meaning this sum is the number of True values)
+    # We use a Boolean lambda function and a filter
+    filter_criterion = lambda tuplee: (sum(tuplee) == given_sum)
+    generator_for_needed_tuples = filter(filter_criterion, generator_of_all_tuples)
+    if output_as_generator:
+      return generator_for_needed_tuples
+    else:
+      return list(generator_for_needed_tuples)
+
+  def produce_minimization_constructs(self):
+    '''
+    Produces useful objects for path minimization.
+    
+    More specifically, it creates:
+    
+    min_distance_overall, which is math.inf
+    min_path_overall, which is None
+    '''
+    # We also create the variables for initialize the variables in
+    #the path/cycle minimization problem
+    # If no path is valid, it should be math_inf, so that is how we start
+    min_distance_overall = math_inf
+    min_path_overall = None
+    return (min_distance_overall, min_path_overall)
+
+  def produce_tuple_of_trues(self):
+    # Tuple of trues useful for calling methods (operates as a "presence set")
+    # produce_boolean_tuples_with_fixed_sum would be too costly, so we do it directly
+    list_with_tuple_of_trues = list(itertools_product((True,), repeat = self.n))
+    tuple_of_trues = list_with_tuple_of_trues[0]
+    return tuple_of_trues
+
+  def should_omit_minimizing_paths(self, output_as):
+    '''
+    Returns whether the full problem in class requires a specific path given.
+    '''
+    # Depending on the output option the intermediate paths will be computed or not
+    # (If omit_minimizing_path is True, min_path_overall is never updated)
+    if output_as.lower() in ['length']:
+      omit_minimizing_path = True
+    else:
+      omit_minimizing_path = False
+    return omit_minimizing_path
 
   @functools_cache
   def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
-      use_top_down_instead_of_bottom_up = False, omit_minimizing_path = False, skip_checks = False):
+      use_memoization_instead_of_tabulation = False, omit_minimizing_path = False, skip_checks = False):
     '''
     Computes the minimal path length given specific parameters: given
-    initial and final vertices and a set of vertices [given by a tuple of
-    Booleans], finds minimal among paths traveling once though each vertex.
+    initial and final vertices and a set of vertices of underlying graph
+    self.digraph [given by a tuple of Booleans], finds minimal among all paths
+    traveling once though each vertex satisfying the boundary conditions.
     
     Returns the minimal weight of such path, and also, if requested,
-    also one of these minimizing paths as VertexPath instance. (If request is
-    for its ommission, produces None as such path to fill the space.)
+    also one of these minimizing paths as VertexPath instance. [If request is
+    for its ommission, produces None as such path to fill the spot.]
     
-    [Note this method is only about paths without self-crossings, never cycles.]
+    [Note this method is only about paths without any self-crossings;
+    the path must be injective what also rules out any cycles. In particular,
+    if the initial and final vertices are the same, the problem has no solution
+    (returning infinite distance and None as path) unless this
+    initial-and-final-vertex is the only vertex in the subproblem.]
     '''
     # Our subproblems are: Consider we have a fixed initial vertex
     #(which might be passed as argument as source_vertex), a fixed
@@ -279,338 +341,451 @@ class StateDigraphSolveTSP(object):
     #vertex in its position is an element of the set (and thus part of path)
     initial_number = self.number_by_vertex[initial_vertex]
     final_number = self.number_by_vertex[final_vertex]
+    #print(f'\nSOLVING SUBPROBLEM\n{initial_number=}, {initial_vertex=}\n{final_number=}, {final_vertex=}\n{presence_set=} (Total: {sum(presence_set)})')
     if not skip_checks:
-      # Expect arg to be a tuple of Booleans with length n
-      assert len(presence_set) == self.n, 'Internal logic error'
+      # Expect arg to be a tuple of Booleans with length self.n
+      assert len(presence_set) == self.n, 'Internal logic error, presence_set should be as long as the number of vertices'
       # Check that initial_vertex and final_vertex are present [i. e. True]
-      assert presence_set[initial_number], 'Internal logic error'
-      assert presence_set[final_number], 'Internal logic error'
+      assert presence_set[initial_number], 'Internal logic error, initial vertex must be in presence set'
+      assert presence_set[final_number], 'Internal logic error, final vertex must be in presence set'
     # We get rid of the boundary cases
     # We impose that if the final vertex coincides with the initial vertex,
-    #the only possible path is the no-arrow path (of length 0)
+    #the only possible path is the no-arrow path (of length 0 arrows)
     if initial_number == final_number:
-      # Want only that vertex as True, otherwise no path (distance math_inf)
+      # Want that vertex as the only True, otherwise no path (distance math_inf)
       sought_presence_set = tuple((idx == initial_number) for idx in range(self.n))
       if presence_set == sought_presence_set:
         # No previous vertex, so previous path should be the "quasi empty path" to work well later
         # By "quasi empty path" we mean the path with initial_vertex and no arrows
-        quasi_empty_path = VertexPath(data = [initial_vertex], data_type = 'vertices',
+        quasi_empty_path = VertexPath(
+            underlying_digraph = self.digraph,
+            data = [initial_vertex],
+            data_type = 'vertices',
             verify_validity_on_initialization = not skip_checks)
-        # (This is a nondegenerate path, and works fine with arrow addition)
+        # [This is a nondegenerate path, and works fine with arrow addition]
         # If only lengths are asked, we produce None instead of [], for consistency
+        #print(f'Solution (one-vertex path): {0}')
         if omit_minimizing_path:
           return (0, None)
         else:
           return (0, quasi_empty_path)
       else:
+        # In this case there are more than one vertex, thus making it impossible
+        #to provide a solution to the subproblem
+        #print(f'Solution (impossible set): {math_inf}')
         if omit_minimizing_path:
           return (math_inf, None)
         else:
-          return (math_inf, quasi_empty_path)
+          return (math_inf, None)
     else:
+      # In this case final_number != initial_number
       # We essentially recur on "previous subproblems"
       # That is, for all arrows landing on final_vertex, we ask which
       #could be the last one, and pick the one producing the smallest
       #weight (assuming we solve the subproblems without this last vertex)
       min_among_all_last_arrows = math_inf
       whole_path_as_arrows = None
-      for arrow in self.digraph.get_arrows_in(final_vertex):
-        # arrow has information arrow.source, arrow.target which is final
-        #vertex, and arrow.weight.
-        # We verify the source does belong to the presence_set
-        arrow_source_as_number = number_by_vertex[arrow.source]
-        if presence_set[arrow_source_as_number]:
-          # We "remove" arrow.source by flipping True to False
-          # We need to create a temporary mutable object first
-          presence_set_as_list = list(presence_set)
-          presence_set_as_list[arrow_source_as_number] = False
-          last_off_presence_set = tuple(presence_set_as_list)
-          # Total weight is then the solution of that problem,
-          #plus the weight of this last arrow
-          # Note that we also keep a list of arrows going back to start
-          # It's probably easier than start a VertexPath instance every time
-          if use_top_down_instead_of_bottom_up:
-            # In this case we simply call the suproblem method again
-            solution_of_smaller_subproblem = self.solve_subproblem(
-                initial_vertex = initial_vertex,
-                final_vertex = arrow.source,
-                presence_set = last_off_presence_set,
-                omit_minimizing_path = omit_minimizing_path,
-                skip_checks = skip_checks)
-          else:
-            # In this case the result should be stored in self._table_of_results
-            solution_of_smaller_subproblem = self._table_of_results[
-                (initial_vertex, final_vertex, last_off_presence_set)]
-          previous_length, previous_path = solution_of_smaller_subproblem
-          this_distance = arrow.weight + previous_length
-          if this_distance < min_among_all_last_arrows:
-            # Update the minimal distance, if this is minimal
-            min_among_all_last_arrows = this_distance
-            if omit_minimizing_path:
-              # To save memory during execution, if we only want the minimal length
-              #we will not conserve information on how to reconstruct the path
-              # We use the very default object None for this objective
-              whole_path_as_arrows = None
+      for last_arrow in self.digraph.get_arrows_in(final_vertex):
+        # We need to exclude self-arrows as they might throw the algorithm into a loop
+        if not OperationsVAE.is_self_arrow_or_self_edge(last_arrow,
+            use_edges_instead_of_arrows = False,
+            require_namedtuple = False,
+            request_vertex_sanitization = False,
+            require_vertex_namedtuple = False):
+          # last_arrow has information last_arrow.source, last_arrow.target
+          #which is final_vertex, and last_arrow.weight.
+          # We verify the source does belong to the presence_set
+          last_arrow_source_as_number = self.number_by_vertex[last_arrow.source]
+          if presence_set[last_arrow_source_as_number]:
+            # We "remove" final_number by flipping True to False
+            # We need to create a temporary mutable object first
+            presence_set_as_list = list(presence_set)
+            presence_set_as_list[final_number] = False
+            last_off_presence_set = tuple(presence_set_as_list)
+            # Total weight is then the solution of that problem,
+            #plus the weight of this last arrow
+            # Note that adding this last arrow is done using a VertexPath method
+            # [It's probably easier than build a VertexPath instance every time]
+            if use_memoization_instead_of_tabulation:
+              # In this case we simply call the suproblem method again
+              solution_of_smaller_subproblem = self.solve_subproblem(
+                  initial_vertex = initial_vertex,
+                  final_vertex = last_arrow.source,
+                  presence_set = last_off_presence_set,
+                  use_memoization_instead_of_tabulation = True,
+                  omit_minimizing_path = omit_minimizing_path,
+                  skip_checks = skip_checks)
             else:
-              # Need to update the last arrow (last arrow in path)
-              # We will use the VertexPath method, returning a new instance
-              whole_path_as_arrows = previous_path.append_to_path(data = arrow,
-                  data_type = 'arrow', modify_self = False, skip_checks = skip_checks)
-      # With the loop ended, the best should be recorded
-      # (None whole_path_as_arrows contains None if output_as is 'length')
-      return (best_distance, whole_path_as_arrows)
+              # In this case the result should be stored in self._subproblem_solutions
+              solution_of_smaller_subproblem = self._subproblem_solutions[
+                  (initial_vertex, last_arrow.source, last_off_presence_set)]
+            previous_length, previous_path = solution_of_smaller_subproblem
+            this_distance = last_arrow.weight + previous_length
+            # Update the minimal distance, if it is minimal
+            if this_distance < min_among_all_last_arrows:
+              min_among_all_last_arrows = this_distance
+              if omit_minimizing_path:
+                # To save memory during execution, if we only want the minimal length
+                #we will not conserve information on how to reconstruct the path
+                # We use the very default object None for this objective
+                whole_path_as_arrows = None
+              else:
+                # Need to update the last arrow (last arrow in path)
+                # We will use the VertexPath method, returning a new instance
+                whole_path_as_arrows = previous_path.append_to_path(
+                    data = arrow,
+                    data_type = 'arrow',
+                    modify_self = False,
+                    skip_checks = skip_checks)
+      # With the loop ended, the best should be recorded [unless omit_minimizing_path
+      #is True, in which case whole_path_as_arrows is simply None]
+      #print(f'Solution (after recurrence): {min_among_all_last_arrows}')
+      return (min_among_all_last_arrows, whole_path_as_arrows)
+
+  def solve_full_length_subproblems_for_initial_and_final_vertices(self,
+      initial_vertex, final_vertex, initial_and_final_vertices,
+      use_memoization_instead_of_tabulation, omit_minimizing_path, skip_checks = False):
+    '''
+    Solves the subproblems for paths of maximum length (goes through all vertices),
+    given the specified pairs of initial and final vertices [the boundary conditions].
+    
+    Returns a dictionary in which the keys are the pairs of possible initial
+    and final vertices, and whose values are the optimizing distances and paths.
+    
+    SEE ALSO: solve_subproblem
+    '''
+    # Useful construct
+    tuple_of_trues = self.produce_tuple_of_trues()
+    # Create empty dict
+    solutions = {}
+    if use_memoization_instead_of_tabulation:
+      # In this case initial_vertex and final_vertex are not needed
+      del initial_vertex, final_vertex
+      for pair in initial_and_final_vertices:
+        # In this case just do the calls and store in the right dict key
+        # [Dynamic programming [memoization] is automatically done within solve_subproblem
+        #due to functools.cache]
+        local_initial_vertex, local_final_vertex = pair
+        local_distance, local_path = self.solve_subproblem(
+            initial_vertex = local_initial_vertex,
+            final_vertex = local_final_vertex,
+            presence_set = tuple_of_trues,
+            use_memoization_instead_of_tabulation = True,
+            omit_minimizing_path = omit_minimizing_path,
+            skip_checks = skip_checks)
+        solutions[pair] = (local_distance, local_path)
+    else:
+      # In this case we create the solution of all subproblems, even the
+      #ones smaller than full length, making use of tabulation
+      # The table (a dictionary) for the tabulation process:
+      self._subproblem_solutions = {}
+      # Note that tabulation is done in increasing order of number of vertices present
+      # That is, the "size" (number of Trues) of presence_set
+      for length_of_path in range(1, self.n + 1):
+        # We find all presence sets of size length_of_path
+        right_size_presence_sets = self.produce_boolean_tuples_with_fixed_sum(
+            self.n, length_of_path, output_as_generator = True)
+        for presence_set in right_size_presence_sets:
+          # To determine initial_vertex and final_vertex passed to subproblem
+          #[note final_vertex is not the same as the one or None given to
+          #solve_full_problem, since there we do a recursion on the last vertex]
+          #we will scan through all possible values but only compute the subproblem
+          #when the values make sense and are useful
+          for local_initial_index in range(self.n):
+            for local_final_index in range(self.n):
+              local_initial_vertex = self.vertex_by_number[local_initial_index]
+              local_final_vertex = self.vertex_by_number[local_final_index]
+              # We would like to tabulate only cases that matter.
+              # However, sometimes a recursion asks the solution of a subproblem
+              #which obviously has no solution (for example in violation of
+              #any condition below). In this case it becomes necessary,
+              #for the recursion process, to have such entries stored in the
+              #table as problems without solution, that is, (math.inf, None)
+              # We control it using the variable: is_subproblem_certainly_impossible
+              is_subproblem_certainly_impossible = False
+              # Eliminate nontrivial [more than one vertex] cycles:
+              if length_of_path == 1 or local_initial_index != local_final_index:
+                # Ensure the vertices corresponding to the indices are present in presence_set
+                if presence_set[local_initial_index] and presence_set[local_final_index]:
+                  # We now check that the local_initial_index correspond 
+                  #to a valid choice under the initial_vertex input
+                  if initial_vertex is None or local_initial_vertex == initial_vertex:
+                    # If the path is full-sized, the local_final_vertex variable
+                    #has to match the final_vertex input (unless this is None)
+                    if (length_of_path < self.n) or (
+                        final_vertex is None or local_final_vertex == final_vertex):
+                      # We compute the value and store it on the table
+                      local_min_distance, local_min_path = self.solve_subproblem(
+                          initial_vertex = local_initial_vertex,
+                          final_vertex = local_final_vertex,
+                          presence_set = presence_set,
+                          use_memoization_instead_of_tabulation = False,
+                          omit_minimizing_path = omit_minimizing_path,
+                          skip_checks = skip_checks)
+                      self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)] = (
+                          local_min_distance, local_min_path)
+                    else:
+                      # For a full-length path, local_final_vertex has to match the final_vertex input
+                      is_subproblem_certainly_impossible = True
+                  else:
+                    # Initial vertex has to always match the specified (unless initial_vertex is None)
+                    is_subproblem_certainly_impossible = True
+                else:
+                  # Initial and final vertices don't belong to presence set
+                  is_subproblem_certainly_impossible = True
+              else:
+                # More than one vertex, initial and final different
+                is_subproblem_certainly_impossible = True
+              # We store (math.inf, None) in the table to indicate unsolvable subproblem
+              #(for subproblems marked unsolvable)
+              if is_subproblem_certainly_impossible:
+                self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)] = (
+                    math_inf, None)
+      # Read the values from self._subproblem_solutions to prepare to return
+      for pair in initial_and_final_vertices:
+        local_initial_vertex, local_final_vertex = pair
+        solutions[pair] = self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)]
+      # To show everything is complete, delete self._subproblem_solutions
+      del self._subproblem_solutions
+    # In both cases, return the dict solutions
+    return solutions
 
   def solve_full_problem(self, compute_path_instead_of_cycle,
       initial_vertex = None, final_vertex = None,
-      use_top_down_instead_of_bottom_up = False, output_as = None, skip_checks = False):
+      use_memoization_instead_of_tabulation = False, output_as = None, skip_checks = False):
     '''
     Solves the Traveling Salesman Problem for the graph.
     
-    output_as: 'path', 'vertices', 'vertices_and_arrows', 'arrows', 'length'
+    output_as goes through VertexPath.reformat_paths()
     '''
-    # We determine whether full determination of path is required.
-    # This is derived from output_as
-    if output_as in ['length']:
-      omit_minimizing_path = True
-    else:
-      omit_minimizing_path = False
+    # Default output_as = None to a better option: 'length'
+    if output_as is None:
+      output_as = 'length'
+    # Prepare initial and final vertices for path/cycle-searching
+    initial_vertex, final_vertex, initial_and_final_vertices = self._prepare_initial_and_final_vertices(
+        compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+        initial_vertex = initial_vertex,
+        final_vertex = final_vertex)
+    # Determine omit_minimizing_path which is used below
+    omit_minimizing_path = self.should_omit_minimizing_paths(output_as)
     # We check that there is at least one vertex
     if not bool(self.digraph):
       # Returns path/cycle with no vertices
       if compute_path_instead_of_cycle:
-        return VertexPath(self.digraph, [], 'vertices')
+        path = VertexPath(self.digraph, [], 'vertices')
+        return path.reformat_path_from_path(output_as = output_as, skip_checks = skip_checks)
       else:
-        return VertexCycle(self.digraph, [], 'vertices')
+        cycle = VertexCycle(self.digraph, [], 'vertices')
+        return path.reformat_path_from_cycle(output_as = output_as, skip_checks = skip_checks)
     else:
-      # To solve the problem for a path (for a cycle it involves an extra step;
-      #we will do it at the end, and only if required), we need to use some
-      #form or recursion, or dynamic programming, which is carried out
-      #in a separate method
-      # For all vertices but the initial_vertex, we compute the possible
-      #paths starting on initial_vertex, passing through all others exactly once
-      #and ending on them
-      # To simplify:
-      all_vertices = list(self.number_by_vertex)
-      # We prepare a tuple of n Trues to be the presence set, we will need it
-      tuple_of_trues = tuple([True]*(self.n))
-      # We also create the variables for storing the minima while we search for it
-      # If no path is valid, it should be math_inf, so that is how we start
-      min_distance_overall = math_inf
-      min_path_overall = None
+      # That is, self.digraph is non-empty
+      # Subdivide into the four possible cases according to the variables
+      #compute_path_instead_of_cycle and use_memoization_instead_of_tabulation
       if compute_path_instead_of_cycle:
-        # Here: compute_path_instead_of_cycle == True
-        # In this case, if there is no initial given vertex (i. e. None),
-        #we assume we must scan through all possible initial vertices
-        # We need to ensure final_vertex is different than initial_vertex,
-        #if those are given
-        if (not initial_vertex is None) and (not final_vertex is None):
-          assert final_vertex != initial_vertex, 'Hamiltonian path cannot be a cycle'
-        # We will generate all possible paths for given initial and final vertices
-        # Note initial and final vertices cannot coincide
-        if initial_vertex is None:
-          # All are allowed. We use list on dict self.number_by_vertex
-          initial_vertices = all_vertices
-        else:
-          initial_vertices = [initial_vertex]
-        initial_and_final = []
-        for vertex in initial_vertices:
-          # If final_vertex is specified, only such vertex can be final
-          # Otherwise, all (except initial_vertex; would form cycle) are allowed
-          if final_vertex is None:
-            for another_vertex in all_vertices:
-              if vertex != another_vertex:
-                initial_and_final.append((vertex, another_vertex))
-          else:
-            if vertex != final_vertex:
-              initial_and_final.append((vertex, final_vertex))
-        if use_top_down_instead_of_bottom_up:
-          # Here: use_top_down_instead_of_bottom_up == True, use_top_down_instead_of_bottom_up == True
-          # We compute all possibilities, and record the best
-          for pair in initial_and_final:
-            local_distance, local_path = self.solve_subproblem(
-                initial_vertex = pair[0],
-                final_vertex = pair[1],
-                presence_set = tuple_of_trues,
-                use_top_down_instead_of_bottom_up = True,
-                omit_minimizing_path = omit_minimizing_path,
-                skip_checks = skip_checks)
-            # Note local_last_arrow is ignored... we still don't know how to
-            #build the data using the arrows
-            if local_distance < min_distance_overall:
-              min_distance_overall = local_distance
-        else:
-          # Here: compute_path_instead_of_cycle == True, use_top_down_instead_of_bottom_up == False
-          # The table for the tabulation process:
-          self._table_of_results = {}
-          # Note that tabulation is done in order of incresing vertices present
-          # That is, the "size" (number of Trues) of presence_set
-          for length_of_path in range(1, self.n + 1):
-            # Use itertools_combinations on (True, ..., True, False, ..., False)
-            true_false_list = [number < length_of_path for number in range(self.n)]
-            right_size_presence_sets = itertools_combinations(true_false_list)
-            for presence_set in right_size_presence_sets:
-              # Verify initial and last vertices are present in presence_set
-              # We have the possible initial and final on initial_and_final
-              # But that is only for the full-sized paths
-              # But for intermediate paths, the final vertex may be anything
-              #while the initial is still the initial
-              # We will do the following: read the initial and final from presence_set
-              for initial_index in range(self.n):
-                for final_index in range(self.n):
-                  if length_of_path == 1 or initial_index != final_index:
-                    if presence_set[initial_index] and presence_set[final_index]:
-                      # We now check for initial and final vertex
-                      # Note that if they are None, then they can be any
-                      local_initial_vertex = self.vertex_by_number[initial_index]
-                      if initial_vertex is None or local_initial_vertex == initial_vertex:
-                        local_final_vertex = self.vertex_by_number[final_index]
-                        if (length_of_path < self.n) or (
-                            final_vertex is None or local_final_vertex == final_vertex):
-                          # We compute the value and store it on the table
-                          local_min_distance, local_min_path = self.solve_subproblem(
-                              initial_vertex = local_initial_vertex,
-                              final_vertex = local_final_vertex,
-                              presence_set = presence_set,
-                              use_top_down_instead_of_bottom_up = False,
-                              omit_minimizing_path = omit_minimizing_path,
-                              skip_checks = skip_checks)
-                          self._table_of_results[(initial_vertex, final_vertex, presence_set)] = (
-                              local_min_distance, local_min_path)
-          # We now use the opportunity to update the best overall
-          # For that, we measure the paths with length self.n
-          # We use initial_and_final and tuple_of_trues, already available
-          for pair in initial_and_final:
-            # Simply consult table
-            local_min_distance, local_min_path = self._table_of_results[(
-                pair[0], pair[1], tuple_of_trues)]
-            if local_min_distance < min_distance_overall:
-              # Update the variables
-              min_distance_overall = local_min_distance
-              min_path_overall = local_min_path
-          # To reinforce that we achieved the minimum we sought, we delete the table
-          del self._table_of_results
+        # To solve the problem for a path (for a cycle it would involves
+        #an extra step, done obviously only for cycles), we need to use some
+        #form or recursion, or dynamic programming, which is carried out
+        #in a separate method, solve_subproblem
+        # For all vertices but the initial_vertex, we compute the possible
+        #paths starting on initial_vertex, passing through all others exactly once
+        #(no non-trivial cycles allowed) and ending on final_vertex
+        pre_output = self._solve_full_problem_for_paths(
+              initial_vertex = initial_vertex,
+              final_vertex = final_vertex,
+              initial_and_final_vertices = initial_and_final_vertices,
+              use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
+              omit_minimizing_path = omit_minimizing_path,
+              skip_checks = skip_checks)
       else:
-        # Here: compute_path_instead_of_cycle == False
-        # If we want a cycle, there should be no specified final_vertex
-        # [Unless the same vertex is entered as initial_vertex, which would be allowed
-        #under certain interpretation to reinforce the request for a cycle]
-        if initial_vertex is None:
-          assert final_vertex is None, 'Cannot specify end of cycle if start is not specified'
+        # For cycle the process is similar: it is similar to a path with a last arrow
+        #which closes the cycle. We need to take special care of the last arrow
+        # This is done and explained in methods _prepare_initial_and_final_vertices
+        #and _solve_full_problem_for_cycles
+        pre_output = self._solve_full_problem_for_cycles(
+            initial_vertex = initial_vertex,
+            final_vertex = final_vertex,
+            initial_and_final_vertices = initial_and_final_vertices,
+            use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
+            omit_minimizing_path = omit_minimizing_path,
+            skip_checks = skip_checks)
+      # Prepares output
+      final_output = self._prepare_output(pre_output, compute_path_instead_of_cycle, output_as)
+      return final_output
+
+  def _prepare_initial_and_final_vertices(self, compute_path_instead_of_cycle,
+      initial_vertex, final_vertex, skip_checks = False):
+    '''
+    Prepares possible values for initial_and_final_vertices to be used in
+    method solve_full_length_subproblems_for_initial_and_final_vertices,
+    and also sanitizes initial_vertex and final_vertex.
+    '''
+    # We first sanitize the input vertices (if not None)
+    if initial_vertex is not None:
+      initial_vertex = OperationsVAE.sanitize_vertex(initial_vertex, require_vertex_namedtuple = False)
+    if final_vertex is not None:
+      final_vertex = OperationsVAE.sanitize_vertex(final_vertex, require_vertex_namedtuple = False)
+    # Produce initial_and_final_vertices tailored for paths and for cycles
+    if compute_path_instead_of_cycle:
+      # In this case, if there is no initial given vertex (i. e. None),
+      #we assume we must scan paths through all possible initial vertices
+      # (There might be a non-None explicitly given final_vertex, no problem)
+      # We need to ensure final_vertex is different than initial_vertex,
+      #if those are given
+      if (not initial_vertex is None) and (not final_vertex is None):
+        assert final_vertex != initial_vertex, 'Solution of shortest path cannot be a cycle'
+      # We will generate all possible paths for given initial and final vertices
+      # Note initial and final vertices cannot coincide
+      if initial_vertex is None:
+        initial_vertices = self.digraph.get_vertices()
+      else:
+        initial_vertices = [initial_vertex]
+      initial_and_final_vertices = []
+      for vertex in initial_vertices:
+        # If final_vertex is specified, only such vertex can be final
+        # Otherwise, all (except initial_vertex; would form cycle) are allowed
+        if final_vertex is None:
+          for another_vertex in self.digraph.get_vertices():
+            if vertex != another_vertex:
+              initial_and_final_vertices.append((vertex, another_vertex))
         else:
-          assert final_vertex == initial_vertex, 'Cycles start and end at same place'
-        # In any case, the variable final_vertex will be ignored
-        # We only want to raise the error to make it clearer
-        # We will even delete the variable from this scope to reinforce the idea
-        del final_vertex
-        # In this case, the same cycle will be generated independently
-        #of the first vertex
-        # We pick the first listed if not given as argument
-        # If passed as argument, we keep it [it doesn't really matter]
-        if initial_vertex is None:
-          initial_vertex = self.vertex_by_number[0]
-        # We consider all cycles starting at given cycle
-        # We consider all possibilities for the penultimate vertex of the cycle
-        #(the final vertex, by definition, coincides with the initial)
-        # We pick the best one after closing the cycle with the last arrow
-        #(from the penultimate to the initial/final vertex)
-        # Note also this penultimate cannot be the initial vertex
-        # (To read arrows ending at initial=final, we use get_arrows_in)
-        if use_top_down_instead_of_bottom_up:
-          # Here: compute_path_instead_of_cycle == False, use_top_down_instead_of_bottom_up == False
-          # In this case a direct call does the job (but we need to search all last arrows)
-          # Note that this is easier as an algorithm, but might consume more memory
-          # (Also has the risk of breaking the default Python shell recursion limit)
-          for arrow in self.get_arrows_in(initial_vertex):
-            if arrow.source != initial_vertex:
-              # Compute the paths from initial to penultimate [using the last arrow]
-              length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
-                  initial_vertex = initial_vertex,
-                  final_vertex = arrow.source,
-                  presence_set = tuple_of_trues,
-                  use_top_down_instead_of_bottom_up = True,
-                  omit_minimizing_path = omit_minimizing_path,
-                  skip_checks = skip_checks)
-              # Comparisons involves always the last edge, whose weight must be factored in
-              #to close the cycle
-              this_distance = length_up_to_penultimate + arrow.weight
-              if this_distance < min_distance_overall:
-                min_distance_overall = this_distance
-                # To save processing time we only record the path if required
-                if output_as.lower() == 'length':
-                  min_path_overall = None
-                else:
-                  # We create a new path instance using append_to_path
-                  min_path_overall = path_up_to_penultimate.append_to_path(
-                      data = arrow, data_type = 'arrow', modify_self = False,
-                      verify_validity_on_initiation = not skip_checks)
+          if vertex != final_vertex:
+            initial_and_final_vertices.append((vertex, final_vertex))
+    else:
+      # If we want a cycle, a specified initial_vertex is only for convenience
+      #of the output as the cycle will be essentially the same, only rotated
+      #(but will be displayed with that initial vertex nonetheless)
+      # There should be no specified final_vertex, unless it is equal to initial_vertex,
+      #which would be a redundant way to reinforce the request for a cycle
+      if initial_vertex is None:
+        # In this case we pick a "random one" to be initial, for the reasons above
+        #[it matters only for exhibition, not for calculation]
+        initial_vertex = self.vertex_by_number[0]
+        # As mentioned, final_vertex should be None, otherwise it introduces potential to confusion
+        #[would final_vertex mean the final or the last before the final?]
+        assert final_vertex is None, 'Cannot specify end of cycle if start is not specified'
+      else:
+        assert final_vertex == initial_vertex, 'Cycles start and end at same place'
+      # To make it compatible with solve_full_length_subproblems_for_initial_and_final_vertices,
+      #(done via tabulation) we set final_vertex = None
+      final_vertex = None
+      # The variable initial_and_final_vertices will be used to discriminate the boundary
+      #conditions in solve_full_length_subproblems_for_initial_and_final_vertices
+      # In particular, note initial_and_final_vertices != [(initial_vertex, final_vertex)]
+      # This is done with the arrows into the initial_vertex. (Though we use the
+      #neighbors to avoid repetitions). They are supposed to close the cycle,
+      #so the source of the arrow is exactly a possible final vertex for
+      #solve_full_length_subproblems_for_initial_and_final_vertices
+      initial_and_final_vertices = []
+      for neighbor in self.digraph.get_neighbors_in(initial_vertex):
+        initial_and_final_vertices.append((initial_vertex, neighbor))
+    # We return initial_and_final vertices as well as the sanitized inputs (which might be None)
+    return (initial_vertex, final_vertex, initial_and_final_vertices)
+
+  def _solve_full_problem_for_paths(self, initial_vertex, final_vertex,
+      initial_and_final_vertices, use_memoization_instead_of_tabulation,
+      omit_minimizing_path, skip_checks):
+    '''
+    Subroutine of method solve_full_problem for paths.
+    '''
+    # Create useful objects
+    min_distance_overall, min_path_overall = self.produce_minimization_constructs()
+    # Get data using other method
+    minimizing_data = self.solve_full_length_subproblems_for_initial_and_final_vertices(
+        initial_vertex = initial_vertex,
+        final_vertex = final_vertex,
+        initial_and_final_vertices = initial_and_final_vertices,
+        use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
+        omit_minimizing_path = omit_minimizing_path,
+        skip_checks = skip_checks)
+    # Simply find the shortest
+    for pair in initial_and_final_vertices:
+      local_distance, local_path = minimizing_data[pair]
+      # Since initial_and_final_vertices might not be a singleton:
+      if local_distance < min_distance_overall:
+        min_distance_overall = local_distance
+        min_path_overall = local_path
+    # Return is pre_output which is the best distance and the best path
+    pre_output = (min_distance_overall, min_path_overall)
+    return pre_output
+
+  def _solve_full_problem_for_cycles(self, initial_vertex, final_vertex, initial_and_final_vertices,
+      use_memoization_instead_of_tabulation, omit_minimizing_path, skip_checks = False):
+    '''
+    Subroutine of method solve_full_problem for cycles.
+    '''
+    # Create useful objects for minimization
+    min_distance_overall, min_cycle_overall = self.produce_minimization_constructs()
+    # To solve the problem, first we consider a path which is one vertex short
+    #of closing the cycle
+    # We compute all possibilities of full length subproblems by obtaining the initial
+    #and final vertices from the arrows arriving at initial vertex; note these
+    #arrows are captured correctly by initial_and_final_vertices
+    minimizing_data = self.solve_full_length_subproblems_for_initial_and_final_vertices(
+        initial_vertex = initial_vertex,
+        final_vertex = final_vertex,
+        initial_and_final_vertices = initial_and_final_vertices,
+        use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
+        omit_minimizing_path = omit_minimizing_path,
+        skip_checks = skip_checks)
+    # We find the minimum for this data, ensuring the weight of the last arrow
+    #is also added and factored in
+    for arrow in self.digraph.get_arrows_in(initial_vertex):
+      # To ensure initial_and_final_vertices was correct
+      pair = (initial_vertex, arrow.source)
+      assert pair in minimizing_data, 'Internal logic error, wrong subproblems solved.'
+      local_distance, local_path = minimizing_data[pair]
+      # To minimize the cycle we need to add the weight of the last arrow
+      if local_distance + arrow.weight < min_distance_overall:
+        min_distance_overall = local_distance + arrow.weight
+        if omit_minimizing_path:
+          min_cycle_overall = None
         else:
-          # Here: compute_path_instead_of_cycle == True, use_top_down_instead_of_bottom_up == False
-          # In this case we must organize the variables for tabulation
-          # Note that every recurrence of the subproblem is for a path which
-          #is one vertex shorter
-          # Thus the key is working with the presence set, which should be
-          #of ever increasing length, and always include the initial_vertex
-          # We start the "table" (a dict) for the tabulation
-          self._table_of_results = {}
-          # We iterate through the arguments
-          # Recall the first is the number of vertices in path (controlled by presence_set)
-          for length_of_path in range(1, self.n + 1):
-            # Use itertools_combinations on (True, ..., True, False, ..., False)
-            true_false_list = [number < length_of_path for number in range(self.n)]
-            right_size_presence_sets = itertools_combinations(true_false_list)
-            for presence_set in right_size_presence_sets:
-              for final_number in range(self.n):
-                # We now verify the arguments make sense
-                # Need initial and final vertex present [controlled by numbers]
-                if presence_set[initial_number] and presence_set[final_number]:
-                  # Need arrow from last to initial
-                  final_vertex = self.number_to_vertex[final_number]
-                  if final_vertex in neighbors_in_as_dict:
-                    # In this case we go ahead
-                    length_up_to_penultimate, path_up_to_penultimate = self.solve_subproblem(
-                        initial_vertex = initial_vertex,
-                        final_vertex = final_vertex,
-                        presence_set = presence_set,
-                        use_top_down_instead_of_bottom_up = False,
-                        omit_minimizing_path = omit_minimizing_path,
-                        skip_checks = skip_checks)
-                    # We do the tabulation
-                    # (functools_cache would also do it, but storing in a separate variable
-                    #is more in line with the proposal of tabulation)
-                    # Note the only changing arguments here are presence_set and the last/penultimate vertex
-                    #but initial_vertex might change if the problem is about paths instead of cycles, so we include it
-                    self._table_of_results[(initial_vertex, final_vertex, presence_set)] = (length_up_to_penultimate, path_up_to_penultimate)
-          # We now look at how to close the cycle. We iterate through the possible arrows
-          # Note that unless there is a last arrow (from last to initial)
-          #it is not possible to complete the cycle (once all vertices are in, that is)
-          for arrow in self.digraph.get_arrows_in(initial_vertex):
-            length_up_to_penultimate, path_up_to_penultimate = self._table_of_results[
-                (initial_vertex, arrow.source, tuple_of_trues)]
-            this_distance = length_up_to_penultimate + arrow.weight
-            if this_distance < min_distance_overall:
-              min_distance_overall = this_distance
-              # We only record the path if needed
-              # That comes from omit_minimining_path which is derived from output_as
-              if omit_minimining_path:
-                min_path_overall = None
-              else:
-                # Create new instance using append_to_path
-                min_path_overall = path_up_to_penultimate.append_to_path(
-                    data = arrow, data_type = 'arrow', modify_self = False,
-                    skip_checks = skip_checks)
-          # To reinforce that we achieved the minimum we sought, we delete the table
-          del self._table_of_results
-      # This is the end of method, for paths/cycles/memoization/tabulation
-      # By now, we have min_distance_overall and minimizing_path
-      # Formatting is carried out by output_as, which offloads to reformat_paths
+          # We also need to extend the path (now cycle) to include the arrow
+          # Since it changes from VertexPath to VertexCycle we create a new instance
+          all_previous_arrows = local_path.get_arrows()
+          min_cycle_overall = VertexCycle(
+              underlying_digraph = self.digraph,
+              data = all_previous_arrows + [arrow],
+              data_type = 'arrows',
+              verify_validity_on_initialization = True)
+    # Return is pre_output which is the best distance and the best cycle
+    pre_output = (min_distance_overall, min_cycle_overall)
+    return pre_output
+
+  def _prepare_output(self, pre_output, compute_path_instead_of_cycle, output_as,
+      skip_checks = False):
+    '''
+    Prepares requested output from information provided.
+    
+    Last step of solve_full_problem.
+    '''
+    # We need omit_minimizing_path, derivable from output_as
+    omit_minimizing_path = self.should_omit_minimizing_paths(output_as)
+    # pre_output is collected from methods split into paths/cycles/memoization/tabulation
+    # Formatting is carried out according to output_as, which offloads to reformat_paths
+    # (With the exception of when omit_minimizing_path is True)
+    min_distance_overall, min_path_overall = pre_output
+    if omit_minimizing_path:
+      return min_distance_overall
+    else:
+      # In this case min_distance_overall is obsolete, since it should be
+      #the length of the resulting path (unless there was no solution to
+      #the problem, which resulted in min_path_overall being None)
       if min_path_overall is None:
-        min_path_overall = 'Minimizing path not calculated'
+        # No solution to the full problem
+        assert min_distance_overall == math_inf, 'Without an existing path or cycle solution the distance shuld be infinite.'
+        return (math_inf, 'There is no path/cycle solving the Traveling Salesman Problem.')
       else:
-        min_path_overall = min_path_overall.reformat_paths(
+        # min_distance_overall is discarded; should be the same as length of VertexPath
+        #as calculated by method VertexPath.get_total_weight(self, request_none_if_unweighted = False
+        length_of_min_path = min_path_overall.get_total_weight(request_none_if_unweighted = False)
+        assert length_of_min_path == min_distance_overall, 'Total weight/length of Path/cycle solution should match the value in the solution.'
+        # To return use formatting from VertexPath.reformat_path
+        return min_path_overall.reformat_paths(
             underlying_graph = self.digraph,
-            data = minimizing_path,
+            data = min_path_overall,
             data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
-            output_as = output_as)
-      return (min_distance_overall, min_path_overall)
+            output_as = output_as,
+            skip_checks = skip_checks)
 
 ########################################################################

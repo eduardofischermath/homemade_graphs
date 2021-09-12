@@ -24,69 +24,67 @@
 # External imports
 ########################################################################
 
-from unittest import TestCase as unittest_TestCase
 from unittest import main as unittest_main
+from unittest import skip as unittest_skip
+from unittest import TestCase as unittest_TestCase
 
 ########################################################################
 # Internal imports
 ########################################################################
 
-from homemadegraphs.graphs_and_digraphs import Digraph
-from homemadegraphs.tests.generic_testing_classes import GenericInitializationTestCase
+from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 
 ########################################################################
 # Tests
 ########################################################################
 
-class TestEmptyDigraph(GenericInitializationTestCase):
+class TestVertexArrowEdgeInitialization(unittest_TestCase):
   '''
-  Tests all (di)graph methods on the empty (di)graph, ensuring the output is
-  correct (or, if non-canonically defined, that is follows the specified convention).
+  Tests the namedtuples Vertex, Arrow and Edge.
   '''
+  # Note this is not derived from any Generic test case
+  # This test case is closest to GenericPropertyTestCase, but since it
+  #has multiple objects (at least in this formulation) this testcase
+  #will not conform to those Generic classes
   
-  class_being_tested = Digraph
-  
-  @classmethod
-  def property_specifications(cls):
-    return [
-        cls.PropertySpecification('get_number_of_vertices',
-        0,
-        True,
-        tuple(),
-        {}),
-        cls.PropertySpecification('get_number_of_arrows',
-        0,
-        True,
-        tuple(),
-        {})]
-
-  # Dict to be used in many methods within this class
   @staticmethod
-  def recipes_for_data_and_data_types():
-    return {
-        'all_arrows': [],
-        'some_vertices_and_all_arrows': ([], []),
-        'all_vertices_and_all_arrows': ([], []),
-        'all_edges': [],
-        'some_vertices_and_all_edges': ([], []),
-        'all_vertices_and_all_edges': ([], []),
-        'full_arrows_out_as_dict': {},
-        'arrows_out_as_dict': {},
-        'full_arrows_out_as_list': [],
-        'arrows_out_as_list': [],
-        'full_edges_out_as_dict': {},
-        'edges_out_as_dict': {},
-        'full_edges_out_as_list': [],
-        'edges_out_as_list': [],
-        'full_neighbors_out_as_dict': {},
-        'neighbors_out_as_dict': {},
-        'full_neighbors_out_as_list': [],
-        'neighbors_out_as_list': [],
-        'full_neighbors_as_dict': {},
-        'neighbors_as_dict': {},
-        'full_neighbors_as_list': [],
-        'neighbors_as_list': []}
+  def recipes_for_initialization():
+    '''
+    Provides recipes for formation of the namedtuples.
+    '''
+    data = {
+        'vertex': (
+            Vertex,
+            ('String for vertex',),
+            ('name',),
+            1),
+        'arrow': (
+            Arrow,
+            (400, 'String for arrow', 0.35),
+            ('source', 'target', 'weight'),
+            3),
+        'edge': (
+            Edge,
+            (400, 'String for edge', 0.35),
+            ('first', 'second', 'weight'),
+            3)}
+    return data
 
+  def test_namedtuple_initialization(self):
+    '''
+    Tests the correct initialization of namedtuples, as well as their
+    named attributes.
+    '''
+    data = self.recipes_for_initialization()
+    for namedtuple_name in data:
+      with self.subTest(namedtuple_name = namedtuple_name):
+        recipe = data[namedtuple_name]
+        init_class, init_arguments, expected_attributes, expected_length = recipe
+        obj = init_class(*init_arguments)
+        for attribute in expected_attributes:
+          self.assertTrue(hasattr(obj, attribute))
+        self.assertEqual(len(obj), expected_length)
+    
 ########################################################################
 # Commands to be run on execution
 ########################################################################
@@ -95,3 +93,4 @@ if __name__ == '__main__':
   unittest_main()
 
 ########################################################################
+

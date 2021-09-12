@@ -40,22 +40,25 @@ from unittest import TextTestRunner as unittest_TextTestRunner
 # iv) write a load_tests function on __init__ of subpackage tests
 #(it would take priority within unittest.TestLoader.discover())
 
-def discover_and_run_all_tests(start_dir = './tests', pattern = 'test*.py', top_level_dir = '.'):
+def discover_and_run_all_tests(start_dir = './tests', pattern = 'test*.py', top_level_dir = '.', verbosity = None):
   '''
   Discover and runs all tests.
   
-  Ideally, must be run at the main/top folder of the project. Default values are:
-  start_dir = './tests'
-  pattern = 'test*.py'
-  top_level_dir = '.'
+  Ideally, must be run at the main/top folder of the project. To run from somewhere else,
+  or to change verbosity, change the arguments.
   '''
+  # If verbosity is None, default to 2
+  if verbosity is None:
+    verbosity = 2
   # Creates a TestSuite using unittest_TestLoader.discover
   # The tests don't need to be imported: unittest_TestLoader.discover does it
   # The needed code from homemadegraphs is imported on the tests themselves
   loader = unittest_TestLoader()
   test_suite = loader.discover(start_dir = start_dir, pattern = pattern)
   # Use the "standard" runner:
-  runner = unittest_TextTestRunner()
+  # Verbosity 0 is summary, verbosity 1 is one dot for each pass and one F for each fail,
+  #and verbosity 2 is a line with a brief summary of the test
+  runner = unittest_TextTestRunner(verbosity = verbosity)
   result = runner.run(test_suite)
   return result
   
@@ -64,7 +67,8 @@ def discover_and_run_all_tests(start_dir = './tests', pattern = 'test*.py', top_
 ########################################################################
 
 if __name__ == '__main__':
-  # Should be run at the main/top folder of the project
+  # Should be run at the main/top folder of the project, very likely called
+  #homemadegraphs (the exact name of the package)
   result = discover_and_run_all_tests()
   print(result)
 

@@ -29,7 +29,7 @@
 # Internal imports
 ########################################################################
 
-from ..vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
+from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 
 ########################################################################
 # Class VertexPath
@@ -59,38 +59,38 @@ class VertexPath(object):
       # In this case we expect data to be (vertices, arrows)
       # For uniformization, make them lists
       pre_vertices, pre_arrows = data
-      self.vertices = list(pre_vertices)
-      self.vertices = list(pre_arrows)
+      self._vertices = list(pre_vertices)
+      self._arrows = list(pre_arrows)
     elif data_type.lower() == 'arrows':
       # If data_type is 'arrows', they are pretty much what we need
       # We expect a list, but we can do with any iterable
-      self.arrows = list(data)
+      self._arrows = list(data)
       # The vertices can be easily derived from the arrows
-      if not self.arrows:
-        self.vertices = []
+      if not self._arrows:
+        self._vertices = []
       else:
-        self.vertices = []
+        self._vertices = []
         # We add the source of the first arrow, and then the targets of all arrows
         #(including the first)
-        self.vertices.append(self.arrows[0].source)
-        for arrow in self.arrows:
-          self.vertices.append(self.arrow.target)
+        self._vertices.append(self._arrows[0].source)
+        for arrow in self._arrows:
+          self._vertices.append(arrow.target)
     elif data_type.lower() == 'vertices':
       # In this case the vertices are ready, and we need to get the arrows
       # We use get_shortest_arrow_between_vertices
       # If there are multiple (meaning the digraph is not simple), it will
       #produce the shortest. If there are none, an exception will be raised,
       #because in this case it is not a real path
-      self.vertices = list(data)
-      if not self.vertices:
-        self.arrows = []
+      self._vertices = list(data)
+      if not self._vertices:
+        self._arrows = []
       else:
-        self.arrows = []
-        for idx in range(len(self.vertices) - 1):
+        self._arrows = []
+        for idx in range(len(self._vertices) - 1):
           # Form the arrows the only possible way
           # There will be one fewer arrows than vertices
-          self.arrows.append(self.underlying_digraph.get_shortest_arrow_between_vertices(
-              source = self.vertices[idx], target = self.vertices[idx+1],
+          self._arrows.append(self.underlying_digraph.get_shortest_arrow_between_vertices(
+              source = self._vertices[idx], target = self._vertices[idx+1],
               skip_checks = False))
     else:
       raise ValueError('Option not recognized')
@@ -105,7 +105,7 @@ class VertexPath(object):
     '''
     # Our convention: true if there is at least one vertex
     # False only if it's the path with no vertices
-    return bool(self.vertices)
+    return bool(self._vertices)
     
   def __len__(self):
     '''
@@ -115,12 +115,24 @@ class VertexPath(object):
     # Note empty path and one-vertex path both have length 0, but the
     #former has bool False and the second bool True
     return self.get_number_of_arrows()
+
+  def get_arrows(self):
+    '''
+    Returns the list of arrows of the instance.
+    '''
+    return self._arrows
+  
+  def get_vertices(self):
+    '''
+    Returns the list of vertices of the instance.
+    '''
+    return self._vertices
     
   def get_number_of_arrows(self):
     '''
     Returns number of arrows.
     '''
-    return len(self.arrows)
+    return len(self._arrows)
     
   def get_number_of_vertices_as_path(self):
     '''
@@ -129,7 +141,7 @@ class VertexPath(object):
     [Note that, with exception of the degenerate cases, a path/cycle will
     have one more vertex as a path than it has arrows.]
     '''
-    return len(self.vertices)
+    return len(self._vertices)
     
   def get_number_of_vertices_as_cycle(self):
     '''
@@ -146,20 +158,20 @@ class VertexPath(object):
     
     A path is degenerate if and only if either condition happens:
     Type-I: it has zero vertices [and thus no arrows]
-    Type-II: it has a self-arrow and self.vertices has a single vertex
+    Type-II: it has a self-arrow and self._vertices has a single vertex
     
     [In both cases, the degenerate paths are cycles.]
     
     [A path with a single vertex and no arrows is not degenerate, nor is
-    a cycle with one arrow if self.vertices has two equal elements.]
+    a cycle with one arrow if self._vertices has two equal elements.]
     '''
     if self.is_degenerate_type_i():
       return True
     elif self.is_degenerate_type_ii():
       return True
     else:
-      # In this case we should even have that self.vertices is one element
-      #longer than self.arrows, independently of being a cycle or not
+      # In this case we should even have that self._vertices is one element
+      #longer than self._arrows, independently of being a cycle or not
       return False
       
   def is_degenerate_type_i(self):
@@ -185,7 +197,7 @@ class VertexPath(object):
     Magic method. Returns faithful representation of instance.
     '''
     return f'{type(self)}(underlying_digraph = {self.underlying_digraph},\
-         data = {self.arrows}, data_type = \'arrows\', verify_validity = True)'
+         data = {self.get_arrows()}, data_type = \'arrows\', verify_validity = True)'
     
   def __str__(self):
     '''
@@ -198,7 +210,7 @@ class VertexPath(object):
       single_name = 'Path'
     # We want to have it slightly different if there are no vertices.
     if bool(self):
-      return f'{single_name} with vertices {self.vertices}\nand arrows {self.arrows}'
+      return f'{single_name} with vertices {self.get_vertices()}\nand arrows {self.get_arrows()}'
     else:
       return f'Empty {single_name} with no vertices nor arrows.'
 
@@ -214,7 +226,7 @@ class VertexPath(object):
       return False
     # We then compare equality of the arrows. That is a necessary and
     #sufficient condition
-    elif self.arrows != other.arrows:
+    elif self.get_arrows() != other.get_arrows():
       return False
     else:
       return True
@@ -225,32 +237,35 @@ class VertexPath(object):
     '''
     Magic method. Produces a hash of the instance.
     '''
-    # Simplest is to take self.arrows, which pretty much determines the instance
+    # Simplest is to take self.get_arrows(), which pretty much determines the instance
     #(assuming the underlying vertex is fixed for out purposes), and compute hash
-    # Arrows are namedtuples. self.arrows is list but is hashable if tuplefied
-    return __hash__(tuple(self.arrows))
+    # Arrows are namedtuples. self.get_arrows() returns self._arrows
+    #which is list but is hashable if tuplefied
+    return __hash__(tuple(self.get_arrows()))
 
   def verify_validity(self):
     '''
     Verifies that instance represents a path in a digraph.
     '''
     # First we ensure vertices and arrows do belong to the digraph
-    for vertex in self.vertices:
+    # Note we use _vertices and _arrows instead of get_vertices and get_arrows
+    # (It makes more sense due to the intent of the method)
+    for vertex in self._vertices:
       assert vertex in self.underlying_digraph
-    for arrow in self.arrows:
+    for arrow in self._arrows:
       # To facilitate searching for the arrow, we use the self._neighbors_out
       assert arrow in self.underlying_digraph.get_arrows_out(arrow.source)
     # We verify it is indeed a path, and that the vertices match with the arrows
     # Part of this is automatically set during __init__, but not all.
     # Also, if data_type == 'vertices_and_arrows' on __init__, nothing is
     # We need to excise the no-vertex path
-    if not self.vertices: # Measuring length
-      assert len(self.arrows) == 0, 'Without vertices there should be no arrows'
+    if not self._vertices: # Measuring length
+      assert len(self._arrows) == 0, 'Without vertices there should be no arrows'
     else:
-      assert len(self.arrows) == len(self.vertices) - 1, 'There should be one more vertex than arrow'
-      for idx, arrow in enumerate(self.arrows):
-        assert arrow.source == self.vertices[idx], 'Incoherent vertices and arrows'
-        assert arrow.target == self.vertices[idx+1], 'Incoherent vertices and arrows'
+      assert len(self._arrows) == len(self._vertices) - 1, 'There should be one more vertex than arrow'
+      for idx, arrow in enumerate(self._arrows):
+        assert arrow.source == self._vertices[idx], 'Incoherent vertices and arrows'
+        assert arrow.target == self._vertices[idx+1], 'Incoherent vertices and arrows'
       # To ensure we have a cycle if VertexCycle
       if isinstance(self, VertexCycle):
         assert self.is_cycle(), 'Need path to be a cycle'
@@ -267,7 +282,7 @@ class VertexPath(object):
     '''
     # Note that if one arrow is weighted, all are.
     try:
-      return sum(arrow.weight for arrow in self.arrows)
+      return sum(arrow.weight for arrow in self.get_arrows())
       # This will produce TypeError if trying to sum even a single None
     except TypeError:
       # In this case, the only possible information is the number of arrows
@@ -286,7 +301,7 @@ class VertexPath(object):
     
     [With the exception that if the underlying digraph is a weighted multidigraph,
     giving information by the vertices picks the arrows of least weight.
-    Nonetheless, we consider the information determines the path or cycle uniquely.]
+    Nonetheless, the information determines the path or cycle uniquely.]
     
     Options for data_type:
     'path'
@@ -297,21 +312,17 @@ class VertexPath(object):
     
     Options for output_as:
     [all options for data_type are acceptable for output_as]
+    'str'
+    'repr'
     'length'
     'length_and_vertices'
     'length_and_arrows'
     'length_and_vertices_and_arrows'
-    'str'
-    'repr'
-    'nothing'
     '''
     # We prepare the strings to have only lowercase characters
     # This is useful as they will be evaluated multiple times
     data_type = data_type.lower()
     output_as = output_as.lower()
-    # We return None if asked to return nothing [it is useful to do this first]
-    if output_as == 'nothing':
-      return None
     # We build an instance from the data (if not already starting with one)
     if data_type == 'cycle':
       as_instance = data
@@ -361,13 +372,35 @@ class VertexPath(object):
       # We now return the output
       # If pre_data has 2 or more items, it is returned as a tuple
       # If it has 1 item, we return that single item
-      # If it has 0 items, this means the request was bed
+      # If it has 0 items, this means the request was bad, so raise ValueError
       if len(pre_data) >= 2:
         return tuple(pre_data)
       elif len(pre_data) == 1:
         return pre_data[0]
       else:
         raise ValueError('Option not recognized')
+
+  def reformat_path_from_path(self, output_as, skip_checks = False):
+    '''
+    Calls reformat_path() with data_type = 'path'.
+    '''
+    return self.reformat_path(
+        underlying_digraph = self.underlying_digraph,
+        data = self,
+        data_type = 'path',
+        output_as = output_as,
+        skip_checks = skip_checks)
+    
+  def reformat_path_from_cycle(self, output_as, skip_checks = False):
+    '''
+    Calls reformat_path() with data_type = 'cycle'.
+    '''
+    return self.reformat_path(
+        underlying_digraph = self.underlying_digraph,
+        data = self,
+        data_type = 'cycle',
+        output_as = output_as,
+        skip_checks = skip_checks)
 
   def is_hamiltonian_path(self):
     '''
@@ -378,10 +411,10 @@ class VertexPath(object):
     '''
     # First we check lengths which is easy
     length_underlying_digraph = len(self.underlying_digraph)
-    if len(self.vertices) != length_underlying_digraph:
+    if len(self.get_vertices()) != length_underlying_digraph:
       return False
-    # We now check the vertices in self.vertices are distinct using set()
-    elif len(self.vertices) != len(set(self.vertices)):
+    # We now check the vertices are distinct using set()
+    elif len(self.get_vertices()) != len(set(self.get_vertices())):
       return False
     else:
       # If passed the two tests, it is a Hamiltonian path
@@ -391,7 +424,7 @@ class VertexPath(object):
     '''
     Returns whether path is a cycle.
     '''
-    return (self.vertices[0] == self.vertices[-1])
+    return (self.get_vertices()[0] == self.get_vertices()[-1])
 
   def is_hamiltonian_cycle(self):
     '''
@@ -403,7 +436,7 @@ class VertexPath(object):
     if not self.is_cycle():
       return False
     length_underlying_digraph = len(self.underlying_digraph)
-    vertices_except_first = self.vertices[1:]
+    vertices_except_first = self.get_vertices()[1:]
     if len(vertices_except_first) != length_underlying_digraph:
       return False
     elif len(vertices_except_first) != len(set(vertices_except_first)):
@@ -447,7 +480,7 @@ class VertexPath(object):
         if not skip_checks:
           assert hasattr(data, __len__), 'Need data to have length'
           assert len(data) == 2, 'Need data to have two items'
-        new_vertice, new_arrow = data
+        new_vertex, new_arrow = data
       elif data_type == 'vertex':
         # We strive to have the arrow right here. This will save work in the
         #case of modify_self = False, in which we would need to pass vertex
@@ -456,7 +489,7 @@ class VertexPath(object):
         if not skip_checks:
           assert new_vertex in self.underlying_digraph, 'Vertex must be from underlying digraph'
         new_arrow = self.underlying_digraph.get_shortest_arrow_between_vertices(
-            self.vertices, new_vertex)
+            self.get_vertices()[-1], new_vertex)
       elif data_type == 'arrow':
         new_arrow = data
         new_vertex = new_arrow.target
@@ -467,20 +500,24 @@ class VertexPath(object):
       if not skip_checks:
         assert new_vertex in self.underlying_digraph, 'Vertex must be from underlying digraph'
         assert new_arrow in self.underlying_digraph.get_arrows(), 'Arrow must be from underlying digraph'
-        assert new_arrow.source == self.vertices[-1], 'Arrow must fit after path'
+        assert new_arrow.source == self.get_vertices()[-1], 'Arrow must fit after path'
         assert new_arrow.target == new_vertex, 'Vertex and arrow information must be consistent'
       # Having new_vertex and new_arrow, do as requested
       if modify_self:
-        self.vertices.append(new_vertex)
-        self.arrows.append(new_arrow)
+        # Obviously need _vertices and _arrows instead of get_vertices() and get_arrows()
+        self._vertices.append(new_vertex)
+        self._arrows.append(new_arrow)
       else:
-        new_vertices = self.vertices + new_vertex
-        new_arrows = self.arrows + new_arrow
+        new_vertices = self.get_vertices() + [new_vertex]
+        new_arrows = self.get_arrows() + [new_arrow]
         data = (new_vertices, new_arrows)
         data_type = 'vertices_and_arrows'
         verify_validity_on_initialization = not skip_checks
-        new_instance = type(self)(data = data, data_type = data_type,
-            verify_validity_on_initialization = verify_validity_on_initialization)
+        new_instance = type(self)(
+            underlying_digraph = self.underlying_digraph,
+            data = data,
+            data_type = data_type,
+            verify_validity_on_initialization = not skip_checks)
         return new_instance
     
   def extend_path(self, data, data_type, modify_self = False, skip_checks = False):
@@ -527,11 +564,11 @@ class VertexPath(object):
         # We do a basic check (which can't be done on append_to_path due
         #to the nature of this procedure)
         if not skip_checks:
-          assert another_path.vertices[0] == self.vertices[-1], 'First path must segue into second'
+          assert another_path.get_vertices()[0] == self.get_vertices()[-1], 'First path must segue into second'
         # For data_type == 'path' we take arrows and vertices
         #[except first vertex to avoid repetitions]
-        arrows = another_path.arrows
-        vertices = another_path.vertices[1:]
+        arrows = another_path.get_arrows()
+        vertices = another_path.get_vertices()[1:]
         # These should be lists of equal length. We use zip to pass arguments
         for vertex_and_arrow in zip(vertices, arrows):
           self.append_to_path(data = vertex_and_arrow,
@@ -587,14 +624,14 @@ class VertexPath(object):
     #have exactly one more vertex [as path] than they have arrows
     # We verify one path segues into the next
     # (We don't allow this check to be skipped by skip_checks)
-    elif self.vertices[-1] != another_path.vertices[0]:
+    elif self.get_vertices()[-1] != another_path.get_vertices()[0]:
       raise ValueError('Need first path to segue into the second.')
     else:
       # Here we implement the addition
       # Since we all attributes ready, we can use them for __init__]
       # We obtain the vertices. Note we omit the vertex uniting the paths
-      new_vertices = self.vertices + another_path.vertices[1:]
-      new_arrows = self.arrows + another_path.arrows
+      new_vertices = self.get_vertices() + another_path.get_vertices()[1:]
+      new_arrows = self.get_arrows() + another_path.get_arrows()
       # We create a new instance (same class) and then return it
       kwargs = {'underlying_digraph': self.underlying_digraph,
           'data': (new_vertices, new_arrows),
@@ -631,13 +668,14 @@ class VertexCycle(VertexPath):
     # In case base_vertex isn't in the cycle, it will raise ValueError
     # Note index returns the first occurrence of the vertex (a VertexPath
     #or VertexCycle potentially contain self intersections)
-    base_idx = self.vertices.index(base_vertex)
+    base_idx = self.get_vertices().index(base_vertex)
     # The first arrow will be the one with source base_vertex, that is,
     #the arrow with index base_idx
     # Easiest way is to use moduler arithmetic on the number of arrows
     # (Vertices can be read straight from them during __init__)
-    number_of_arrows = len(self.arrows)
-    rotated_arrows = [self.arrows[(idx + base_idx) % number_of_arrows]
+    number_of_arrows = self.get_number_of_arrows() # To reduce number of calls
+    list_of_arrows = self.get_arrows() # To reduce number of calls
+    rotated_arrows = [list_of_arrows[(idx + base_idx) % number_of_arrows]
         for idx in range(number_of_arrows)]
     # To facilitate things, we build a dict for arguments, called kwargs
     kwargs = {'underlying_digraph': self.underlying_digraph,
