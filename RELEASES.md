@@ -1,5 +1,10 @@
 # RELEASES
 
+## v0.4.0 (2021.09.12)
+
+Solves Traveling Salesman Problem and finds, when existent, Hamiltonian path and cycles.
+Other improvements.
+
 ## v0.3.0 (2021.08.26)
 
 Code now forms a package installable with PIP.
