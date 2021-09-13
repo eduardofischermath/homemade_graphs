@@ -24,6 +24,7 @@
 # External imports
 ########################################################################
 
+from itertools import chain as itertools_chain
 from itertools import product as itertools_product
 from math import inf as math_inf
 # Since cache from functools was introduced in Python version >= 3.9,
@@ -257,25 +258,92 @@ class StateDigraphSolveTSP(object):
       self.vertex_by_number[idx] = vertex
 
   @staticmethod
-  def produce_boolean_tuples_with_fixed_sum(given_length, given_sum,
+  @functools_cache
+  def produce_boolean_lists_with_fixed_sum(given_length, given_sum,
       output_as_generator = False):
+    '''
+    Returns all lists of booleans values of specified length and number of Trues.
+    
+    Can produce them as a list or as a generator.
+    '''
+    if given_length <= 0: # In case this is given as argument, but it shouldn't...
+      # Generator which outputs nothing
+      generator = (None for index in range(0))
+      if output_as_generator:
+        return generator
+      else:
+        return list(generator)
+    elif given_length == 1:
+      if given_sum == 1:
+        # Create a generator whose corresponding list is [[True]]
+        generator = ([True] for index in range(1))
+      elif given_sum == 0:
+        generator = ([False] for index in range(1))
+      else:
+        # Generator which outputs nothing
+        generator = (None for index in range(0))
+      if output_as_generator:
+        return generator
+      else:
+        return list(generator)
+    else:
+      # Subdivide into cases; whether last element of tuple is True or False
+      # And then consider all other elements, recursing on a smaller length
+      # They can be produced the same way for generators or lists
+      to_add_true_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
+          given_length = given_length - 1,
+          given_sum = given_sum - 1,
+          output_as_generator = output_as_generator)
+      to_add_false_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
+          given_length = given_length - 1,
+          given_sum = given_sum,
+          output_as_generator = output_as_generator)
+      if output_as_generator:
+        #raise NotImplementedError('Not working correctly; use lists instead.')
+        with_true_at_end = map(lambda listt: listt+[True], to_add_true_at_end)
+        with_false_at_end = map(lambda listt: listt+[False], to_add_false_at_end)
+        # Use itertools.chain to concatenate generators
+        return itertools_chain(with_true_at_end, with_false_at_end)
+      else:
+        with_true_at_end = [listt+[True] for listt in to_add_true_at_end]
+        with_false_at_end = [listt+[False] for listt in to_add_false_at_end]
+        return with_true_at_end + with_false_at_end
+
+  @staticmethod
+  def produce_boolean_tuples_with_fixed_sum(given_length, given_sum,
+      output_as_generator = False, use_homemade_method_instead_of_built_in = False):
     '''
     Returns the tuples of True/False with a specific number of each.
     
     Used to generate presence sets with a specific number of total vertices
     [given_length] and a specific number of present vertices [given_sum]
     '''
-    # We generate all tuples of given length with True/False values
-    generator_of_all_tuples = itertools_product((True, False), repeat = given_length)
-    # We restrict the tuples to the ones with given number of True and Falses
-    # (Given by sum, meaning this sum is the number of True values)
-    # We use a Boolean lambda function and a filter
-    filter_criterion = lambda tuplee: (sum(tuplee) == given_sum)
-    generator_for_needed_tuples = filter(filter_criterion, generator_of_all_tuples)
-    if output_as_generator:
-      return generator_for_needed_tuples
+    # We have two approaches. The oldest one uses built-in tools (itertools)
+    #but needs to examine all possible tuples, making it wasteful
+    # The second is not wasteful, but experimentation shows it's slower
+    if use_homemade_method_instead_of_built_in:
+      # Get output from produce_boolean_lists_with_fixed_sums, and make tuples
+      all_possibilities_as_lists = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
+          given_length = given_length,
+          given_sum = given_sum,
+          output_as_generator = output_as_generator) # Warning: Currently has bugs if True
+      generator_of_all_possibilities_as_tuples = map(tuple, all_possibilities_as_lists)
+      if output_as_generator:
+        return generator_of_all_possibilities_as_tuples
+      else:
+        return list(generator_of_all_possibilities_as_tuples)
     else:
-      return list(generator_for_needed_tuples)
+      # We generate all tuples of given length with True/False values
+      generator_of_all_tuples = itertools_product((True, False), repeat = given_length)
+      # We restrict the tuples to the ones with given number of True and Falses
+      # (Given by sum, meaning this sum is the number of True values)
+      # We use a Boolean lambda function and a filter
+      filter_criterion = lambda tuplee: (sum(tuplee) == given_sum)
+      generator_for_needed_tuples = filter(filter_criterion, generator_of_all_tuples)
+      if output_as_generator:
+        return generator_for_needed_tuples
+      else:
+        return list(generator_for_needed_tuples)
 
   def produce_minimization_constructs(self):
     '''
@@ -313,11 +381,11 @@ class StateDigraphSolveTSP(object):
     return omit_minimizing_path
 
   @functools_cache
-  def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
+  def solve_subproblem(self, initial_number, final_number, presence_set,
       use_memoization_instead_of_tabulation = False, omit_minimizing_path = False, skip_checks = False):
     '''
     Computes the minimal path length given specific parameters: given
-    initial and final vertices and a set of vertices of underlying graph
+    initial and final vertices [given by its indices] and a set of vertices of underlying graph
     self.digraph [given by a tuple of Booleans], finds minimal among all paths
     traveling once though each vertex satisfying the boundary conditions.
     
@@ -339,9 +407,6 @@ class StateDigraphSolveTSP(object):
     # We will parametrize these subproblems by initial, final, presence_set,
     #where presence_set is a tuple of n Booleans, True meaning the corresponding
     #vertex in its position is an element of the set (and thus part of path)
-    initial_number = self.number_by_vertex[initial_vertex]
-    final_number = self.number_by_vertex[final_vertex]
-    #print(f'\nSOLVING SUBPROBLEM\n{initial_number=}, {initial_vertex=}\n{final_number=}, {final_vertex=}\n{presence_set=} (Total: {sum(presence_set)})')
     if not skip_checks:
       # Expect arg to be a tuple of Booleans with length self.n
       assert len(presence_set) == self.n, 'Internal logic error, presence_set should be as long as the number of vertices'
@@ -357,6 +422,7 @@ class StateDigraphSolveTSP(object):
       if presence_set == sought_presence_set:
         # No previous vertex, so previous path should be the "quasi empty path" to work well later
         # By "quasi empty path" we mean the path with initial_vertex and no arrows
+        initial_vertex = self.vertex_by_number[initial_number]
         quasi_empty_path = VertexPath(
             underlying_digraph = self.digraph,
             data = [initial_vertex],
@@ -383,8 +449,9 @@ class StateDigraphSolveTSP(object):
       # That is, for all arrows landing on final_vertex, we ask which
       #could be the last one, and pick the one producing the smallest
       #weight (assuming we solve the subproblems without this last vertex)
-      min_among_all_last_arrows = math_inf
-      whole_path_as_arrows = None
+      min_among_all_last_arrows, whole_path_as_arrows = self.produce_minimization_constructs()
+      initial_vertex = self.vertex_by_number[initial_number]
+      final_vertex = self.vertex_by_number[final_number]
       for last_arrow in self.digraph.get_arrows_in(final_vertex):
         # We need to exclude self-arrows as they might throw the algorithm into a loop
         if not OperationsVAE.is_self_arrow_or_self_edge(last_arrow,
@@ -406,11 +473,12 @@ class StateDigraphSolveTSP(object):
             #plus the weight of this last arrow
             # Note that adding this last arrow is done using a VertexPath method
             # [It's probably easier than build a VertexPath instance every time]
+            penultimate_number = self.number_by_vertex[last_arrow.source]
             if use_memoization_instead_of_tabulation:
               # In this case we simply call the suproblem method again
               solution_of_smaller_subproblem = self.solve_subproblem(
-                  initial_vertex = initial_vertex,
-                  final_vertex = last_arrow.source,
+                  initial_number = initial_number,
+                  final_number = penultimate_number,
                   presence_set = last_off_presence_set,
                   use_memoization_instead_of_tabulation = True,
                   omit_minimizing_path = omit_minimizing_path,
@@ -418,7 +486,7 @@ class StateDigraphSolveTSP(object):
             else:
               # In this case the result should be stored in self._subproblem_solutions
               solution_of_smaller_subproblem = self._subproblem_solutions[
-                  (initial_vertex, last_arrow.source, last_off_presence_set)]
+                  (initial_number, penultimate_number, last_off_presence_set)]
             previous_length, previous_path = solution_of_smaller_subproblem
             this_distance = last_arrow.weight + previous_length
             # Update the minimal distance, if it is minimal
@@ -459,29 +527,47 @@ class StateDigraphSolveTSP(object):
     # Create empty dict
     solutions = {}
     if use_memoization_instead_of_tabulation:
-      # In this case initial_vertex and final_vertex are not needed
+      # In this case initial_vertex and final_vertex are not needed, only the pairs
       del initial_vertex, final_vertex
       for pair in initial_and_final_vertices:
         # In this case just do the calls and store in the right dict key
         # [Dynamic programming [memoization] is automatically done within solve_subproblem
         #due to functools.cache]
-        local_initial_vertex, local_final_vertex = pair
+        local_initial_vertex, local_final_vertex = pair_of_vertices
+        local_initial_number = self.number_by_vertex[local_initial_vertex]
+        local_final_number = self.number_by_vertex[local_final_vertex]
+        local_initial_number, local_final_number = pair_of_numbers
         local_distance, local_path = self.solve_subproblem(
-            initial_vertex = local_initial_vertex,
-            final_vertex = local_final_vertex,
+            initial_vertex = local_initial_number,
+            final_vertex = local_final_number,
             presence_set = tuple_of_trues,
             use_memoization_instead_of_tabulation = True,
             omit_minimizing_path = omit_minimizing_path,
             skip_checks = skip_checks)
-        solutions[pair] = (local_distance, local_path)
+        solutions[pair_of_numbers] = (local_distance, local_path)
     else:
+      # Prepare initial_number to match with initial_vertex. If None, should be None too
+      # Recall these should match the argument of this method and don't vary within it
+      if initial_vertex is None:
+        initial_number = None
+      else:
+        initial_number = self.number_by_vertex[initial_vertex]
+      # Same with final
+      if final_vertex is None:
+        final_number = None
+      else:
+        final_number = self.number_by_vertex[final_vertex]
       # In this case we create the solution of all subproblems, even the
       #ones smaller than full length, making use of tabulation
-      # The table (a dictionary) for the tabulation process:
-      self._subproblem_solutions = {}
+      # The table (a dictionary) for the tabulation process
+      # It is first indexed by size (length of path, number of vertices),
+      #and then indexed by initial and final vertices and presence set
+      self._subproblem_solutions_by_size = {}
       # Note that tabulation is done in increasing order of number of vertices present
       # That is, the "size" (number of Trues) of presence_set
       for length_of_path in range(1, self.n + 1):
+        # Initiate the table for length_of_path
+        self._subproblem_solutions_by_size[length_of_path] = {}
         # Print to know progress
         print(f'Examining subproblems with {length_of_path} vertices')
         # We find all presence sets of size length_of_path
@@ -511,20 +597,20 @@ class StateDigraphSolveTSP(object):
                 if presence_set[local_initial_index] and presence_set[local_final_index]:
                   # We now check that the local_initial_index correspond 
                   #to a valid choice under the initial_vertex input
-                  if initial_vertex is None or local_initial_vertex == initial_vertex:
+                  if initial_number is None or local_initial_index == initial_number:
                     # If the path is full-sized, the local_final_vertex variable
                     #has to match the final_vertex input (unless this is None)
                     if (length_of_path < self.n) or (
-                        final_vertex is None or local_final_vertex == final_vertex):
+                        final_number is None or local_final_index == final_number):
                       # We compute the value and store it on the table
                       local_min_distance, local_min_path = self.solve_subproblem(
-                          initial_vertex = local_initial_vertex,
-                          final_vertex = local_final_vertex,
+                          initial_vertex = local_initial_index,
+                          final_vertex = local_final_index,
                           presence_set = presence_set,
                           use_memoization_instead_of_tabulation = False,
                           omit_minimizing_path = omit_minimizing_path,
                           skip_checks = skip_checks)
-                      self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)] = (
+                      self._subproblem_solutions_by_size[length_of_path][(local_initial_index, local_final_index, presence_set)] = (
                           local_min_distance, local_min_path)
                     else:
                       # For a full-length path, local_final_vertex has to match the final_vertex input
@@ -541,12 +627,19 @@ class StateDigraphSolveTSP(object):
               # We store (math.inf, None) in the table to indicate unsolvable subproblem
               #(for subproblems marked unsolvable)
               if is_subproblem_certainly_impossible:
-                self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)] = (
-                    math_inf, None)
+                self._subproblem_solutions_by_size[length_of_path][(
+                    local_initial_index, local_final_index, presence_set)] = (math_inf, None)
+        # To save space, we delete the previous (the recurrence is always
+        #on having exactly one vertex less)
+        if length_of_path >= 2:
+          del self._subproblem_solutions_by_size[length_of_path - 1]
       # Read the values from self._subproblem_solutions to prepare to return
       for pair in initial_and_final_vertices:
-        local_initial_vertex, local_final_vertex = pair
-        solutions[pair] = self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)]
+        local_initial_vertex, local_final_vertex = pair_of_vertices
+        local_initial_index = self.number_by_vertex[local_initial_vertex]
+        local_final_index = self.number_by_vertex[local_final_vertex]
+        solutions[pair_of_vertices] = self._subproblem_solutions_by_size[length_of_path][(
+            local_initial_index, local_final_index, presence_set)]
       # To show everything is complete, delete self._subproblem_solutions
       del self._subproblem_solutions
     # In both cases, return the dict solutions
