@@ -24,6 +24,7 @@
 # External imports
 ########################################################################
 
+from itertools import chain as itertools_chain
 from itertools import product as itertools_product
 from math import inf as math_inf
 # Since cache from functools was introduced in Python version >= 3.9,
@@ -257,25 +258,92 @@ class StateDigraphSolveTSP(object):
       self.vertex_by_number[idx] = vertex
 
   @staticmethod
-  def produce_boolean_tuples_with_fixed_sum(given_length, given_sum,
+  @functools_cache
+  def produce_boolean_lists_with_fixed_sums(given_length, given_sum,
       output_as_generator = False):
+    '''
+    Returns all lists of booleans values of specified length and number of Trues.
+    
+    Can produce them as a list or as a generator.
+    '''
+    if given_length <= 0: # In case this is given as argument, but it shouldn't...
+      # Generator which outputs nothing
+      generator = (None for index in range(0))
+      if output_as_generator:
+        return generator
+      else:
+        return list(generator)
+    elif given_length == 1:
+      if given_sum == 1:
+        # Create a generator whose corresponding list is [[True]]
+        generator = ([True] for index in range(1))
+      elif given_sum == 0:
+        generator = ([False] for index in range(1))
+      else:
+        # Generator which outputs nothing
+        generator = (None for index in range(0))
+      if output_as_generator:
+        return generator
+      else:
+        return list(generator)
+    else:
+      # Subdivide into cases; whether last element of tuple is True or False
+      # And then consider all other elements, recursing on a smaller length
+      # They can be produced the same way for generators or lists
+      to_add_true_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sums(
+          given_length = given_length - 1,
+          given_sum = given_sum - 1,
+          output_as_generator = output_as_generator)
+      to_add_false_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sums(
+          given_length = given_length - 1,
+          given_sum = given_sum,
+          output_as_generator = output_as_generator)
+      if output_as_generator:
+        raise NotImplementedError('Not working correctly; use lists instead.')
+        with_true_at_end = (listt+[True] for listt in to_add_true_at_end)
+        with_false_at_end = (listt+[False] for listt in to_add_false_at_end)
+        # Use itertools.chain to concatenate generators
+        return itertools_chain(with_true_at_end, with_false_at_end)
+      else:
+        with_true_at_end = [listt+[True] for listt in to_add_true_at_end]
+        with_false_at_end = [listt+[False] for listt in to_add_false_at_end]
+        return with_true_at_end + with_false_at_end
+
+  @staticmethod
+  def produce_boolean_tuples_with_fixed_sum(given_length, given_sum,
+      output_as_generator = False, use_homemade_method_instead_of_built_in = False):
     '''
     Returns the tuples of True/False with a specific number of each.
     
     Used to generate presence sets with a specific number of total vertices
     [given_length] and a specific number of present vertices [given_sum]
     '''
-    # We generate all tuples of given length with True/False values
-    generator_of_all_tuples = itertools_product((True, False), repeat = given_length)
-    # We restrict the tuples to the ones with given number of True and Falses
-    # (Given by sum, meaning this sum is the number of True values)
-    # We use a Boolean lambda function and a filter
-    filter_criterion = lambda tuplee: (sum(tuplee) == given_sum)
-    generator_for_needed_tuples = filter(filter_criterion, generator_of_all_tuples)
-    if output_as_generator:
-      return generator_for_needed_tuples
+    # We have two approaches. The oldest one uses built-in tools (itertools)
+    #but needs to examine all possible tuples, making it wasteful
+    # The second is not wasteful, but experimentation shows it's slower
+    if use_homemade_method_instead_of_built_in:
+      # Get output from produce_boolean_lists_with_fixed_sums, and make tuples
+      all_possibilities_as_lists = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sums(
+          given_length = given_length,
+          given_sum = given_sum,
+          output_as_generator = output_as_generator) # Warning: Currently has bugs if True
+      generator_of_all_possibilities_as_tuples = map(tuple, all_possibilities_as_lists)
+      if output_as_generator:
+        return generator_of_all_possibilities_as_tuples
+      else:
+        return list(generator_of_all_possibilities_as_tuples)
     else:
-      return list(generator_for_needed_tuples)
+      # We generate all tuples of given length with True/False values
+      generator_of_all_tuples = itertools_product((True, False), repeat = given_length)
+      # We restrict the tuples to the ones with given number of True and Falses
+      # (Given by sum, meaning this sum is the number of True values)
+      # We use a Boolean lambda function and a filter
+      filter_criterion = lambda tuplee: (sum(tuplee) == given_sum)
+      generator_for_needed_tuples = filter(filter_criterion, generator_of_all_tuples)
+      if output_as_generator:
+        return generator_for_needed_tuples
+      else:
+        return list(generator_for_needed_tuples)
 
   def produce_minimization_constructs(self):
     '''
@@ -381,7 +449,7 @@ class StateDigraphSolveTSP(object):
       # That is, for all arrows landing on final_vertex, we ask which
       #could be the last one, and pick the one producing the smallest
       #weight (assuming we solve the subproblems without this last vertex)
-      min_among_all_last_arrows, whole_path_as_arrows  self.produce_minimization_constructs()
+      min_among_all_last_arrows, whole_path_as_arrows = self.produce_minimization_constructs()
       initial_vertex = self.vertex_by_number[initial_number]
       final_vertex = self.vertex_by_number[final_number]
       for last_arrow in self.digraph.get_arrows_in(final_vertex):
