@@ -34,7 +34,7 @@ from setuptools import find_packages as setuptools_find_packages
 # Sets the package up
 setuptools_setup(
     name='homemadegraphs',
-    version='0.3.0',
+    version='0.4.0',
     author='Eduardo Fischer',
     author_email='eduardofischermath@gmail.com',
     license='AGPL 3.0',

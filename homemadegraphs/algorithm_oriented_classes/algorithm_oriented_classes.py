@@ -482,6 +482,8 @@ class StateDigraphSolveTSP(object):
       # Note that tabulation is done in increasing order of number of vertices present
       # That is, the "size" (number of Trues) of presence_set
       for length_of_path in range(1, self.n + 1):
+        # Print to know progress
+        print(f'Examining subproblems with {length_of_path} vertices')
         # We find all presence sets of size length_of_path
         right_size_presence_sets = self.produce_boolean_tuples_with_fixed_sum(
             self.n, length_of_path, output_as_generator = True)

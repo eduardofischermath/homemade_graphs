@@ -2466,9 +2466,9 @@ class WeightedGraph(WeightedDigraph, Graph):
       else:
         raise ValueError('Need a whole number of dimensions.')
       assert number_of_dimensions >= 1, 'Needs at least one dimension'
-      assert hasattr(list_of_points, __len__), 'Need list_of_points to be iterable'
+      assert hasattr(list_of_points, '__len__'), 'Need list_of_points to be iterable'
       for item in list_of_points:
-        assert hasattr(item, __len__), 'Items must be iterable'
+        assert hasattr(item, '__len__'), 'Items must be iterable'
         assert len(item) == number_of_dimensions + 1, 'Each item must have a name and then coordinates'
         for sub_index, sub_item in enumerate(item):
           if sub_index >= 1:
@@ -2481,15 +2481,17 @@ class WeightedGraph(WeightedDigraph, Graph):
     list_of_vertices = []
     list_of_edges = []
     for first_index, first_item in enumerate(list_of_points):
-      list_of_vertices.append(first_item)
+      first_vertex_name, *first_vertex_coordinates = first_item
+      list_of_vertices.append(first_vertex_name)
       for second_index in range(first_index):
         second_item = list_of_points[second_index]
-        if first_item[0] == second_item[0]:
+        second_vertex_name, *second_vertex_coordinates = second_item
+        if first_vertex_name == second_vertex_name:
           raise ValueError('Cannot have two points with same name')
         # Uses are not anticipated to be extremely large
         # Thus, using built-in math package [instead of numpy] is good enough
-        distance = math_sqrt(sum((first_item[idx] - second_item[idx])**2 for idx in range(1, number_of_dimensions + 1)))
-        list_of_edges.append((first_item[0], second_item[0], distance))
+        distance = math_sqrt(sum((first_vertex_coordinates[idx] - second_vertex_coordinates[idx])**2 for idx in range(number_of_dimensions)))
+        list_of_edges.append((first_vertex_name, second_vertex_name, distance))
     data = (list_of_vertices, list_of_edges)
     data_type = 'all_vertices_and_all_edges'
     # Since this is a class method this will also work for subclasses
