@@ -267,3 +267,11 @@ and EnhancedEdge, to be classes corresponding to the namedtuples Vertex, Arrow, 
 This way, namedtuples can be used for expensive computations, and the enhanced
 versions add flexibility to the concepts and specific methods.
 Counter-argument: lot of this flexibility is already achieved by OperationsVAE.
+
+## ISSUE #0044 OPEN
+
+Work on improving performance on StateDigraphSolveTSP.
+Currently: doing memoization is about 10 times faster than tabulation,
+but execution time about doubles for every additional vertex in a complete graph
+(as expected from the algorithm). If it reaches RAM limit, even worse,
+so it's important to downsize also the memory consumption.
