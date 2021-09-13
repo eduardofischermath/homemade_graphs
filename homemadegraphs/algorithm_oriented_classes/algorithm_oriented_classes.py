@@ -313,11 +313,11 @@ class StateDigraphSolveTSP(object):
     return omit_minimizing_path
 
   @functools_cache
-  def solve_subproblem(self, initial_vertex, final_vertex, presence_set,
+  def solve_subproblem(self, initial_number, final_number, presence_set,
       use_memoization_instead_of_tabulation = False, omit_minimizing_path = False, skip_checks = False):
     '''
     Computes the minimal path length given specific parameters: given
-    initial and final vertices and a set of vertices of underlying graph
+    initial and final vertices [given by its indices] and a set of vertices of underlying graph
     self.digraph [given by a tuple of Booleans], finds minimal among all paths
     traveling once though each vertex satisfying the boundary conditions.
     
@@ -339,9 +339,6 @@ class StateDigraphSolveTSP(object):
     # We will parametrize these subproblems by initial, final, presence_set,
     #where presence_set is a tuple of n Booleans, True meaning the corresponding
     #vertex in its position is an element of the set (and thus part of path)
-    initial_number = self.number_by_vertex[initial_vertex]
-    final_number = self.number_by_vertex[final_vertex]
-    #print(f'\nSOLVING SUBPROBLEM\n{initial_number=}, {initial_vertex=}\n{final_number=}, {final_vertex=}\n{presence_set=} (Total: {sum(presence_set)})')
     if not skip_checks:
       # Expect arg to be a tuple of Booleans with length self.n
       assert len(presence_set) == self.n, 'Internal logic error, presence_set should be as long as the number of vertices'
@@ -357,6 +354,7 @@ class StateDigraphSolveTSP(object):
       if presence_set == sought_presence_set:
         # No previous vertex, so previous path should be the "quasi empty path" to work well later
         # By "quasi empty path" we mean the path with initial_vertex and no arrows
+        initial_vertex = self.vertex_by_number[initial_number]
         quasi_empty_path = VertexPath(
             underlying_digraph = self.digraph,
             data = [initial_vertex],
@@ -383,8 +381,9 @@ class StateDigraphSolveTSP(object):
       # That is, for all arrows landing on final_vertex, we ask which
       #could be the last one, and pick the one producing the smallest
       #weight (assuming we solve the subproblems without this last vertex)
-      min_among_all_last_arrows = math_inf
-      whole_path_as_arrows = None
+      min_among_all_last_arrows, whole_path_as_arrows  self.produce_minimization_constructs()
+      initial_vertex = self.vertex_by_number[initial_number]
+      final_vertex = self.vertex_by_number[final_number]
       for last_arrow in self.digraph.get_arrows_in(final_vertex):
         # We need to exclude self-arrows as they might throw the algorithm into a loop
         if not OperationsVAE.is_self_arrow_or_self_edge(last_arrow,
@@ -406,11 +405,12 @@ class StateDigraphSolveTSP(object):
             #plus the weight of this last arrow
             # Note that adding this last arrow is done using a VertexPath method
             # [It's probably easier than build a VertexPath instance every time]
+            penultimate_number = self.number_by_vertex[last_arrow.source]
             if use_memoization_instead_of_tabulation:
               # In this case we simply call the suproblem method again
               solution_of_smaller_subproblem = self.solve_subproblem(
-                  initial_vertex = initial_vertex,
-                  final_vertex = last_arrow.source,
+                  initial_number = initial_number,
+                  final_number = penultimate_number,
                   presence_set = last_off_presence_set,
                   use_memoization_instead_of_tabulation = True,
                   omit_minimizing_path = omit_minimizing_path,
@@ -418,7 +418,7 @@ class StateDigraphSolveTSP(object):
             else:
               # In this case the result should be stored in self._subproblem_solutions
               solution_of_smaller_subproblem = self._subproblem_solutions[
-                  (initial_vertex, last_arrow.source, last_off_presence_set)]
+                  (initial_number, penultimate_number, last_off_presence_set)]
             previous_length, previous_path = solution_of_smaller_subproblem
             this_distance = last_arrow.weight + previous_length
             # Update the minimal distance, if it is minimal
@@ -459,22 +459,36 @@ class StateDigraphSolveTSP(object):
     # Create empty dict
     solutions = {}
     if use_memoization_instead_of_tabulation:
-      # In this case initial_vertex and final_vertex are not needed
+      # In this case initial_vertex and final_vertex are not needed, only the pairs
       del initial_vertex, final_vertex
       for pair in initial_and_final_vertices:
         # In this case just do the calls and store in the right dict key
         # [Dynamic programming [memoization] is automatically done within solve_subproblem
         #due to functools.cache]
-        local_initial_vertex, local_final_vertex = pair
+        local_initial_vertex, local_final_vertex = pair_of_vertices
+        local_initial_number = self.number_by_vertex[local_initial_vertex]
+        local_final_number = self.number_by_vertex[local_final_vertex]
+        local_initial_number, local_final_number = pair_of_numbers
         local_distance, local_path = self.solve_subproblem(
-            initial_vertex = local_initial_vertex,
-            final_vertex = local_final_vertex,
+            initial_vertex = local_initial_number,
+            final_vertex = local_final_number,
             presence_set = tuple_of_trues,
             use_memoization_instead_of_tabulation = True,
             omit_minimizing_path = omit_minimizing_path,
             skip_checks = skip_checks)
-        solutions[pair] = (local_distance, local_path)
+        solutions[pair_of_numbers] = (local_distance, local_path)
     else:
+      # Prepare initial_number to match with initial_vertex. If None, should be None too
+      # Recall these should match the argument of this method and don't vary within it
+      if initial_vertex is None:
+        initial_number = None
+      else:
+        initial_number = self.number_by_vertex[initial_vertex]
+      # Same with final
+      if final_vertex is None:
+        final_number = None
+      else:
+        final_number = self.number_by_vertex[final_vertex]
       # In this case we create the solution of all subproblems, even the
       #ones smaller than full length, making use of tabulation
       # The table (a dictionary) for the tabulation process:
@@ -511,20 +525,20 @@ class StateDigraphSolveTSP(object):
                 if presence_set[local_initial_index] and presence_set[local_final_index]:
                   # We now check that the local_initial_index correspond 
                   #to a valid choice under the initial_vertex input
-                  if initial_vertex is None or local_initial_vertex == initial_vertex:
+                  if initial_number is None or local_initial_index == initial_number:
                     # If the path is full-sized, the local_final_vertex variable
                     #has to match the final_vertex input (unless this is None)
                     if (length_of_path < self.n) or (
-                        final_vertex is None or local_final_vertex == final_vertex):
+                        final_number is None or local_final_index == final_number):
                       # We compute the value and store it on the table
                       local_min_distance, local_min_path = self.solve_subproblem(
-                          initial_vertex = local_initial_vertex,
-                          final_vertex = local_final_vertex,
+                          initial_vertex = local_initial_index,
+                          final_vertex = local_final_index,
                           presence_set = presence_set,
                           use_memoization_instead_of_tabulation = False,
                           omit_minimizing_path = omit_minimizing_path,
                           skip_checks = skip_checks)
-                      self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)] = (
+                      self._subproblem_solutions[(local_initial_index, local_final_index, presence_set)] = (
                           local_min_distance, local_min_path)
                     else:
                       # For a full-length path, local_final_vertex has to match the final_vertex input
@@ -541,12 +555,14 @@ class StateDigraphSolveTSP(object):
               # We store (math.inf, None) in the table to indicate unsolvable subproblem
               #(for subproblems marked unsolvable)
               if is_subproblem_certainly_impossible:
-                self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)] = (
+                self._subproblem_solutions[(local_initial_index, local_final_index, presence_set)] = (
                     math_inf, None)
       # Read the values from self._subproblem_solutions to prepare to return
       for pair in initial_and_final_vertices:
-        local_initial_vertex, local_final_vertex = pair
-        solutions[pair] = self._subproblem_solutions[(local_initial_vertex, local_final_vertex, presence_set)]
+        local_initial_vertex, local_final_vertex = pair_of_vertices
+        local_initial_index = self.number_by_vertex[local_initial_vertex]
+        local_final_index = self.number_by_vertex[local_final_vertex]
+        solutions[pair_of_vertices] = self._subproblem_solutions[(local_initial_index, local_final_index, presence_set)]
       # To show everything is complete, delete self._subproblem_solutions
       del self._subproblem_solutions
     # In both cases, return the dict solutions

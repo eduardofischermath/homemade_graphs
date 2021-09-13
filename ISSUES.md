@@ -268,7 +268,7 @@ This way, namedtuples can be used for expensive computations, and the enhanced
 versions add flexibility to the concepts and specific methods.
 Counter-argument: lot of this flexibility is already achieved by OperationsVAE.
 
-## ISSUE #0044 OPEN
+## ISSUE #0044 ONGOING
 
 Work on improving performance on StateDigraphSolveTSP.
 Currently: doing memoization is about 10 times faster than tabulation,
