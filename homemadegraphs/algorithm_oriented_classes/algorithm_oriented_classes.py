@@ -491,11 +491,15 @@ class StateDigraphSolveTSP(object):
         final_number = self.number_by_vertex[final_vertex]
       # In this case we create the solution of all subproblems, even the
       #ones smaller than full length, making use of tabulation
-      # The table (a dictionary) for the tabulation process:
-      self._subproblem_solutions = {}
+      # The table (a dictionary) for the tabulation process
+      # It is first indexed by size (length of path, number of vertices),
+      #and then indexed by initial and final vertices and presence set
+      self._subproblem_solutions_by_size = {}
       # Note that tabulation is done in increasing order of number of vertices present
       # That is, the "size" (number of Trues) of presence_set
       for length_of_path in range(1, self.n + 1):
+        # Initiate the table for length_of_path
+        self._subproblem_solutions_by_size[length_of_path] = {}
         # Print to know progress
         print(f'Examining subproblems with {length_of_path} vertices')
         # We find all presence sets of size length_of_path
@@ -538,7 +542,7 @@ class StateDigraphSolveTSP(object):
                           use_memoization_instead_of_tabulation = False,
                           omit_minimizing_path = omit_minimizing_path,
                           skip_checks = skip_checks)
-                      self._subproblem_solutions[(local_initial_index, local_final_index, presence_set)] = (
+                      self._subproblem_solutions_by_size[length_of_path][(local_initial_index, local_final_index, presence_set)] = (
                           local_min_distance, local_min_path)
                     else:
                       # For a full-length path, local_final_vertex has to match the final_vertex input
@@ -555,14 +559,19 @@ class StateDigraphSolveTSP(object):
               # We store (math.inf, None) in the table to indicate unsolvable subproblem
               #(for subproblems marked unsolvable)
               if is_subproblem_certainly_impossible:
-                self._subproblem_solutions[(local_initial_index, local_final_index, presence_set)] = (
-                    math_inf, None)
+                self._subproblem_solutions_by_size[length_of_path][(
+                    local_initial_index, local_final_index, presence_set)] = (math_inf, None)
+        # To save space, we delete the previous (the recurrence is always
+        #on having exactly one vertex less)
+        if length_of_path >= 2:
+          del self._subproblem_solutions_by_size[length_of_path - 1]
       # Read the values from self._subproblem_solutions to prepare to return
       for pair in initial_and_final_vertices:
         local_initial_vertex, local_final_vertex = pair_of_vertices
         local_initial_index = self.number_by_vertex[local_initial_vertex]
         local_final_index = self.number_by_vertex[local_final_vertex]
-        solutions[pair_of_vertices] = self._subproblem_solutions[(local_initial_index, local_final_index, presence_set)]
+        solutions[pair_of_vertices] = self._subproblem_solutions_by_size[length_of_path][(
+            local_initial_index, local_final_index, presence_set)]
       # To show everything is complete, delete self._subproblem_solutions
       del self._subproblem_solutions
     # In both cases, return the dict solutions
