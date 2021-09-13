@@ -259,7 +259,7 @@ class StateDigraphSolveTSP(object):
 
   @staticmethod
   @functools_cache
-  def produce_boolean_lists_with_fixed_sums(given_length, given_sum,
+  def produce_boolean_lists_with_fixed_sum(given_length, given_sum,
       output_as_generator = False):
     '''
     Returns all lists of booleans values of specified length and number of Trues.
@@ -290,18 +290,18 @@ class StateDigraphSolveTSP(object):
       # Subdivide into cases; whether last element of tuple is True or False
       # And then consider all other elements, recursing on a smaller length
       # They can be produced the same way for generators or lists
-      to_add_true_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sums(
+      to_add_true_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
           given_length = given_length - 1,
           given_sum = given_sum - 1,
           output_as_generator = output_as_generator)
-      to_add_false_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sums(
+      to_add_false_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
           given_length = given_length - 1,
           given_sum = given_sum,
           output_as_generator = output_as_generator)
       if output_as_generator:
-        raise NotImplementedError('Not working correctly; use lists instead.')
-        with_true_at_end = (listt+[True] for listt in to_add_true_at_end)
-        with_false_at_end = (listt+[False] for listt in to_add_false_at_end)
+        #raise NotImplementedError('Not working correctly; use lists instead.')
+        with_true_at_end = map(lambda listt: listt+[True], to_add_true_at_end)
+        with_false_at_end = map(lambda listt: listt+[False], to_add_false_at_end)
         # Use itertools.chain to concatenate generators
         return itertools_chain(with_true_at_end, with_false_at_end)
       else:
@@ -323,7 +323,7 @@ class StateDigraphSolveTSP(object):
     # The second is not wasteful, but experimentation shows it's slower
     if use_homemade_method_instead_of_built_in:
       # Get output from produce_boolean_lists_with_fixed_sums, and make tuples
-      all_possibilities_as_lists = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sums(
+      all_possibilities_as_lists = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
           given_length = given_length,
           given_sum = given_sum,
           output_as_generator = output_as_generator) # Warning: Currently has bugs if True
