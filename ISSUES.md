@@ -299,10 +299,11 @@ Change the order of condition checking in StateDigraphSolveTSP.solve_subproblem
 for tabulation so there are fewer checks. (Start checking initial vertex,
 so unless it is None, the decision will be made earlier.)
 
-## ISSUE ##0048 OPEN
+## ISSUE ##0048 ONGOING
 
 Implement bitmasks for presence sets in StateDigraphSolveTSP. That is,
 for example, instead of a tuple (False, True, True, True, False, True, False),
 represent it by the integer 2**5 + 2**4 + 2**3 + 2**1 = 58 (or simply 0111010 in base 2).
 This removes memory footprint; for the example, from 28 to 80 bytes,
-and the difference only increases for longer tuples.
+and the difference only increases for longer tuples. (Strings also reduce
+footprint, but not as well as integers: in the example '0111010'.__sizeof__() == 56)

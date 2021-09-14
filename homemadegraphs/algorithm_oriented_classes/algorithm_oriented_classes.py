@@ -241,6 +241,43 @@ class StateGraphGetCC(object):
 class StateDigraphSolveTSP(object):
   '''
   Used to help with method solve_traveling_salesman_problem.
+  
+  Bitmasks:
+  
+  This class implements bitmasks in a few places, including its main method,
+  solve_problem (through its calls). They are used to reduce memory footprint,
+  which is very important in this class. The concept will be explained here.
+  
+  The method makes use of presence sets, which are Boolean tuples such as
+  (False, True, True, True, False, True, False), to keep track of subproblems
+  to the main problem, the solve_problem, the Traveling Salesman Problem.
+  
+  Bitmask means that such Boolean tuple becomes a binary, with True mapped to 1
+  and False to 0. So the tuple above becomes 0111010. The bitmask is the number
+  these bits represent when read in base 2. In the case, int('0111010', 2) = 58.
+  We could also say 2**5 + 2**4 + 2**3 + 2**1 = 58.
+  
+  If the vertices are numbered from 0 to n-1 (technically, in this class, self.n - 1),
+  a subset 0 <= i_1 < ... < i_k <= n-1 of them might be represented by the integer
+  2**(i_k) + ... + 2**(i_1).
+  
+  The reduction of footprint in the example can be measured through __sizeof__();
+  the tuple takes 80 bytes, the string '0111010' 56 bytes, and the integer 28 bytes.
+  This explains the preference for integer.
+  
+  Note that the vertex 0 has influence on the rightmost (the least significant) digit,
+  while in the representation as tuple, it would determine if the tuple would
+  start with True or False. On all bitmasks, to clarify, we will adopt the convention
+  that the vertex 0 will always mean the rightmost.
+  
+  Note also that the regular representation of an integer into base 2
+  will not show the leftmost zeros. Knowing n, these can be easily deduced.
+  
+  Useful bitmask operations (with no further explanations):
+  
+  Object labeled i marked present in bitmask b: (b >> i) & 1
+  Remove object i from bitmask b (where i is present): b - 2**i
+  Add object i from bitmask b (where i is absent): b + 2**i
   '''
   
   def __init__(self, digraph):
