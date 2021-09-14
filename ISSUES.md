@@ -283,7 +283,7 @@ Change option of omit_minimizing_path in StateDigraphSolveTSP to not produce
 the path at all (instead of producing the token None as path).
 Goal: to save RAM, since each None.__sizeof__() is 16 bytes.
 
-## ISSUE ##0046 ONGOING
+## ISSUE #0046 ONGOING
 
 Change StateDigraphSolveTSP.solve_subproblem to have functools.cache
 only when called with memoization. This can be done by a function enveloping the call.
@@ -293,13 +293,13 @@ some of the RAM footprint to store the cache.
 (Note these ideas have been implemented but without improving speed and
 memory consumption. Thus, they have not been incorporated into the main branches.)
 
-## ISSUE ##0047 COMPLETE
+## ISSUE #0047 COMPLETE
 
 Change the order of condition checking in StateDigraphSolveTSP.solve_subproblem
 for tabulation so there are fewer checks. (Start checking initial vertex,
 so unless it is None, the decision will be made earlier.)
 
-## ISSUE ##0048 ONGOING
+## ISSUE #0048 COMPLETE
 
 Implement bitmasks for presence sets in StateDigraphSolveTSP. That is,
 for example, instead of a tuple (False, True, True, True, False, True, False),
@@ -307,3 +307,20 @@ represent it by the integer 2**5 + 2**4 + 2**3 + 2**1 = 58 (or simply 0111010 in
 This removes memory footprint; for the example, from 28 to 80 bytes,
 and the difference only increases for longer tuples. (Strings also reduce
 footprint, but not as well as integers: in the example '0111010'.__sizeof__() == 56)
+
+This appears to reduce the footprint for memoization by some percentage.
+
+## ISSUE #0049 OPEN
+
+Solve bugs related to outputting as generator when producing all presence bitmasks
+in StateDigraphSolveTSP. Bug also appears for the deprecated presence set.
+
+## ISSUE #0050 OPEN
+
+Go further on Issue #0048 and also codify initial and final vertices
+(or initial and final numbers) as part of the bitmask. For example,
+add (2**self.n)*final_number and (self.n*(2**self.n))*initial_number to
+the bitmask, making it into a "hybrid-base representation number".
+That is, it will have self.n+2 "digits", with the first and second on the left
+to mean the initial and final numbers, and the last self.n digits as bitmask
+for the presence of the self.n vertices.

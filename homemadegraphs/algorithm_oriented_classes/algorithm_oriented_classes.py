@@ -315,7 +315,7 @@ class StateDigraphSolveTSP(object):
     '''
     count = 0
     while number:
-      number & (number - 1)
+      number = number & (number - 1)
       count += 1
     return count
 
@@ -365,8 +365,6 @@ class StateDigraphSolveTSP(object):
         with_leftmost_digit_one = [number | (1 << leftmost_index) for number in to_add_leftmost_one]
         with_leftmost_digit_zero = to_add_leftmost_zero
         return with_leftmost_digit_one + with_leftmost_digit_zero
-
-
 
   def produce_minimization_constructs(self):
     '''
@@ -594,7 +592,7 @@ class StateDigraphSolveTSP(object):
         right_size_presence_bitmasks = self.produce_bitmasks_with_specific_digit_sum(
             given_length = self.n,
             given_sum = length_of_path,
-            output_as_generator = True)
+            output_as_generator = False)
         for presence_bitmask in right_size_presence_bitmasks:
           # To determine initial_vertex and final_vertex passed to subproblem
           #[note final_vertex is not the same as the one or None given to
