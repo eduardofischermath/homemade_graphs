@@ -278,6 +278,10 @@ class StateDigraphSolveTSP(object):
   Object labeled i marked present in bitmask b: (b >> i) & 1
   Remove object i from bitmask b (where i is present): b - 2**i
   Add object i from bitmask b (where i is absent): b + 2**i
+  Set object i to 1 in bitmask b (any prior status): b | (1 << i)
+  Set object i to 0 in bitmask b (any prior status): b & ~(1 << i)
+  Eliminate the least significant 1 in b: b & (b-1)
+  Count number of 1's in b: number of times "b = b & (b-1)" can be done until b == 0
   '''
   
   def __init__(self, digraph):
@@ -293,6 +297,52 @@ class StateDigraphSolveTSP(object):
     for idx, vertex in enumerate(self.digraph.get_vertices()):
       self.number_by_vertex[vertex] = idx
       self.vertex_by_number[idx] = vertex
+
+  @staticmethod
+  @functools_cache
+  def produce_bitmasks_with_specific_digit_sum(given_length, given_sum,
+      output_as_generator = False):
+    '''
+    Produces all bitmask of specified length have a specified number of '1's,
+    that is, of objects marked as present in the bitmask.
+    
+    Can produce them as a list or as a generator.
+    '''
+    if given_length <= 0:
+      # Should be 0 if given_length and given_sum are 0, and nothing otherwise
+      if given_length == 0 and given_sum == 0:
+        generator = (0 for index in range(1))
+      else:
+        generator = (None for index in range(0))
+      if output_as_generator:
+        return generator
+      else:
+        return list(generator)
+    else:
+      # Recurse on the bitmasks of given_length one unit smaller
+      to_add_leftmost_one = StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum(
+          given_length = given_length - 1,
+          given_sum = given_sum - 1,
+          output_as_generator = output_as_generator)
+      to_add_leftmost_zero = StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum(
+          given_length = given_length - 1,
+          given_sum = given_sum,
+          output_as_generator = output_as_generator)
+      # Add 0 or 1 to the start of the number (done as bit operation), then output
+      leftmost_index = given_length-1
+      if output_as_generator:
+        ##############
+        # WORK HERE
+        # Fix bug
+        ##############
+        raise NotImplementedError('Not working correctly; use lists instead.')
+        with_leftmost_digit_one = (number | (1 << leftmost_index) for number in to_add_leftmost_one)
+        with_leftmost_digit_zero = to_add_leftmost_zero
+        return itertools_chain(with_leftmost_digit_one, with_leftmost_digit_zero)
+      else:
+        with_leftmost_digit_one = [number | (1 << leftmost_index) for number in to_add_leftmost_one]
+        with_leftmost_digit_zero = to_add_leftmost_zero
+        return with_leftmost_digit_one + with_leftmost_digit_zero
 
   @staticmethod
   @functools_cache
@@ -336,7 +386,11 @@ class StateDigraphSolveTSP(object):
           given_sum = given_sum,
           output_as_generator = output_as_generator)
       if output_as_generator:
-        #raise NotImplementedError('Not working correctly; use lists instead.')
+        ##############
+        # WORK HERE
+        # Fix bug
+        ##############
+        raise NotImplementedError('Not working correctly; use lists instead.')
         with_true_at_end = map(lambda listt: listt+[True], to_add_true_at_end)
         with_false_at_end = map(lambda listt: listt+[False], to_add_false_at_end)
         # Use itertools.chain to concatenate generators
