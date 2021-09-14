@@ -275,6 +275,8 @@ class StateDigraphSolveTSP(object):
   
   Useful bitmask operations (with no further explanations):
   
+  Bitmask for subset whose only object is i: 1 << i
+  Bitmask for full set with n objects: (1 << n) - 1
   Object labeled i marked present in bitmask b: (b >> i) & 1
   Remove object i from bitmask b (where i is present): b - 2**i
   Add object i from bitmask b (where i is absent): b + 2**i
@@ -298,6 +300,25 @@ class StateDigraphSolveTSP(object):
       self.number_by_vertex[vertex] = idx
       self.vertex_by_number[idx] = vertex
 
+  def produce_complete_bitmask(self):
+    '''
+    Produces the bitmask corresponding to the full subset of vertices.
+    '''
+    return (1 << self.n) - 1 # 2**self.n - 1
+
+  @staticmethod
+  def count_elements_in_bitmask(number):
+    '''
+    Given a number, counts the number of '1's in its binary representation.
+    
+    If the number is a bitmask, it counts the number of objects which are present.
+    '''
+    count = 0
+    while number:
+      number & (number - 1)
+      count += 1
+    return count
+
   @staticmethod
   @functools_cache
   def produce_bitmasks_with_specific_digit_sum(given_length, given_sum,
@@ -310,6 +331,7 @@ class StateDigraphSolveTSP(object):
     '''
     if given_length <= 0:
       # Should be 0 if given_length and given_sum are 0, and nothing otherwise
+      # [Note number 0 count as list of any length]
       if given_length == 0 and given_sum == 0:
         generator = (0 for index in range(1))
       else:
@@ -344,97 +366,7 @@ class StateDigraphSolveTSP(object):
         with_leftmost_digit_zero = to_add_leftmost_zero
         return with_leftmost_digit_one + with_leftmost_digit_zero
 
-  @staticmethod
-  @functools_cache
-  def produce_boolean_lists_with_fixed_sum(given_length, given_sum,
-      output_as_generator = False):
-    '''
-    Returns all lists of booleans values of specified length and number of Trues.
-    
-    Can produce them as a list or as a generator.
-    '''
-    if given_length <= 0: # In case this is given as argument, but it shouldn't...
-      # Generator which outputs nothing
-      generator = (None for index in range(0))
-      if output_as_generator:
-        return generator
-      else:
-        return list(generator)
-    elif given_length == 1:
-      if given_sum == 1:
-        # Create a generator whose corresponding list is [[True]]
-        generator = ([True] for index in range(1))
-      elif given_sum == 0:
-        generator = ([False] for index in range(1))
-      else:
-        # Generator which outputs nothing
-        generator = (None for index in range(0))
-      if output_as_generator:
-        return generator
-      else:
-        return list(generator)
-    else:
-      # Subdivide into cases; whether last element of tuple is True or False
-      # And then consider all other elements, recursing on a smaller length
-      # They can be produced the same way for generators or lists
-      to_add_true_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
-          given_length = given_length - 1,
-          given_sum = given_sum - 1,
-          output_as_generator = output_as_generator)
-      to_add_false_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
-          given_length = given_length - 1,
-          given_sum = given_sum,
-          output_as_generator = output_as_generator)
-      if output_as_generator:
-        ##############
-        # WORK HERE
-        # Fix bug
-        ##############
-        raise NotImplementedError('Not working correctly; use lists instead.')
-        with_true_at_end = map(lambda listt: listt+[True], to_add_true_at_end)
-        with_false_at_end = map(lambda listt: listt+[False], to_add_false_at_end)
-        # Use itertools.chain to concatenate generators
-        return itertools_chain(with_true_at_end, with_false_at_end)
-      else:
-        with_true_at_end = [listt+[True] for listt in to_add_true_at_end]
-        with_false_at_end = [listt+[False] for listt in to_add_false_at_end]
-        return with_true_at_end + with_false_at_end
 
-  @staticmethod
-  def produce_boolean_tuples_with_fixed_sum(given_length, given_sum,
-      output_as_generator = False, use_homemade_method_instead_of_built_in = False):
-    '''
-    Returns the tuples of True/False with a specific number of each.
-    
-    Used to generate presence sets with a specific number of total vertices
-    [given_length] and a specific number of present vertices [given_sum]
-    '''
-    # We have two approaches. The oldest one uses built-in tools (itertools)
-    #but needs to examine all possible tuples, making it wasteful
-    # The second is not wasteful, but experimentation shows it's slower
-    if use_homemade_method_instead_of_built_in:
-      # Get output from produce_boolean_lists_with_fixed_sums, and make tuples
-      all_possibilities_as_lists = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
-          given_length = given_length,
-          given_sum = given_sum,
-          output_as_generator = output_as_generator) # Warning: Currently has bugs if True
-      generator_of_all_possibilities_as_tuples = map(tuple, all_possibilities_as_lists)
-      if output_as_generator:
-        return generator_of_all_possibilities_as_tuples
-      else:
-        return list(generator_of_all_possibilities_as_tuples)
-    else:
-      # We generate all tuples of given length with True/False values
-      generator_of_all_tuples = itertools_product((True, False), repeat = given_length)
-      # We restrict the tuples to the ones with given number of True and Falses
-      # (Given by sum, meaning this sum is the number of True values)
-      # We use a Boolean lambda function and a filter
-      filter_criterion = lambda tuplee: (sum(tuplee) == given_sum)
-      generator_for_needed_tuples = filter(filter_criterion, generator_of_all_tuples)
-      if output_as_generator:
-        return generator_for_needed_tuples
-      else:
-        return list(generator_for_needed_tuples)
 
   def produce_minimization_constructs(self):
     '''
@@ -452,13 +384,6 @@ class StateDigraphSolveTSP(object):
     min_path_overall = None
     return (min_distance_overall, min_path_overall)
 
-  def produce_tuple_of_trues(self):
-    # Tuple of trues useful for calling methods (operates as a "presence set")
-    # produce_boolean_tuples_with_fixed_sum would be too costly, so we do it directly
-    list_with_tuple_of_trues = list(itertools_product((True,), repeat = self.n))
-    tuple_of_trues = list_with_tuple_of_trues[0]
-    return tuple_of_trues
-
   def should_omit_minimizing_paths(self, output_as):
     '''
     Returns whether the full problem in class requires a specific path given.
@@ -472,7 +397,7 @@ class StateDigraphSolveTSP(object):
     return omit_minimizing_path
 
   @functools_cache
-  def solve_subproblem(self, initial_number, final_number, presence_set,
+  def solve_subproblem(self, initial_number, final_number, presence_bitmask,
       use_memoization_instead_of_tabulation = False, omit_minimizing_path = False, skip_checks = False):
     '''
     Computes the minimal path length given specific parameters: given
@@ -495,22 +420,22 @@ class StateDigraphSolveTSP(object):
     #final vertex, and a set of the vertices including those two. We want
     #the minimal length of the paths going through each vertex once
     #(if there are such paths), starting at initial and ending on the final
-    # We will parametrize these subproblems by initial, final, presence_set,
-    #where presence_set is a tuple of n Booleans, True meaning the corresponding
-    #vertex in its position is an element of the set (and thus part of path)
+    # We will parametrize these subproblems by initial, final, presence_bitmask,
+    #where presence_bitmask is an integer codifying a subset of vertices
     if not skip_checks:
-      # Expect arg to be a tuple of Booleans with length self.n
-      assert len(presence_set) == self.n, 'Internal logic error, presence_set should be as long as the number of vertices'
+      # Since vertices are numbered from 0 to self.n - 1
+      assert presence_bitmask <= 2**self.n - 1, 'Internal logic error, presence_bitmask cannot be longer than number of vertices'
       # Check that initial_vertex and final_vertex are present [i. e. True]
-      assert presence_set[initial_number], 'Internal logic error, initial vertex must be in presence set'
-      assert presence_set[final_number], 'Internal logic error, final vertex must be in presence set'
+      assert (presence_bitmask >> initial_number) & 1, 'Internal logic error, initial vertex must be in presence set'
+      assert (presence_bitmask >> final_number) & 1, 'Internal logic error, final vertex must be in presence set'
     # We get rid of the boundary cases
     # We impose that if the final vertex coincides with the initial vertex,
     #the only possible path is the no-arrow path (of length 0 arrows)
     if initial_number == final_number:
-      # Want that vertex as the only True, otherwise no path (distance math_inf)
-      sought_presence_set = tuple((idx == initial_number) for idx in range(self.n))
-      if presence_set == sought_presence_set:
+      # This is a case of a cycle, so it has to be a single-vertex cycle
+      #(Otherwise no problem to solution)
+      sought_presence_bitmask = 1 << initial_number # 2**initial_number
+      if presence_bitmask == sought_presence_bitmask:
         # No previous vertex, so previous path should be the "quasi empty path" to work well later
         # By "quasi empty path" we mean the path with initial_vertex and no arrows
         initial_vertex = self.vertex_by_number[initial_number]
@@ -552,15 +477,12 @@ class StateDigraphSolveTSP(object):
             require_vertex_namedtuple = False):
           # last_arrow has information last_arrow.source, last_arrow.target
           #which is final_vertex, and last_arrow.weight.
-          # We verify the source does belong to the presence_set
+          # We verify the source does belong to the presence_bitmask
           # (Otherwise there is no improvement to be made)
           last_arrow_source_as_number = self.number_by_vertex[last_arrow.source]
-          if presence_set[last_arrow_source_as_number]:
-            # We "remove" final_number by flipping True to False
-            # We need to create a temporary mutable object first
-            presence_set_as_list = list(presence_set)
-            presence_set_as_list[final_number] = False
-            last_off_presence_set = tuple(presence_set_as_list)
+          if (presence_bitmask >> last_arrow_source_as_number) & 1:
+            # We "remove" final_number from the presence_bitmask
+            last_off_presence_bitmask = presence_bitmask & ~(1 << final_number)
             # Total weight is then the solution of that problem,
             #plus the weight of this last arrow
             # Note that adding this last arrow is done using a VertexPath method
@@ -571,15 +493,16 @@ class StateDigraphSolveTSP(object):
               solution_of_smaller_subproblem = self.solve_subproblem(
                   initial_number = initial_number,
                   final_number = penultimate_number,
-                  presence_set = last_off_presence_set,
+                  presence_bitmask = last_off_presence_bitmask,
                   use_memoization_instead_of_tabulation = True,
                   omit_minimizing_path = omit_minimizing_path,
                   skip_checks = skip_checks)
             else:
               # In this case the result should be stored in self._subproblem_solutions_by_size,
-              #indexed by the number of vertices which is sum(last_off_presence_set)
-              solution_of_smaller_subproblem = self._subproblem_solutions_by_size[sum(last_off_presence_set)][
-                  (initial_number, penultimate_number, last_off_presence_set)]
+              #indexed by the number of vertices in the last_off_presence_bitmask
+              number_of_vertices_in_bitmask = self.count_elements_in_bitmask(last_off_presence_bitmask)
+              solution_of_smaller_subproblem = self._subproblem_solutions_by_size[number_of_vertices_in_bitmask][
+                  (initial_number, penultimate_number, last_off_presence_bitmask)]
             if omit_minimizing_path:
               previous_length = solution_of_smaller_subproblem
             else:
@@ -621,7 +544,7 @@ class StateDigraphSolveTSP(object):
     SEE ALSO: solve_subproblem
     '''
     # Useful construct
-    tuple_of_trues = self.produce_tuple_of_trues()
+    all_vertices_bitmask = self.produce_complete_bitmask()
     # Create empty dict
     solutions = {}
     if use_memoization_instead_of_tabulation:
@@ -637,7 +560,7 @@ class StateDigraphSolveTSP(object):
         local_solution = self.solve_subproblem(
             initial_number = local_initial_number,
             final_number = local_final_number,
-            presence_set = tuple_of_trues,
+            presence_bitmask = all_vertices_bitmask,
             use_memoization_instead_of_tabulation = True,
             omit_minimizing_path = omit_minimizing_path,
             skip_checks = skip_checks)
@@ -662,19 +585,17 @@ class StateDigraphSolveTSP(object):
       #and then indexed by initial and final vertices and presence set
       self._subproblem_solutions_by_size = {}
       # Note that tabulation is done in increasing order of number of vertices present
-      # That is, the "size" (number of Trues) of presence_set
       for length_of_path in range(1, self.n + 1):
         # Initiate the table for length_of_path
         self._subproblem_solutions_by_size[length_of_path] = {}
         # Print to know progress
         print(f'Examining subproblems with {length_of_path} vertices')
-        # We find all presence sets of size length_of_path
-        right_size_presence_sets = self.produce_boolean_tuples_with_fixed_sum(
+        # We find all presence bitmasks of size length_of_path
+        right_size_presence_bitmasks = self.produce_bitmasks_with_specific_digit_sum(
             given_length = self.n,
             given_sum = length_of_path,
-            output_as_generator = True,
-            use_homemade_method_instead_of_built_in = False)
-        for presence_set in right_size_presence_sets:
+            output_as_generator = True)
+        for presence_bitmask in right_size_presence_bitmasks:
           # To determine initial_vertex and final_vertex passed to subproblem
           #[note final_vertex is not the same as the one or None given to
           #solve_full_problem, since there we do a recursion on the last vertex]
@@ -692,16 +613,11 @@ class StateDigraphSolveTSP(object):
               #table as problems without solution, that is, (math.inf, None)
               # We control it using the variable: is_subproblem_certainly_impossible
               is_subproblem_certainly_impossible = False
-              # We write the four conditions (essentially boolean functions on variables)
-              # Eliminate nontrivial [more than one vertex] cycles:
-              condition_forbidding_nontrivial_cycles = length_of_path == 1 or local_initial_index != local_final_index
-              # Ensure the vertices corresponding to the extremes are present in presence_set
-              presence_set[local_initial_index] and presence_set[local_final_index]
               # We now check that the local_initial_index correspond 
               #to a valid choice under the initial_vertex input
               if (initial_number is None) or (local_initial_index == initial_number):
-                # Ensure the vertices corresponding to the indices are present in presence_set
-                if presence_set[local_initial_index] and presence_set[local_final_index]:
+                # Ensure the vertices corresponding to the indices are present in presence_bitmask
+                if (presence_bitmask >> local_initial_index) & 1 and (presence_bitmask >> local_final_index) & 1:
                   # Eliminate nontrivial [more than one vertex] cycles:
                   if (length_of_path == 1) or (local_initial_index != local_final_index):
                     # If the path is full-sized, the local_final_vertex variable
@@ -712,12 +628,12 @@ class StateDigraphSolveTSP(object):
                       local_solution = self.solve_subproblem(
                           initial_number = local_initial_index,
                           final_number = local_final_index,
-                          presence_set = presence_set,
+                          presence_bitmask = presence_bitmask,
                           use_memoization_instead_of_tabulation = False,
                           omit_minimizing_path = omit_minimizing_path,
                           skip_checks = skip_checks)
                       self._subproblem_solutions_by_size[length_of_path][(
-                          local_initial_index, local_final_index, presence_set)] = local_solution
+                          local_initial_index, local_final_index, presence_bitmask)] = local_solution
                     else:
                       # For a full-length path, local_final_vertex has to match the final_vertex input
                       is_subproblem_certainly_impossible = True
@@ -738,18 +654,18 @@ class StateDigraphSolveTSP(object):
                 else:
                   solution = (math_inf, None)
                 self._subproblem_solutions_by_size[length_of_path][(
-                    local_initial_index, local_final_index, presence_set)] = solution
+                    local_initial_index, local_final_index, presence_bitmask)] = solution
         # To save space, we delete the previous (the recurrence is always
         #on having exactly one vertex less)
         if length_of_path >= 2:
           del self._subproblem_solutions_by_size[length_of_path - 1]
-      # Read the values from self._subproblem_solutions to prepare to return
+      # Read the values from self._subproblem_solutions and store in dict solutions
       for pair_of_vertices in initial_and_final_vertices:
         local_initial_vertex, local_final_vertex = pair_of_vertices
         local_initial_index = self.number_by_vertex[local_initial_vertex]
         local_final_index = self.number_by_vertex[local_final_vertex]
         solutions[pair_of_vertices] = self._subproblem_solutions_by_size[self.n][(
-            local_initial_index, local_final_index, presence_set)]
+            local_initial_index, local_final_index, presence_bitmask)]
       # To show everything is complete, delete self._subproblem_solutions_by_size
       del self._subproblem_solutions_by_size
     # In both cases, return the dict solutions
@@ -1014,5 +930,113 @@ class StateDigraphSolveTSP(object):
             data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
             output_as = output_as,
             skip_checks = skip_checks)
+
+  # Deprecated
+  def produce_tuple_of_trues(self):
+    '''
+    Produces a tuple of Trues with length the number of vertices.
+    '''
+    raise DeprecationWarning('Now presence bitmasks are favored over presence sets.')
+    # Tuple of trues useful for calling methods (operates as a "presence set")
+    # produce_boolean_tuples_with_fixed_sum would be too costly, so we do it directly
+    list_with_tuple_of_trues = list(itertools_product((True,), repeat = self.n))
+    tuple_of_trues = list_with_tuple_of_trues[0]
+    return tuple_of_trues
+
+  # Deprecated
+  @staticmethod
+  @functools_cache
+  def produce_boolean_lists_with_fixed_sum(given_length, given_sum,
+      output_as_generator = False):
+    '''
+    Returns all lists of booleans values of specified length and number of Trues.
+    
+    Can produce them as a list or as a generator.
+    '''
+    raise DeprecationWarning('Now presence bitmasks are favored over presence sets.')
+    if given_length <= 0: # In case this is given as argument, but it shouldn't...
+      # Generator which outputs nothing
+      generator = (None for index in range(0))
+      if output_as_generator:
+        return generator
+      else:
+        return list(generator)
+    elif given_length == 1:
+      if given_sum == 1:
+        # Create a generator whose corresponding list is [[True]]
+        generator = ([True] for index in range(1))
+      elif given_sum == 0:
+        generator = ([False] for index in range(1))
+      else:
+        # Generator which outputs nothing
+        generator = (None for index in range(0))
+      if output_as_generator:
+        return generator
+      else:
+        return list(generator)
+    else:
+      # Subdivide into cases; whether last element of tuple is True or False
+      # And then consider all other elements, recursing on a smaller length
+      # They can be produced the same way for generators or lists
+      to_add_true_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
+          given_length = given_length - 1,
+          given_sum = given_sum - 1,
+          output_as_generator = output_as_generator)
+      to_add_false_at_end = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
+          given_length = given_length - 1,
+          given_sum = given_sum,
+          output_as_generator = output_as_generator)
+      if output_as_generator:
+        ##############
+        # WORK HERE
+        # Fix bug
+        ##############
+        raise NotImplementedError('Not working correctly; use lists instead.')
+        with_true_at_end = map(lambda listt: listt+[True], to_add_true_at_end)
+        with_false_at_end = map(lambda listt: listt+[False], to_add_false_at_end)
+        # Use itertools.chain to concatenate generators
+        return itertools_chain(with_true_at_end, with_false_at_end)
+      else:
+        with_true_at_end = [listt+[True] for listt in to_add_true_at_end]
+        with_false_at_end = [listt+[False] for listt in to_add_false_at_end]
+        return with_true_at_end + with_false_at_end
+
+  # Deprecated
+  @staticmethod
+  def produce_boolean_tuples_with_fixed_sum(given_length, given_sum,
+      output_as_generator = False, use_homemade_method_instead_of_built_in = False):
+    '''
+    Returns the tuples of True/False with a specific number of each.
+    
+    Used to generate presence sets with a specific number of total vertices
+    [given_length] and a specific number of present vertices [given_sum]
+    '''
+    raise DeprecationWarning('Now presence bitmasks are favored over presence sets.')
+    # We have two approaches. The oldest one uses built-in tools (itertools)
+    #but needs to examine all possible tuples, making it wasteful
+    # The second is not wasteful, but experimentation shows it's slower
+    if use_homemade_method_instead_of_built_in:
+      # Get output from produce_boolean_lists_with_fixed_sums, and make tuples
+      all_possibilities_as_lists = StateDigraphSolveTSP.produce_boolean_lists_with_fixed_sum(
+          given_length = given_length,
+          given_sum = given_sum,
+          output_as_generator = output_as_generator) # Warning: Currently has bugs if True
+      generator_of_all_possibilities_as_tuples = map(tuple, all_possibilities_as_lists)
+      if output_as_generator:
+        return generator_of_all_possibilities_as_tuples
+      else:
+        return list(generator_of_all_possibilities_as_tuples)
+    else:
+      # We generate all tuples of given length with True/False values
+      generator_of_all_tuples = itertools_product((True, False), repeat = given_length)
+      # We restrict the tuples to the ones with given number of True and Falses
+      # (Given by sum, meaning this sum is the number of True values)
+      # We use a Boolean lambda function and a filter
+      filter_criterion = lambda tuplee: (sum(tuplee) == given_sum)
+      generator_for_needed_tuples = filter(filter_criterion, generator_of_all_tuples)
+      if output_as_generator:
+        return generator_for_needed_tuples
+      else:
+        return list(generator_for_needed_tuples)
 
 ########################################################################
