@@ -523,7 +523,8 @@ class StateDigraphSolveTSP(object):
     given the specified pairs of initial and final vertices [the boundary conditions].
     
     Returns a dictionary in which the keys are the pairs of possible initial
-    and final vertices, and whose values are the optimizing distances and paths.
+    and final vertices (given as vertices and not as numbers/indices),
+    and whose values are the optimizing distances and paths.
     
     SEE ALSO: solve_subproblem
     '''
@@ -541,7 +542,6 @@ class StateDigraphSolveTSP(object):
         local_initial_vertex, local_final_vertex = pair_of_vertices
         local_initial_number = self.number_by_vertex[local_initial_vertex]
         local_final_number = self.number_by_vertex[local_final_vertex]
-        pair_of_numbers = local_initial_number, local_final_number
         local_solution = self.solve_subproblem(
             initial_number = local_initial_number,
             final_number = local_final_number,
@@ -550,7 +550,7 @@ class StateDigraphSolveTSP(object):
             omit_minimizing_path = omit_minimizing_path,
             skip_checks = skip_checks)
         # Note it works with omit_minizing_path True or False
-        solutions[pair_of_numbers] = local_solution
+        solutions[pair_of_vertices] = local_solution
     else:
       # Prepare initial_number to match with initial_vertex. If None, should be None too
       # Recall these should match the argument of this method and don't vary within it

@@ -276,7 +276,7 @@ but execution time about doubles for every additional vertex in a complete graph
 (as expected from the algorithm). If it reaches RAM limit, even worse,
 so it's important to downsize also the memory consumption.
 
-## ISSUE #0045 ONGOING
+## ISSUE #0045 COMPLETE
 
 Change option of omit_minimizing_path in StateDigraphSolveTSP to not produce
 the path at all (instead of producing the token None as path).
