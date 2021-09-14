@@ -316,7 +316,7 @@ and make the computation time slightly shorter.
 Solve bugs related to outputting as generator when producing all presence bitmasks
 in StateDigraphSolveTSP. Bug also appears for the deprecated presence set.
 
-## ISSUE #0050 ONGOING
+## ISSUE #0050 COMPLETE
 
 Go further on Issue #0048 and also codify initial and final vertices
 (or initial and final numbers) as part of the bitmask. For example,
@@ -325,3 +325,5 @@ the bitmask, making it into a "hybrid-base representation number".
 That is, it will have self.n+2 "digits", with the first and second on the left
 to mean the initial and final numbers, and the last self.n digits as bitmask
 for the presence of the self.n vertices.
+
+Performance: about 30% savings on memory, about 10% more in processing time.

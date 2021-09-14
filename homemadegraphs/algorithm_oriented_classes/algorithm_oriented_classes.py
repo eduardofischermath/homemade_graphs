@@ -641,6 +641,12 @@ class StateDigraphSolveTSP(object):
           #when the values make sense and are useful
           for local_initial_index in range(self.n):
             for local_final_index in range(self.n):
+              # The enhanced_bitmask will need to be computed at some moment
+              #because we always store the value using enhanced_bitmask as key
+              enhanced_bitmask = self.codify_into_enhanced_bitmask(
+                  initial_number = local_initial_index,
+                  final_number = local_final_index,
+                  presence_bitmask = presence_bitmask)  
               local_initial_vertex = self.vertex_by_number[local_initial_index]
               local_final_vertex = self.vertex_by_number[local_final_index]
               # We would like to tabulate only cases that matter.
@@ -663,10 +669,6 @@ class StateDigraphSolveTSP(object):
                     if (length_of_path < self.n) or (
                         final_number is None or local_final_index == final_number):
                       # We compute the value and store it on the table
-                      enhanced_bitmask = self.codify_into_enhanced_bitmask(
-                            initial_number = local_initial_index,
-                            final_number = local_final_index,
-                            presence_bitmask = presence_bitmask)  
                       local_solution = self.solve_subproblem(
                           enhanced_bitmask = enhanced_bitmask,
                           use_memoization_instead_of_tabulation = False,
@@ -693,8 +695,8 @@ class StateDigraphSolveTSP(object):
                   solution = math_inf
                 else:
                   solution = (math_inf, None)
-                self._subproblem_solutions_by_size[length_of_path][(
-                    local_initial_index, local_final_index, presence_bitmask)] = solution
+                self._subproblem_solutions_by_size[length_of_path][
+                    enhanced_bitmask] = solution
         # To save space, we delete the previous (the recurrence is always
         #on having exactly one vertex less)
         if length_of_path >= 2:
@@ -704,6 +706,10 @@ class StateDigraphSolveTSP(object):
         local_initial_vertex, local_final_vertex = pair_of_vertices
         local_initial_index = self.number_by_vertex[local_initial_vertex]
         local_final_index = self.number_by_vertex[local_final_vertex]
+        enhanced_bitmask = self.codify_into_enhanced_bitmask(
+            initial_number = local_initial_index,
+            final_number = local_final_index,
+            presence_bitmask = all_vertices_bitmask)
         solutions[pair_of_vertices] = self._subproblem_solutions_by_size[self.n][enhanced_bitmask]
       # To show everything is complete, delete self._subproblem_solutions_by_size
       del self._subproblem_solutions_by_size
