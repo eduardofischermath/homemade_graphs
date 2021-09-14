@@ -2441,7 +2441,7 @@ class WeightedGraph(WeightedDigraph, Graph):
 
   @classmethod
   def from_names_and_coordinates(cls, list_of_points, number_of_dimensions = None,
-      skip_checks = False):
+      maximum_distance = None, skip_checks = False):
     '''
     Creates the complete graph corresponding to a list of cities (or anything
     represented by points in any-dimensional space) and the pairwise distances.
@@ -2451,6 +2451,9 @@ class WeightedGraph(WeightedDigraph, Graph):
     Vertex namedtuples created after the names (the first item of each tuple)
     and whose edges are weighted according to the Euclidean distance
     between the names of the vertices.
+    
+    A maximum distance might be set as a number; if a distance is larger than that,
+    the vertices won't be connected by an edge.
     '''
     # Default is two-dimensional
     if number_of_dimensions is None:
@@ -2491,7 +2494,8 @@ class WeightedGraph(WeightedDigraph, Graph):
         # Uses are not anticipated to be extremely large
         # Thus, using built-in math package [instead of numpy] is good enough
         distance = math_sqrt(sum((first_vertex_coordinates[idx] - second_vertex_coordinates[idx])**2 for idx in range(number_of_dimensions)))
-        list_of_edges.append((first_vertex_name, second_vertex_name, distance))
+        if maximum_distance is None or distance <= maximum_distance:
+          list_of_edges.append((first_vertex_name, second_vertex_name, distance))
     data = (list_of_vertices, list_of_edges)
     data_type = 'all_vertices_and_all_edges'
     # Since this is a class method this will also work for subclasses
