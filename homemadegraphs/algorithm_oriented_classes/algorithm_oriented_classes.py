@@ -242,7 +242,7 @@ class StateDigraphSolveTSP(object):
   '''
   Used to help with method solve_traveling_salesman_problem.
   
-  Bitmasks:
+  Bitmasks and enhanced bitmask:
   
   This class implements bitmasks in a few places, including its main method,
   solve_problem (through its calls). They are used to reduce memory footprint,
@@ -284,6 +284,20 @@ class StateDigraphSolveTSP(object):
   Set object i to 0 in bitmask b (any prior status): b & ~(1 << i)
   Eliminate the least significant 1 in b: b & (b-1)
   Count number of 1's in b: number of times "b = b & (b-1)" can be done until b == 0
+  
+  An enhanced bitmask is similar. It is mean to codify two objects
+  given by their indices/numbers (the initial and final vertices in this class)
+  and append to the bitmask but so that the result is an integer.
+  
+  The enhanced bitmask codifies the information (j, k, b), where 0 <= j, k <= n-1
+  and b is the bitmask for the subsets of objects 0, ..., n-1.
+  
+  There is a bijective transformation between the possible (j, k, b) and
+  the integers from 0 to n*n*(2**n)-1 given by
+  
+  (j, k, b) -> j*n*(2**n) + k*(2**n) + b
+  
+  As an analogy, it behaves as a hybrid-base numeric representation.
   '''
   
   def __init__(self, digraph):

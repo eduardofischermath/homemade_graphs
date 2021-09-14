@@ -308,14 +308,15 @@ This removes memory footprint; for the example, from 28 to 80 bytes,
 and the difference only increases for longer tuples. (Strings also reduce
 footprint, but not as well as integers: in the example '0111010'.__sizeof__() == 56)
 
-This appears to reduce the footprint for memoization by some percentage.
+This appears to reduce the memory footprint for memoization by a decent percentage
+and make the computation time slightly shorter.
 
 ## ISSUE #0049 OPEN
 
 Solve bugs related to outputting as generator when producing all presence bitmasks
 in StateDigraphSolveTSP. Bug also appears for the deprecated presence set.
 
-## ISSUE #0050 OPEN
+## ISSUE #0050 ONGOING
 
 Go further on Issue #0048 and also codify initial and final vertices
 (or initial and final numbers) as part of the bitmask. For example,
