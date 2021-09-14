@@ -504,7 +504,7 @@ class StateDigraphSolveTSP(object):
                 # Need to update the last arrow (last arrow in path)
                 # We will use the VertexPath method, returning a new instance
                 whole_path_as_arrows = previous_path.append_to_path(
-                    data = arrow,
+                    data = last_arrow,
                     data_type = 'arrow',
                     modify_self = False,
                     skip_checks = skip_checks)
@@ -918,7 +918,7 @@ class StateDigraphSolveTSP(object):
         assert length_of_min_path == min_distance_overall, 'Total weight/length of Path/cycle solution should match the value in the solution.'
         # To return use formatting from VertexPath.reformat_path
         return min_path_overall.reformat_paths(
-            underlying_graph = self.digraph,
+            underlying_digraph = self.digraph,
             data = min_path_overall,
             data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
             output_as = output_as,
