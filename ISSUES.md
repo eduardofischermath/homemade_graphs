@@ -281,3 +281,10 @@ so it's important to downsize also the memory consumption.
 Change option of omit_minimizing_path in StateDigraphSolveTSP to not produce
 the path at all (instead of producing the token None as path).
 Goal: to save RAM, since each None.__sizeof__() is 16 bytes.
+
+## ISSUE ##0046 OPEN
+
+Change StateDigraphSolveTSP.solve_subproblem to have functools.cache
+only when called with memoization. This can be done by a function enveloping the call.
+It is also possible to reduce the number of arguments, hopefully removing
+some of the RAM footprint to store the cache.
