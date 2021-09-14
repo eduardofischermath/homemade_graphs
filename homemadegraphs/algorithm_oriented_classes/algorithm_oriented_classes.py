@@ -242,7 +242,7 @@ class StateDigraphSolveTSP(object):
   '''
   Used to help with method solve_traveling_salesman_problem.
   
-  Bitmasks:
+  Bitmasks and enhanced bitmask:
   
   This class implements bitmasks in a few places, including its main method,
   solve_problem (through its calls). They are used to reduce memory footprint,
@@ -284,6 +284,20 @@ class StateDigraphSolveTSP(object):
   Set object i to 0 in bitmask b (any prior status): b & ~(1 << i)
   Eliminate the least significant 1 in b: b & (b-1)
   Count number of 1's in b: number of times "b = b & (b-1)" can be done until b == 0
+  
+  An enhanced bitmask is similar. It is mean to codify two objects
+  given by their indices/numbers (the initial and final vertices in this class)
+  and append to the bitmask but so that the result is an integer.
+  
+  The enhanced bitmask codifies the information (j, k, b), where 0 <= j, k <= n-1
+  and b is the bitmask for the subsets of objects 0, ..., n-1.
+  
+  There is a bijective transformation between the possible (j, k, b) and
+  the integers from 0 to n*n*(2**n)-1 given by
+  
+  (j, k, b) -> j*n*(2**n) + k*(2**n) + b
+  
+  As an analogy, it behaves as a hybrid-base numeric representation.
   '''
   
   def __init__(self, digraph):
@@ -299,6 +313,26 @@ class StateDigraphSolveTSP(object):
     for idx, vertex in enumerate(self.digraph.get_vertices()):
       self.number_by_vertex[vertex] = idx
       self.vertex_by_number[idx] = vertex
+
+  def codify_into_enhanced_bitmask(self, initial_number, final_number, presence_bitmask):
+    '''
+    Codifies information of solve_subproblem (and initial vertex, a final vertex,
+    and a subset of the vertices) into an enhanced bitmask.
+    '''
+    power = 1 << self.n # That is, 2**self.n
+    enhanced_bitmask = self.n*power*initial_number + power*final_number + presence_bitmask
+    return enhanced_bitmask
+    
+  def decodify_from_enhanced_bitmask(self, enhanced_bitmask):
+    '''
+    Decodifies an enhanced bitmask into its components (number of objects
+    deduced from self): a initial number, a final number, and a bitmask.
+    '''
+    # Instead of doing bit operations we do divmod and trust the compiler to be smart
+    power = 1 << self.n
+    initial_and_final, presence_bitmask = divmod(enhanced_bitmask, power)
+    initial_number, final_number = divmod(initial_and_final, self.n)
+    return (initial_number, final_number, presence_bitmask)
 
   def produce_complete_bitmask(self):
     '''
@@ -355,7 +389,7 @@ class StateDigraphSolveTSP(object):
       if output_as_generator:
         ##############
         # WORK HERE
-        # Fix bug
+        # Fix bug. Problem is that generators get exhausted, so it goes badly with functools_cache
         ##############
         raise NotImplementedError('Not working correctly; use lists instead.')
         with_leftmost_digit_one = (number | (1 << leftmost_index) for number in to_add_leftmost_one)
@@ -395,13 +429,14 @@ class StateDigraphSolveTSP(object):
     return omit_minimizing_path
 
   @functools_cache
-  def solve_subproblem(self, initial_number, final_number, presence_bitmask,
+  def solve_subproblem(self, enhanced_bitmask,
       use_memoization_instead_of_tabulation = False, omit_minimizing_path = False, skip_checks = False):
     '''
     Computes the minimal path length given specific parameters: given
-    initial and final vertices [given by its indices] and a set of vertices of underlying graph
-    self.digraph [given by a tuple of Booleans], finds minimal among all paths
-    traveling once though each vertex satisfying the boundary conditions.
+    initial and final vertices and a set of vertices of underlying graph
+    self.digraph [all contained within an enhanced bitmask],
+    finds minimal among all paths traveling once though each vertex
+    satisfying the boundary conditions.
     
     Returns the minimal weight of such path, and also, if requested,
     also one of these minimizing paths as VertexPath instance. [If request is
@@ -413,6 +448,7 @@ class StateDigraphSolveTSP(object):
     (returning infinite distance and None as path) unless this
     initial-and-final-vertex is the only vertex in the subproblem.]
     '''
+    initial_number, final_number, presence_bitmask = self.decodify_from_enhanced_bitmask(enhanced_bitmask)
     # Our subproblems are: Consider we have a fixed initial vertex
     #(which might be passed as argument as source_vertex), a fixed
     #final vertex, and a set of the vertices including those two. We want
@@ -486,12 +522,14 @@ class StateDigraphSolveTSP(object):
             # Note that adding this last arrow is done using a VertexPath method
             # [It's probably easier than build a VertexPath instance every time]
             penultimate_number = self.number_by_vertex[last_arrow.source]
+            enhanced_bitmask = self.codify_into_enhanced_bitmask(
+                  initial_number = initial_number,
+                  final_number = penultimate_number,
+                  presence_bitmask = last_off_presence_bitmask)
             if use_memoization_instead_of_tabulation:
               # In this case we simply call the suproblem method again
               solution_of_smaller_subproblem = self.solve_subproblem(
-                  initial_number = initial_number,
-                  final_number = penultimate_number,
-                  presence_bitmask = last_off_presence_bitmask,
+                  enhanced_bitmask = enhanced_bitmask,
                   use_memoization_instead_of_tabulation = True,
                   omit_minimizing_path = omit_minimizing_path,
                   skip_checks = skip_checks)
@@ -500,7 +538,7 @@ class StateDigraphSolveTSP(object):
               #indexed by the number of vertices in the last_off_presence_bitmask
               number_of_vertices_in_bitmask = self.count_elements_in_bitmask(last_off_presence_bitmask)
               solution_of_smaller_subproblem = self._subproblem_solutions_by_size[number_of_vertices_in_bitmask][
-                  (initial_number, penultimate_number, last_off_presence_bitmask)]
+                  enhanced_bitmask]
             if omit_minimizing_path:
               previous_length = solution_of_smaller_subproblem
             else:
@@ -555,10 +593,12 @@ class StateDigraphSolveTSP(object):
         local_initial_vertex, local_final_vertex = pair_of_vertices
         local_initial_number = self.number_by_vertex[local_initial_vertex]
         local_final_number = self.number_by_vertex[local_final_vertex]
+        enhanced_bitmask = self.codify_into_enhanced_bitmask(
+              initial_number = local_initial_number,
+              final_number = local_final_number,
+              presence_bitmask = all_vertices_bitmask)        
         local_solution = self.solve_subproblem(
-            initial_number = local_initial_number,
-            final_number = local_final_number,
-            presence_bitmask = all_vertices_bitmask,
+            enhanced_bitmask = enhanced_bitmask,
             use_memoization_instead_of_tabulation = True,
             omit_minimizing_path = omit_minimizing_path,
             skip_checks = skip_checks)
@@ -601,6 +641,12 @@ class StateDigraphSolveTSP(object):
           #when the values make sense and are useful
           for local_initial_index in range(self.n):
             for local_final_index in range(self.n):
+              # The enhanced_bitmask will need to be computed at some moment
+              #because we always store the value using enhanced_bitmask as key
+              enhanced_bitmask = self.codify_into_enhanced_bitmask(
+                  initial_number = local_initial_index,
+                  final_number = local_final_index,
+                  presence_bitmask = presence_bitmask)  
               local_initial_vertex = self.vertex_by_number[local_initial_index]
               local_final_vertex = self.vertex_by_number[local_final_index]
               # We would like to tabulate only cases that matter.
@@ -624,14 +670,12 @@ class StateDigraphSolveTSP(object):
                         final_number is None or local_final_index == final_number):
                       # We compute the value and store it on the table
                       local_solution = self.solve_subproblem(
-                          initial_number = local_initial_index,
-                          final_number = local_final_index,
-                          presence_bitmask = presence_bitmask,
+                          enhanced_bitmask = enhanced_bitmask,
                           use_memoization_instead_of_tabulation = False,
                           omit_minimizing_path = omit_minimizing_path,
                           skip_checks = skip_checks)
-                      self._subproblem_solutions_by_size[length_of_path][(
-                          local_initial_index, local_final_index, presence_bitmask)] = local_solution
+                      self._subproblem_solutions_by_size[length_of_path][
+                          enhanced_bitmask] = local_solution
                     else:
                       # For a full-length path, local_final_vertex has to match the final_vertex input
                       is_subproblem_certainly_impossible = True
@@ -651,8 +695,8 @@ class StateDigraphSolveTSP(object):
                   solution = math_inf
                 else:
                   solution = (math_inf, None)
-                self._subproblem_solutions_by_size[length_of_path][(
-                    local_initial_index, local_final_index, presence_bitmask)] = solution
+                self._subproblem_solutions_by_size[length_of_path][
+                    enhanced_bitmask] = solution
         # To save space, we delete the previous (the recurrence is always
         #on having exactly one vertex less)
         if length_of_path >= 2:
@@ -662,8 +706,11 @@ class StateDigraphSolveTSP(object):
         local_initial_vertex, local_final_vertex = pair_of_vertices
         local_initial_index = self.number_by_vertex[local_initial_vertex]
         local_final_index = self.number_by_vertex[local_final_vertex]
-        solutions[pair_of_vertices] = self._subproblem_solutions_by_size[self.n][(
-            local_initial_index, local_final_index, presence_bitmask)]
+        enhanced_bitmask = self.codify_into_enhanced_bitmask(
+            initial_number = local_initial_index,
+            final_number = local_final_index,
+            presence_bitmask = all_vertices_bitmask)
+        solutions[pair_of_vertices] = self._subproblem_solutions_by_size[self.n][enhanced_bitmask]
       # To show everything is complete, delete self._subproblem_solutions_by_size
       del self._subproblem_solutions_by_size
     # In both cases, return the dict solutions
