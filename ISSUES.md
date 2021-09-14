@@ -248,7 +248,8 @@ Consider option the vertices of a VertexPath or VertexCycle using their names on
 That is, generate 'A' instead of Vertex(name='A').
 Can also do this on other classes such as Digraph and subclasses. For example,
 a method called get_vertex_names.
-This is done through method OperationsVAE.simplified_representation.
+This is done through method OperationsVAE.simplified_representation,
+but will need to be reflected on other places.
 
 ## ISSUE #0041 COMPLETE
 
@@ -282,15 +283,26 @@ Change option of omit_minimizing_path in StateDigraphSolveTSP to not produce
 the path at all (instead of producing the token None as path).
 Goal: to save RAM, since each None.__sizeof__() is 16 bytes.
 
-## ISSUE ##0046 OPEN
+## ISSUE ##0046 ONGOING
 
 Change StateDigraphSolveTSP.solve_subproblem to have functools.cache
 only when called with memoization. This can be done by a function enveloping the call.
 It is also possible to reduce the number of arguments, hopefully removing
 some of the RAM footprint to store the cache.
 
-## ISSUE ##0047 ONGOING
+(Note these ideas have been implemented but without improving speed and
+memory consumption. Thus, they have not been incorporated into the main branches.)
+
+## ISSUE ##0047 COMPLETE
 
 Change the order of condition checking in StateDigraphSolveTSP.solve_subproblem
 for tabulation so there are fewer checks. (Start checking initial vertex,
 so unless it is None, the decision will be made earlier.)
+
+## ISSUE ##0048 OPEN
+
+Implement bitmasks for presence sets in StateDigraphSolveTSP. That is,
+for example, instead of a tuple (False, True, True, True, False, True, False),
+represent it by the integer 2**5 + 2**4 + 2**3 + 2**1 = 58 (or simply 0111010 in base 2).
+This removes memory footprint; for the example, from 28 to 80 bytes,
+and the difference only increases for longer tuples.
