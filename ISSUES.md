@@ -288,3 +288,9 @@ Change StateDigraphSolveTSP.solve_subproblem to have functools.cache
 only when called with memoization. This can be done by a function enveloping the call.
 It is also possible to reduce the number of arguments, hopefully removing
 some of the RAM footprint to store the cache.
+
+## ISSUE ##0047 ONGOING
+
+Change the order of condition checking in StateDigraphSolveTSP.solve_subproblem
+for tabulation so there are fewer checks. (Start checking initial vertex,
+so unless it is None, the decision will be made earlier.)

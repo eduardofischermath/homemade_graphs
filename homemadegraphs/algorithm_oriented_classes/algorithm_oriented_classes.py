@@ -462,6 +462,7 @@ class StateDigraphSolveTSP(object):
           # last_arrow has information last_arrow.source, last_arrow.target
           #which is final_vertex, and last_arrow.weight.
           # We verify the source does belong to the presence_set
+          # (Otherwise there is no improvement to be made)
           last_arrow_source_as_number = self.number_by_vertex[last_arrow.source]
           if presence_set[last_arrow_source_as_number]:
             # We "remove" final_number by flipping True to False
@@ -503,7 +504,7 @@ class StateDigraphSolveTSP(object):
                 # Need to update the last arrow (last arrow in path)
                 # We will use the VertexPath method, returning a new instance
                 whole_path_as_arrows = previous_path.append_to_path(
-                    data = arrow,
+                    data = last_arrow,
                     data_type = 'arrow',
                     modify_self = False,
                     skip_checks = skip_checks)
@@ -578,7 +579,10 @@ class StateDigraphSolveTSP(object):
         print(f'Examining subproblems with {length_of_path} vertices')
         # We find all presence sets of size length_of_path
         right_size_presence_sets = self.produce_boolean_tuples_with_fixed_sum(
-            self.n, length_of_path, output_as_generator = True)
+            given_length = self.n,
+            given_sum = length_of_path,
+            output_as_generator = True,
+            use_homemade_method_instead_of_built_in = False)
         for presence_set in right_size_presence_sets:
           # To determine initial_vertex and final_vertex passed to subproblem
           #[note final_vertex is not the same as the one or None given to
@@ -597,13 +601,18 @@ class StateDigraphSolveTSP(object):
               #table as problems without solution, that is, (math.inf, None)
               # We control it using the variable: is_subproblem_certainly_impossible
               is_subproblem_certainly_impossible = False
+              # We write the four conditions (essentially boolean functions on variables)
               # Eliminate nontrivial [more than one vertex] cycles:
-              if length_of_path == 1 or local_initial_index != local_final_index:
+              condition_forbidding_nontrivial_cycles = length_of_path == 1 or local_initial_index != local_final_index
+              # Ensure the vertices corresponding to the extremes are present in presence_set
+              presence_set[local_initial_index] and presence_set[local_final_index]
+              # We now check that the local_initial_index correspond 
+              #to a valid choice under the initial_vertex input
+              if (initial_number is None) or (local_initial_index == initial_number):
                 # Ensure the vertices corresponding to the indices are present in presence_set
                 if presence_set[local_initial_index] and presence_set[local_final_index]:
-                  # We now check that the local_initial_index correspond 
-                  #to a valid choice under the initial_vertex input
-                  if initial_number is None or local_initial_index == initial_number:
+                  # Eliminate nontrivial [more than one vertex] cycles:
+                  if (length_of_path == 1) or (local_initial_index != local_final_index):
                     # If the path is full-sized, the local_final_vertex variable
                     #has to match the final_vertex input (unless this is None)
                     if (length_of_path < self.n) or (
@@ -622,13 +631,13 @@ class StateDigraphSolveTSP(object):
                       # For a full-length path, local_final_vertex has to match the final_vertex input
                       is_subproblem_certainly_impossible = True
                   else:
-                    # Initial vertex has to always match the specified (unless initial_vertex is None)
+                    # More than one vertex, initial and final different
                     is_subproblem_certainly_impossible = True
                 else:
                   # Initial and final vertices don't belong to presence set
                   is_subproblem_certainly_impossible = True
               else:
-                # More than one vertex, initial and final different
+                # Initial vertex has to always match the specified (unless initial_vertex is None)
                 is_subproblem_certainly_impossible = True
               # We store (math.inf, None) in the table to indicate unsolvable subproblem
               #(for subproblems marked unsolvable), math math.inf if omitting paths
@@ -909,7 +918,7 @@ class StateDigraphSolveTSP(object):
         assert length_of_min_path == min_distance_overall, 'Total weight/length of Path/cycle solution should match the value in the solution.'
         # To return use formatting from VertexPath.reformat_path
         return min_path_overall.reformat_paths(
-            underlying_graph = self.digraph,
+            underlying_digraph = self.digraph,
             data = min_path_overall,
             data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
             output_as = output_as,

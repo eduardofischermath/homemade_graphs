@@ -361,13 +361,13 @@ class VertexPath(object):
       if 'length' in output_as:
         # Note that 'lengths' will produce the same effect as 'length'
         # (This makes the method slightly more flexible, which is good)
-        length = self.get_total_weight(request_none_if_unweighted = False)
+        length = as_instance.get_total_weight(request_none_if_unweighted = False)
         pre_data.append(length)
       if 'vertices' in output_as:
-        vertices = self.get_vertices()
+        vertices = as_instance.get_vertices()
         pre_data.append(vertices)
       if 'arrows' in output_as:
-        arrows = self.get_arrows()
+        arrows = as_instance.get_arrows()
         pre_data.append(arrows)
       # We now return the output
       # If pre_data has 2 or more items, it is returned as a tuple
