@@ -128,6 +128,30 @@ class VertexPath(object):
     '''
     return self._vertices
     
+  def get_initial_vertex(self):
+    '''
+    Returns the first vertex of the path.
+    
+    (If VertexCycle, returns the first vertex as stored.)
+    '''
+    list_of_vertices = self.get_vertices()
+    if list_of_vertices:
+      return list_of_vertices[0]
+    else:
+      raise ValueError('There are no vertices thus no initial vertex.')
+    
+  def get_final_vertex(self):
+    '''
+    Returns the last vertex of the path.
+    
+    (If VertexCycle, returns the last vertex as stored.)
+    '''
+    list_of_vertices = self.get_vertices()
+    if list_of_vertices:
+      return list_of_vertices[-1]
+    else:
+      raise ValueError('There are no vertices thus no initial vertex.')
+    
   def get_number_of_arrows(self):
     '''
     Returns number of arrows.

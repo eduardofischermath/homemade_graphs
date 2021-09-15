@@ -428,22 +428,77 @@ class StateDigraphSolveTSP(object):
       omit_minimizing_path = False
     return omit_minimizing_path
 
-  def solve_nearest_neighbors_subproblem(self, initial_vertex, final_vertex,
+  def find_shortest_arrow_to_unvisited(self, source_vertex, unvisited_bitmask,
       skip_checks = False):
     '''
-    Provides heuristics (using the nearest neighbors strategy) for the problem
-    of finding the path of least weight from initial to final vertex (distinct
-    unless the digraph has a single vertex) passing through all other vertices
-    exactly once.
+    Given a vertex and a bitmask representing a set of unvisited vertices,
+    produces the shortest arrow from the vertex into any unvisited vertex.
+    
+    If no such arrows exist, returns None.
     '''
+    # Note bitmask depends on the indexing of the vertices, and thus this
+    #is a method of StateDigraphSolveTSP and not of Digraph
     if not skip_checks:
-      assert initial_vertex != final_vertex or self.n == 1, 'If there are two vertices or more the initial and final vertices need to be different'
-    if self.n == 1:
-      # In this case initial and final vertices need to be the same
-      return self.digraph.produce_path_or_cycle_with_at_most_one_vertex(
-          compute_path_instead_of_cycle = True,
-          vertex = initial_vertex,
+      # unvisited_bitmask should be a valid bitmask
+      0 <= unvisited_bitmask <= self.produce_complete_bitmask()
+    shortest_arrow = None
+    for arrow in self.digraph.get_arrows_out(source_vertex):
+      if (unvisited_bitmask >> self.number_by_vertex[arrow.target]) & 1:
+        # Three conditions to update shortest_arrow: it is None,
+        #we got a shorter, or same length but vertex of lower index/number
+        if shortest_arrow is None:
+          shortest_arrow = arrow
+        elif arrow.weight < shortest_arrow.weight:
+          shortest_arrow = arrow
+        elif arrow.weight == shortest_arrow.weight:
+          number_target_shortest_arrow = self.number_by_vertex[shortest_arrow.target]
+          number_target_arrow = self.number_by_vertex[arrow.target]
+          if number_target_arrow < number_target_shortest_arrow:
+            shortest_arrow = arrow
+          else:
+            pass
+        else:
+          pass
+    return shortest_arrow
+
+  def _update_path_and_unvisited_bitmask_with_arrow(self, path, arrow,
+      unvisited_bitmask, is_closing_a_cycle_instead_of_extending_path,
+      skip_checks = False):
+    '''  
+    To be used in the "nearest neighbor algorithm".
+    
+    If is_closing_a_cycle_instead_of_extending_path is True, returns the cycle
+    formed after appending the arrow to the (necessarily full-length and injective) path,
+    as well as the 0 as the unvisited bitmask.
+    
+    If is_closing_a_cycle_instead_of_extending_path is False, appends the arrow
+    to the (injective) path and updates the bitmask of unvisited vertices
+    to exclude the target of the arrow.
+    '''
+    number_target_arrow = self.vertex_by_number[arrow.target]
+    if not skip_checks:
+      assert (unvisited_bitmask >> number_target_arrow) & 1, 'The target of the arrow should have been present in the unvisited bitmask'
+      if is_closing_a_cycle_instead_of_extending_path:
+        assert unvisited_bitmask == (1 << number_target_arrow), 'Target of arrow should be only vertex present in unvisited bitmask'
+      else:
+        for vertex in path.get_vertices():
+          vertex_number = self.number_by_vertex[vertex]
+          assert not ((unvisited_bitmask >> vertex_number) & 1), 'Vertices in path should have been absent from unvisited bitmask'
+    # Remove from bitmask
+    modified_unvisited_bitmask = unvisited_bitmask & ~(1 << number_target_arrow)
+    # Update path with new arrow
+    new_path = path.append_to_path(
+        data = arrow,
+        data_type = 'arrow',
+        skip_checks = skip_checks)
+    if is_closing_a_cycle_instead_of_extending_path:
+      new_cycle = new_path.reformat_path_from_path(
+          output_as = 'cycle',
           skip_checks = skip_checks)
+      new_path_or_cycle = new_cycle
+    else:
+      new_path_or_cycle = new_path
+    return (new_path, modified_unvisited_bitmask)
 
   @functools_cache
   def solve_subproblem(self, enhanced_bitmask,
@@ -807,7 +862,10 @@ class StateDigraphSolveTSP(object):
       compute_path_instead_of_cycle, initial_vertex = None, final_vertex = None,
       output_as = None, skip_checks = False):
     '''
-    
+    Provides heuristics (using the nearest neighbors strategy) for the problem
+    of finding the path of least weight from initial to final vertex (distinct
+    unless the digraph has a single vertex) passing through all other vertices
+    exactly once. Depending on being a cycle, the path returns to initial vertex.
     '''
     # Default output_as = None to a better option: 'length'
     if output_as is None:
@@ -827,17 +885,99 @@ class StateDigraphSolveTSP(object):
         pre_output = (best_distance, empty_path_or_cycle)
     else:
       # Below the general case (where there is at least one vertex)
-      # Prepare initial and final vertices
-      initial_vertex, final_vertex, initial_and_final_vertices = self._prepare_initial_and_final_vertices(
-          compute_path_instead_of_cycle = compute_path_instead_of_cycle,
-          initial_vertex = initial_vertex,
-          final_vertex = final_vertex)
-      # Set initial objects eyeing minimization
-      min_distance_overall, min_path_overall = self.produce_minimization_constructs()
-      # To unify the approach for paths and cycles (and also make it consistent
-      #with solve_full_problem), we adopt the approach of subproblems
-      
-    
+      if compute_path_instead_of_cycle:
+        #############
+        # WORK HERE
+        # Approach below valid only for cycles
+        # Need to implement case where there are compute_path_instead_of_cycle is True and initial_vertex is None
+        #############
+        raise NotImplementedError('Working on it')
+      else:
+        # This is the case of cycles
+        # Prepare initial and final vertices
+        initial_vertex, final_vertex, initial_and_final_vertices = self._prepare_initial_and_final_vertices(
+            compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+            initial_vertex = initial_vertex,
+            final_vertex = final_vertex)
+        # For the nearest neighbor heuristic we don't need initial_and_final_vertices, nor the final_vertex
+        del final_vertex, initial_and_final_vertices
+        # We do the heuristics to generate the path
+        # We use a bitmask to control which vertices were visited and which weren't
+        # We start with all vertices being unvisited
+        unvisited_bitmask = self.produce_complete_bitmask()
+        # Start the path at initial_vertex (only becomes a cycle in the end)
+        heuristic_path = self.digraph.produce_path_or_cycle_with_at_most_one_vertex(
+            compute_path_instead_of_cycle = True,
+            vertex = initial_vertex,
+            skip_checks = skip_checks)
+        # Remove initial_vertex from unvisited
+        unvisited_bitmask = unvisited_bitmask & ~(1 << self.number_by_vertex[initial_vertex])
+        # Variable to control when there are no possible arrows and thus
+        #this heuristic generates no path/cycle (which could happen if
+        #the digraph is not complete)
+        is_impossible_to_complete_heuristic_path = False
+        # The loop
+        current_vertex = initial_vertex
+        while unvisited_bitmask:
+          # In each step take shortest arrow to the unvisited
+          # (In case of tie, use vertex with target having lower number/index)
+          shortest_arrow = self.find_shortest_arrow_to_unvisited(
+              source_vertex = current_vertex,
+              unvisited_bitmask = unvisited_bitmask,
+              skip_checks = skip_checks)
+          if shortest_arrow is None:
+            # Can't continue with heuristic path
+            is_impossible_to_complete_heuristic_path = True
+            break
+          else:
+            # In this case add to path, and modify the visited and unvisited
+            # This is done in a separate method
+            heuristic_path, unvisited_bitmask = self._update_path_and_unvisited_bitmask_with_arrow(
+                path = shortest_arrow,
+                arrow = shortest_arrow,
+                unvisited_bitmask = unvisited_bitmask,
+                is_closing_a_cycle_instead_of_extending_path = False,
+                skip_checks = skip_checks)
+        # Loop has ended
+        if not is_impossible_to_complete_heuristic_path:
+          # That is, there was no problem in building it so far
+          # We should have a full-length path, all vertices visited
+          # In case no problems were raised, we try to close the path
+          # For this purpose, the unvisited_bitmask should be the initial_vertex
+          closing_unvisited_bitmask = (1 << self.number_by_vertex[initial_vertex])
+          shortest_arrow = self.find_shortest_arrow_to_unvisited(
+              source_vertex = heuristic_path.get_final_vertex(),
+              unvisited_bitmask = closing_unvisited_bitmask,
+              skip_checks = skip_checks)
+          if shortest_arrow is None:
+            # Can't close the cycle
+            is_impossible_to_complete_heuristic_path = True
+          else:
+            # Close the cycle
+            heuristic_cycle, unvisited_bitmask = self._update_path_and_unvisited_bitmask_with_arrow(
+                path = shortest_arrow,
+                arrow = shortest_arrow,
+                unvisited_bitmask = unvisited_bitmask,
+                is_closing_a_cycle_instead_of_extending_path = True,
+                skip_checks = skip_checks)
+            assert unvisited_bitmask == 0, 'Internal logic error. All vertices should have been included in cycle.'
+        # We prepare the pre_output, depending on the existence of the heuristic_cycle
+        if is_impossible_to_complete_heuristic_path:
+          # If the heuristics produces no path/cycle, we have default values
+          # Debate if this should be 0 or +infinity, we go with infinity
+          min_distance_overall, min_path_overall = self.produce_minimization_constructs()
+          if omit_minimizing_path:
+            pre_output = min_distance_overall
+          else:
+            pre_output = (min_distance_overall, min_path_overall)
+        else:
+          # In this case cycle was correctly closed
+          # Return the correct information obtained
+          length_of_cycle = heuristic_cycle.get_total_weight()
+          if omit_minimizing_path:
+            pre_output = length_of_cycle
+          else:
+            pre_output = (length_of_cycle, heuristic_cycle)
     # Prepares output (for both empty and non-empty digraphs)
     final_output = self._prepare_output(
         pre_output = pre_output,
@@ -852,6 +992,24 @@ class StateDigraphSolveTSP(object):
     Prepares possible values for initial_and_final_vertices to be used in
     method solve_full_length_subproblems_for_initial_and_final_vertices,
     and also sanitizes initial_vertex and final_vertex.
+    
+    For paths:
+    
+    initial_vertex is the sanitized given initial_vertex, or None if initial_vertex
+    was given as None
+    final_vertex is the sanitized given final_vertex (must be different from initial),
+    or None if final_vertex was given as None
+    initial_and_final_vertices: a list of all pairs of distinct vertices
+    such that, if initial_vertex is not None, the first has to match it,
+    and if final_vertex is not None, the second has to match it
+    
+    For cycles:
+    
+    initial_vertex will be the sanitized initial_vertex (or the vertex with index 0
+    on self.vertex_by_number if None was given as initial_vertex)
+    final_vertex will be None
+    initial_and_final_vertices will be all pairs of vertices such that
+    the first is initial_vertex and the second is any other vertex
     '''
     # We first sanitize the input vertices (if not None)
     if initial_vertex is not None:
