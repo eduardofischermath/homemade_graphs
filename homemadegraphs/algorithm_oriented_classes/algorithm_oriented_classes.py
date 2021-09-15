@@ -428,6 +428,23 @@ class StateDigraphSolveTSP(object):
       omit_minimizing_path = False
     return omit_minimizing_path
 
+  def solve_nearest_neighbors_subproblem(self, initial_vertex, final_vertex,
+      skip_checks = False):
+    '''
+    Provides heuristics (using the nearest neighbors strategy) for the problem
+    of finding the path of least weight from initial to final vertex (distinct
+    unless the digraph has a single vertex) passing through all other vertices
+    exactly once.
+    '''
+    if not skip_checks:
+      assert initial_vertex != final_vertex or self.n == 1, 'If there are two vertices or more the initial and final vertices need to be different'
+    if self.n == 1:
+      # In this case initial and final vertices need to be the same
+      return self.digraph.produce_path_or_cycle_with_at_most_one_vertex(
+          compute_path_instead_of_cycle = True,
+          vertex = initial_vertex,
+          skip_checks = skip_checks)
+
   @functools_cache
   def solve_subproblem(self, enhanced_bitmask,
       use_memoization_instead_of_tabulation = False, omit_minimizing_path = False, skip_checks = False):
@@ -727,24 +744,28 @@ class StateDigraphSolveTSP(object):
     # Default output_as = None to a better option: 'length'
     if output_as is None:
       output_as = 'length'
-    # Prepare initial and final vertices for path/cycle-searching
-    initial_vertex, final_vertex, initial_and_final_vertices = self._prepare_initial_and_final_vertices(
-        compute_path_instead_of_cycle = compute_path_instead_of_cycle,
-        initial_vertex = initial_vertex,
-        final_vertex = final_vertex)
-    # Determine omit_minimizing_path which is used below
+    # Determine omit_minimizing_path
     omit_minimizing_path = self.should_omit_minimizing_paths(output_as)
     # We check that there is at least one vertex
     if not bool(self.digraph):
-      # Returns path/cycle with no vertices
-      if compute_path_instead_of_cycle:
-        path = VertexPath(self.digraph, [], 'vertices')
-        return path.reformat_path_from_path(output_as = output_as, skip_checks = skip_checks)
+      # We presume the minimizing distance of TSP should be, logically, 0
+      best_distance = 0
+      if omit_minimizing_path:
+        pre_output = best_distance
       else:
-        cycle = VertexCycle(self.digraph, [], 'vertices')
-        return path.reformat_path_from_cycle(output_as = output_as, skip_checks = skip_checks)
+        # Returns path/cycle with no vertices
+        empty_path_or_cycle = self.digraph.produce_path_or_cycle_with_at_most_one_vertex(
+            compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+            vertex = None,
+            skip_checks = skip_checks)
+        pre_output = (best_distance, empty_path_or_cycle)
     else:
-      # That is, self.digraph is non-empty
+      # Below is the general case (where there is at least one vertex)
+      # Prepare initial and final vertices for path/cycle-searching
+      initial_vertex, final_vertex, initial_and_final_vertices = self._prepare_initial_and_final_vertices(
+          compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+          initial_vertex = initial_vertex,
+          final_vertex = final_vertex)
       # Subdivide into the four possible cases according to the variables
       #compute_path_instead_of_cycle and use_memoization_instead_of_tabulation
       if compute_path_instead_of_cycle:
@@ -774,9 +795,56 @@ class StateDigraphSolveTSP(object):
             use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
             omit_minimizing_path = omit_minimizing_path,
             skip_checks = skip_checks)
-      # Prepares output
-      final_output = self._prepare_output(pre_output, compute_path_instead_of_cycle, output_as)
-      return final_output
+    # Prepares output (for both empty and non-empty digraphs)
+    final_output = self._prepare_output(
+        pre_output = pre_output,
+        compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+        output_as = output_as,
+        skip_checks = skip_checks)
+    return final_output   
+
+  def solve_heuristically_using_nearest_neighbors_strategy(self, 
+      compute_path_instead_of_cycle, initial_vertex = None, final_vertex = None,
+      output_as = None, skip_checks = False):
+    '''
+    
+    '''
+    # Default output_as = None to a better option: 'length'
+    if output_as is None:
+      output_as = 'length'
+    # First we deal with empty digraphs, in which case returns path/cycle with no vertices
+    if not bool(self.digraph):
+      # In the lack of better convention, best distance for the heuristic should then be 0
+      best_distance = 0
+      if omit_minimizing_path:
+        pre_output = best_distance
+      else:
+        # Returns path/cycle with no vertices
+        empty_path_or_cycle = self.digraph.produce_path_or_cycle_with_at_most_one_vertex(
+            compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+            vertex = None,
+            skip_checks = skip_checks)
+        pre_output = (best_distance, empty_path_or_cycle)
+    else:
+      # Below the general case (where there is at least one vertex)
+      # Prepare initial and final vertices
+      initial_vertex, final_vertex, initial_and_final_vertices = self._prepare_initial_and_final_vertices(
+          compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+          initial_vertex = initial_vertex,
+          final_vertex = final_vertex)
+      # Set initial objects eyeing minimization
+      min_distance_overall, min_path_overall = self.produce_minimization_constructs()
+      # To unify the approach for paths and cycles (and also make it consistent
+      #with solve_full_problem), we adopt the approach of subproblems
+      
+    
+    # Prepares output (for both empty and non-empty digraphs)
+    final_output = self._prepare_output(
+        pre_output = pre_output,
+        compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+        output_as = output_as,
+        skip_checks = skip_checks)
+    return final_output   
 
   def _prepare_initial_and_final_vertices(self, compute_path_instead_of_cycle,
       initial_vertex, final_vertex, skip_checks = False):

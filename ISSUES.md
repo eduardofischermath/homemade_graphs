@@ -327,3 +327,19 @@ to mean the initial and final numbers, and the last self.n digits as bitmask
 for the presence of the self.n vertices.
 
 Performance: about 30% savings on memory, about 10% more in processing time.
+
+## ISSUE #0051 ONGOING
+
+Create method to solve TSP heuristically. That is, a faster method which
+produces an approximation to the problem (a "relatively short" path/cycle
+which is not effectively the optimal one).
+
+We implement the "nearest neighbor" strategy.
+
+## ISSUE #0052 OPEN
+
+In StateDigraphSolveTSP adopt more interfaces using number/indices instead
+of vertices. For example, in StateDigraphSolveTSP._prepare_initial_and_final_vertices,
+maybe prepare corresponding numbers too. Other examples for potential changes are
+solve_nearest_neighbors_subproblem and solve_full_length_subproblems_for_initial_and_final_vertices
+(which would likely have its name changed).
