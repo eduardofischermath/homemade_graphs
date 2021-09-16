@@ -346,6 +346,6 @@ solve_nearest_neighbors_subproblem and solve_full_length_subproblems_for_initial
 
 ## ISSUE #0053 OPEN
 
-As specialization of Issues #0005 and #0028, work on get_sccs() functions.
-That is, the problem of getting strongly connected components. Bring
-everything to the highest quality level of performance and code elegance.
+As specialization of Issues #0005 and #0028, work on get_sccs() function.
+That is, the problem of getting strongly connected components of a digraph.
+"Modernize" everything to the highest quality level of performance and code elegance.

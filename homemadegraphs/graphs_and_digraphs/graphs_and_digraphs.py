@@ -741,7 +741,7 @@ class Digraph(object):
     else:
       return list_with_possible_repetitions
     
-  def get_neighbors_out(self, vertex, allow_repetitions = False, skip_checks = False):
+  def get_neighbors_out(self, vertex, forbid_repetitions = False, skip_checks = False):
     '''
     Provides the vertices to which a vertex has arrows to.
     
@@ -1263,6 +1263,8 @@ class Digraph(object):
     '''
     if isinstance(self, Graph):
       # If undirected (i. e. Graph) it doesn't alter itself
+      # We could try to reverse the order of the vertices on the edges,
+      #just to do work. But in practice, it would be useless.
       if modify_self:
         # Do nothing
         return None
@@ -1270,17 +1272,28 @@ class Digraph(object):
         return copy_copy(self)
     else:
       # Easiest and cleanest way is through __init__
-      all_reversed_arrows = OperationsVAE.get_reversed_arrows(self.get_arrows(),
-          require_namedtuple = True)
+      all_reversed_arrows = OperationsVAE.get_reversed_arrows_or_equivalent_edges(
+          self.get_arrows(),
+          use_edges_instead_of_arrows = False,
+          require_namedtuple = False,
+          request_vertex_sanitization = False,
+          require_vertex_namedtuple = False,
+          output_as_generator = False)
       data = (self.get_vertices(), all_reversed_arrows)
       data_type = 'all_vertices_and_all_arrows'
       if modify_self:
         # Use __init__ to reset and re-initialize
-        self.__init__(data = data, data_type = data_type, cast_as_class = None)
+        self.__init__(
+            data = data,
+            data_type = data_type,
+            cast_as_class = None)
         return None
       else:
         # Return new instance
-        return self.__class__(data = data, data_type = data_type, cast_as_class = None)
+        return self.__class__(
+            data = data,
+            data_type = data_type,
+            cast_as_class = None)
 
 ########################################################################
 # Methods implementing different algorithms in Graph Theory
@@ -1297,8 +1310,7 @@ class Digraph(object):
     sccs: a list with lists, each representing a unique connected component
     sccs_lengths: the amount of vertices in each of the output SCCs
     '''
-    # We will remove the weights of self since they are not used
-    self.make_graph_unweighted()
+    # Note the arrow weights are ignored. Nonetheless, we keep them
     # We control everything using a StateDigraphGetSCC instance
     state = StateDigraphGetSCC(self)
     # We also need the inverse/reversed graph

@@ -362,7 +362,7 @@ class OperationsVAE(object):
     Iterable version of get_reversed_arrow_or_equivalent_edges.
     '''
     # We use lambda and map
-    partial_function = lambda tuplee: get_reversed_arrow(tuplee,
+    partial_function = lambda tuplee: OperationsVAE.get_reversed_arrow_or_equivalent_edge(tuplee,
         use_edges_instead_of_arrows = use_edges_instead_of_arrows,
         require_namedtuple = require_namedtuple,
         request_vertex_sanitization = request_vertex_sanitization,
