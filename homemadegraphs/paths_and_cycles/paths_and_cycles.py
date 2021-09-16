@@ -128,6 +128,30 @@ class VertexPath(object):
     '''
     return self._vertices
     
+  def get_initial_vertex(self):
+    '''
+    Returns the first vertex of the path.
+    
+    (If VertexCycle, returns the first vertex as stored.)
+    '''
+    list_of_vertices = self.get_vertices()
+    if list_of_vertices:
+      return list_of_vertices[0]
+    else:
+      raise ValueError('There are no vertices thus no initial vertex.')
+    
+  def get_final_vertex(self):
+    '''
+    Returns the last vertex of the path.
+    
+    (If VertexCycle, returns the last vertex as stored.)
+    '''
+    list_of_vertices = self.get_vertices()
+    if list_of_vertices:
+      return list_of_vertices[-1]
+    else:
+      raise ValueError('There are no vertices thus no initial vertex.')
+    
   def get_number_of_arrows(self):
     '''
     Returns number of arrows.
@@ -293,7 +317,7 @@ class VertexPath(object):
         return self.get_number_of_arrows()
 
   @staticmethod
-  def reformat_paths(underlying_digraph, data, data_type, output_as,
+  def reformat_path(underlying_digraph, data, data_type, output_as,
       skip_checks = False):
     '''
     Given data configuring an instance of the class, path or cycle,
@@ -424,7 +448,7 @@ class VertexPath(object):
     '''
     Returns whether path is a cycle.
     '''
-    return (self.get_vertices()[0] == self.get_vertices()[-1])
+    return self.get_initial_vertex() == self.get_final_vertex()
 
   def is_hamiltonian_cycle(self):
     '''
@@ -489,7 +513,7 @@ class VertexPath(object):
         if not skip_checks:
           assert new_vertex in self.underlying_digraph, 'Vertex must be from underlying digraph'
         new_arrow = self.underlying_digraph.get_shortest_arrow_between_vertices(
-            self.get_vertices()[-1], new_vertex)
+            self.get_final_vertex(), new_vertex)
       elif data_type == 'arrow':
         new_arrow = data
         new_vertex = new_arrow.target
@@ -500,7 +524,7 @@ class VertexPath(object):
       if not skip_checks:
         assert new_vertex in self.underlying_digraph, 'Vertex must be from underlying digraph'
         assert new_arrow in self.underlying_digraph.get_arrows(), 'Arrow must be from underlying digraph'
-        assert new_arrow.source == self.get_vertices()[-1], 'Arrow must fit after path'
+        assert new_arrow.source == self.get_final_vertex(), 'Arrow must fit after path'
         assert new_arrow.target == new_vertex, 'Vertex and arrow information must be consistent'
       # Having new_vertex and new_arrow, do as requested
       if modify_self:
@@ -564,7 +588,7 @@ class VertexPath(object):
         # We do a basic check (which can't be done on append_to_path due
         #to the nature of this procedure)
         if not skip_checks:
-          assert another_path.get_vertices()[0] == self.get_vertices()[-1], 'First path must segue into second'
+          assert another_path.get_initial_vertex() == self.get_final_vertex(), 'First path must segue into second'
         # For data_type == 'path' we take arrows and vertices
         #[except first vertex to avoid repetitions]
         arrows = another_path.get_arrows()
@@ -624,7 +648,7 @@ class VertexPath(object):
     #have exactly one more vertex [as path] than they have arrows
     # We verify one path segues into the next
     # (We don't allow this check to be skipped by skip_checks)
-    elif self.get_vertices()[-1] != another_path.get_vertices()[0]:
+    elif self.get_final_vertex() != another_path.get_initial_vertex():
       raise ValueError('Need first path to segue into the second.')
     else:
       # Here we implement the addition

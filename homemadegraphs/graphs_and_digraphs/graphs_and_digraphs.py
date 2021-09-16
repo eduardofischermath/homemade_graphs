@@ -38,8 +38,9 @@ from random import choices as random_choices
 # Internal imports
 ########################################################################
 
-from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 from homemadegraphs.algorithm_oriented_classes import StateGraphGetCC, StateDigraphGetSCC, StateDigraphSolveTSP
+from homemadegraphs.paths_and_cycles import VertexPath, VertexCycle
+from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 
 ########################################################################
 # Declaration of Digraph class and initialization
@@ -1077,6 +1078,30 @@ class Digraph(object):
 # Uncategorized methods
 ########################################################################
 
+  def produce_path_or_cycle_with_at_most_one_vertex(self, compute_path_instead_of_cycle,
+      vertex = None, skip_checks = False):
+    '''
+    Produces a path or cycle from the digraph with one or zero vertices.
+    
+    If argument vertex is given, that is the sole vertex of the path or cycle.
+    If given as None, produces a no-vertex path or cycle.
+    '''
+    if vertex is None:
+      vertex_data = []
+    else:
+      if not skip_checks:
+        assert vertex in self, 'Non-None vertex should be in digraph'
+      vertex_data = [vertex]
+    kwargs = {'underlying_digraph': self,
+        'data': vertex_data,
+        'data_type': 'vertices',
+        'verify_validity_on_initialization': not skip_checks}
+    if compute_path_instead_of_cycle:
+      instance_class = VertexPath
+    else:
+      instance_class = VertexCycle
+    return instance_class(**kwargs)
+
   def make_multidigraph_simple(self, modify_self = False):
     '''
     From a multidigraph obtains a simple digraph [at most one arrow for each
@@ -2043,8 +2068,8 @@ class WeightedDigraph(Digraph):
     return (is_negative_cycle_free, requested_data)
 
   def solve_traveling_salesman_problem(self, compute_path_instead_of_cycle,
-        initial_vertex = None, final_vertex = None, use_memoization_instead_of_tabulation = False,
-        output_as = None, skip_checks = False):
+      initial_vertex = None, final_vertex = None, use_memoization_instead_of_tabulation = False,
+      output_as = None, skip_checks = False):
     '''
     Solves the Traveling Salesman Problem. That is, produces the shortest
     (by sum of weights of traveled arrows) path or cycle going through all
@@ -2066,6 +2091,25 @@ class WeightedDigraph(Digraph):
         use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
         output_as = output_as,
         skip_checks = skip_checks)
+
+  def produce_nearest_neighbor_heuristics_for_traveling_salesman_problem(self,
+      compute_path_instead_of_cycle, initial_vertex = None, final_vertex = None,
+      output_as = None, skip_checks = False):
+    '''
+    
+    
+    SEE ALSO: solve_traveling_salesman_problem
+    '''
+    # We mostly mirror solve_traveling_salesman_problem(), unloading the work
+    #to the specialized class StateDigraphSolveTSP
+    specialized_object = StateDigraphSolveTSP(self)
+    return specialized_object.solve_heuristically_using_nearest_neighbors_strategy(
+        compute_path_instead_of_cycle = compute_path_instead_of_cycle,
+        initial_vertex = initial_vertex,
+        final_vertex = final_vertex,
+        output_as = output_as,
+        skip_checks = skip_checks)
+    
 
 ########################################################################
 # Class UnweightedDigraph
