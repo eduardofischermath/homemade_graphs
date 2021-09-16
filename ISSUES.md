@@ -343,3 +343,9 @@ of vertices. For example, in StateDigraphSolveTSP._prepare_initial_and_final_ver
 maybe prepare corresponding numbers too. Other examples for potential changes are
 solve_nearest_neighbors_subproblem and solve_full_length_subproblems_for_initial_and_final_vertices
 (which would likely have its name changed).
+
+## ISSUE #0053 OPEN
+
+As specialization of Issues #0005 and #0028, work on get_sccs() functions.
+That is, the problem of getting strongly connected components. Bring
+everything to the highest quality level of performance and code elegance.
