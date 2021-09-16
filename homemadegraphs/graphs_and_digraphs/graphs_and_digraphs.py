@@ -38,8 +38,9 @@ from random import choices as random_choices
 # Internal imports
 ########################################################################
 
-from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 from homemadegraphs.algorithm_oriented_classes import StateGraphGetCC, StateDigraphGetSCC, StateDigraphSolveTSP
+from homemadegraphs.paths_and_cycles import VertexPath, VertexCycle
+from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 
 ########################################################################
 # Declaration of Digraph class and initialization
@@ -1085,14 +1086,14 @@ class Digraph(object):
     If argument vertex is given, that is the sole vertex of the path or cycle.
     If given as None, produces a no-vertex path or cycle.
     '''
-    if not skip_checks:
-      assert vertex in None or vertex in self, 'Given vertex should be in digraph or be None'
     if vertex is None:
       vertex_data = []
     else:
+      if not skip_checks:
+        assert vertex in self, 'Non-None vertex should be in digraph'
       vertex_data = [vertex]
     kwargs = {'underlying_digraph': self,
-        'data': data,
+        'data': vertex_data,
         'data_type': 'vertices',
         'verify_validity_on_initialization': not skip_checks}
     if compute_path_instead_of_cycle:
@@ -2096,6 +2097,8 @@ class WeightedDigraph(Digraph):
       output_as = None, skip_checks = False):
     '''
     
+    
+    SEE ALSO: solve_traveling_salesman_problem
     '''
     # We mostly mirror solve_traveling_salesman_problem(), unloading the work
     #to the specialized class StateDigraphSolveTSP

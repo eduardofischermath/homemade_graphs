@@ -475,7 +475,7 @@ class StateDigraphSolveTSP(object):
     to the (injective) path and updates the bitmask of unvisited vertices
     to exclude the target of the arrow.
     '''
-    number_target_arrow = self.vertex_by_number[arrow.target]
+    number_target_arrow = self.number_by_vertex[arrow.target]
     if not skip_checks:
       assert (unvisited_bitmask >> number_target_arrow) & 1, 'The target of the arrow should have been present in the unvisited bitmask'
       if is_closing_a_cycle_instead_of_extending_path:
@@ -794,7 +794,7 @@ class StateDigraphSolveTSP(object):
     '''
     Solves the Traveling Salesman Problem for the graph.
     
-    output_as goes through VertexPath.reformat_paths()
+    output_as goes through VertexPath.reformat_path()
     '''
     # Default output_as = None to a better option: 'length'
     if output_as is None:
@@ -870,6 +870,8 @@ class StateDigraphSolveTSP(object):
     # Default output_as = None to a better option: 'length'
     if output_as is None:
       output_as = 'length'
+    # Determine omit_minimizing_path
+    omit_minimizing_path = self.should_omit_minimizing_paths(output_as)
     # First we deal with empty digraphs, in which case returns path/cycle with no vertices
     if not bool(self.digraph):
       # In the lack of better convention, best distance for the heuristic should then be 0
@@ -933,16 +935,20 @@ class StateDigraphSolveTSP(object):
             # In this case add to path, and modify the visited and unvisited
             # This is done in a separate method
             heuristic_path, unvisited_bitmask = self._update_path_and_unvisited_bitmask_with_arrow(
-                path = shortest_arrow,
+                path = heuristic_path,
                 arrow = shortest_arrow,
                 unvisited_bitmask = unvisited_bitmask,
                 is_closing_a_cycle_instead_of_extending_path = False,
                 skip_checks = skip_checks)
+            # Update the current_vertex for arrow appendage
+            current_vertex = shortest_arrow.target
         # Loop has ended
         if not is_impossible_to_complete_heuristic_path:
           # That is, there was no problem in building it so far
           # We should have a full-length path, all vertices visited
-          # In case no problems were raised, we try to close the path
+          if not skip_checks:
+              assert unvisited_bitmask == 0, 'Internal logic error. All vertices should have been included in cycle.'
+          # No problems were raised so far, and we try to close the path
           # For this purpose, the unvisited_bitmask should be the initial_vertex
           closing_unvisited_bitmask = (1 << self.number_by_vertex[initial_vertex])
           shortest_arrow = self.find_shortest_arrow_to_unvisited(
@@ -955,12 +961,13 @@ class StateDigraphSolveTSP(object):
           else:
             # Close the cycle
             heuristic_cycle, unvisited_bitmask = self._update_path_and_unvisited_bitmask_with_arrow(
-                path = shortest_arrow,
+                path = heuristic_path,
                 arrow = shortest_arrow,
                 unvisited_bitmask = unvisited_bitmask,
                 is_closing_a_cycle_instead_of_extending_path = True,
                 skip_checks = skip_checks)
-            assert unvisited_bitmask == 0, 'Internal logic error. All vertices should have been included in cycle.'
+            if not skip_checks:
+              assert unvisited_bitmask == 0, 'Internal logic error. All vertices should have been included in cycle.'
         # We prepare the pre_output, depending on the existence of the heuristic_cycle
         if is_impossible_to_complete_heuristic_path:
           # If the heuristics produces no path/cycle, we have default values
@@ -1101,13 +1108,13 @@ class StateDigraphSolveTSP(object):
       # Since initial_and_final_vertices might not be a singleton:
       if local_distance < min_distance_overall:
         min_distance_overall = local_distance
-        if omit_minimizing_paths:
+        if omit_minimizing_path:
           pass
         else:
           min_path_overall = local_path
     # Return is pre_output which is the best distance and, depending on
     #omit_minimizing_path, the best path
-    if omit_minimizing_paths:
+    if omit_minimizing_path:
       pre_output = min_distance_overall
     else:
       pre_output = (min_distance_overall, min_path_overall)
@@ -1176,7 +1183,7 @@ class StateDigraphSolveTSP(object):
     # We need omit_minimizing_path, derivable from output_as
     omit_minimizing_path = self.should_omit_minimizing_paths(output_as)
     # pre_output is collected from methods split into paths/cycles/memoization/tabulation
-    # Formatting is carried out according to output_as, which offloads to reformat_paths
+    # Formatting is carried out according to output_as, which offloads to reformat_path
     # (With the exception of when omit_minimizing_path is True)
     if omit_minimizing_path:
       return pre_output
@@ -1195,7 +1202,7 @@ class StateDigraphSolveTSP(object):
         length_of_min_path = min_path_overall.get_total_weight(request_none_if_unweighted = False)
         assert length_of_min_path == min_distance_overall, 'Total weight/length of Path/cycle solution should match the value in the solution.'
         # To return use formatting from VertexPath.reformat_path
-        return min_path_overall.reformat_paths(
+        return min_path_overall.reformat_path(
             underlying_digraph = self.digraph,
             data = min_path_overall,
             data_type = ('path' if compute_path_instead_of_cycle else 'cycle'),
