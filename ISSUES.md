@@ -349,3 +349,9 @@ solve_nearest_neighbors_subproblem and solve_full_length_subproblems_for_initial
 As specialization of Issues #0005 and #0028, work on get_sccs() function.
 That is, the problem of getting strongly connected components of a digraph.
 "Modernize" everything to the highest quality level of performance and code elegance.
+
+## ISSUE #0054 ONGOING
+
+Solve the 2-SAT problem (that is, tell whether a solution exist and present it if possible).
+This can be done using get_scc() (that is, strongly connectec components of digraph).
+Need concept of "antipode" vertices which represent a variable and its negation.

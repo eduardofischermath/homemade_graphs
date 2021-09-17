@@ -1338,6 +1338,63 @@ class Digraph(object):
     sccs_lengths = [len(scc) for scc in sccs]
     return (sccs, sccs_lengths)
 
+  def solve_two_sat_problem(self, antipode_function, skip_checks = False):
+    '''
+    
+    '''
+    if not skip_checks:
+      # ValueError will be raise here if not a valid digraph
+      self.validate_digraph_might_come_from_two_sat_problem(antipode_function)
+    # We envelop antipode function to work on vertices
+    antipode_vertex_function = lambda vertex: Vertex(name=antipode_function(vertex.name))
+
+
+  def validate_digraph_might_come_from_two_sat_problem(self, antipode_function):
+    '''
+    Detects whether digraph might come from 2-SAT problem. If it might, does nothing.
+    If not, raises a ValueError with a clarifying message.
+    '''
+    # We envelop antipode function to work on vertices
+    antipode_vertex_function = lambda vertex: Vertex(name=antipode_function(vertex.name))
+    try:
+      # Easier test: need even number of vertices and edges, as explained below
+      assert self.get_number_of_vertices() % 2 == 0, 'Need even number of vertices'
+      assert self.get_number_of_arrows() % 2 == 0, 'Need even number of arrows'
+      # Antipode function must be reflexive (to represent variables and negations)
+      # We cannot test it on all values in the universe, so we at least
+      #test on the names of the vertices
+      list_of_vertices = list(self.get_vertices())
+      while list_of_vertices:
+        vertex = list_of_vertices.pop():
+        try:
+          antipode_vertex = antipode_vertex_function(vertex)
+        except:
+          raise AssertionError('Antipode function fails to generate another vertex')
+        assert antipode_vertex in list_of_vertices, 'Negation of variable need to be in digraph'
+        assert vertex != antipode_vertex, 'Negation of variable has to differ from variable'
+        assert vertex == antipode_vertex_function(antipode_vertex), 'Antipode has to be reflexive'
+        # Remove it, and continue loop
+        list_of_vertices.remove(antipode_vertex)
+      # By its nature, to any arrow from x to y there is another from ~y to ~x
+      # This is called the contrapositive
+      list_of_arrows = list(self.get_arrows())
+      while list_of_arrows:
+        arrow = list_of_arrows.pop():
+        # Arrows must be unweighted, both original and contrapositive
+        assert arrow.weight is None, 'Arrows should be unweighted'
+        # Operations below certainly work; tested while testing on vertices
+        antipode_source = antipode_function_vertex(arrow.source)
+        antipode_target = antipode_function_vertex(arrow.target)
+        contrapositive_arrow = (antipode_target, antipode_source, None)
+        assert contrapositive_arrow in list_of_arrows, 'Contrapositive arrow should be present in digraph'
+        # Remove it and continue loop
+        list_of_arrows.remove(contrapositive_arrow)
+    except AssertionError as e:
+      # Raises ValueError with same message
+      raise ValueError(str(e))
+    # This is a validation process and should return nothing if tests are passed
+    return None
+
   # Should be run (n**2)*log(n) times with different seeds
   def find_almost_certainly_minimal_cut(self, tries = None):
     '''
