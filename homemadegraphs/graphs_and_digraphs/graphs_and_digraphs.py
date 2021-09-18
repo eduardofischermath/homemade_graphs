@@ -1338,16 +1338,47 @@ class Digraph(object):
     sccs_lengths = [len(scc) for scc in sccs]
     return (sccs, sccs_lengths)
 
-  def solve_two_sat_problem(self, antipode_function, skip_checks = False):
+  def is_corresponding_two_sat_problem_solvable(self, antipode_function, skip_checks = False):
     '''
+    Solves the 2-SAT problem. Returns True if solvable and False if not.
     
+    (Does not produce a solution.)
+    
+    The digraph is assumed to be the digraph corresponding to a 2-SAT problem.
     '''
     if not skip_checks:
       # ValueError will be raise here if not a valid digraph
       self.validate_digraph_might_come_from_two_sat_problem(antipode_function)
     # We envelop antipode function to work on vertices
     antipode_vertex_function = lambda vertex: Vertex(name=antipode_function(vertex.name))
-
+    # Get strongly connected components, or simply components
+    sccs, scc_lengths = self.get_sccs()
+    # It will have solution if and only if there is no individual component
+    #containing a variable and its negation
+    have_found_antipodes_in_single_scc = False
+    for scc in sccs:
+      for first_index, first_vertex in enumerate(scc):
+        for second_index in range(first_index):
+          second_vertex = scc[second_index]
+          if second_vertex == antipode_vertex_function(first_vertex):
+            have_found_antipodes_in_single_scc = True
+            break
+    if have_found_antipodes_in_single_scc:
+      return False
+    else:
+      return True
+    # Rationale for finding explicit solutions, not currently done
+    # If there are no vertices corresponding to variables a and -a in the same SCC,
+    #then we can find a solution.
+    # For any variable we don't know the valuable, either a or -a does not imply
+    #the other (otherwise they would be in the same scc). Maybe even neither
+    #imply the other, which is fine too.
+    # Assume without loss of generality that a doesn't imply -a. Then pick a
+    #to the solution. Now pick all numbers following from a (following arrows),
+    #positive and negative, and those will be the variables in the solution along with a.
+    # We this process doesn't cover all variables, pick a new one, b and -b',
+    #and pick either b or -b, the one (maybe both, so pick any) which doesn't
+    #imply the other, and repeat the process, until exhausting all variables.
 
   def validate_digraph_might_come_from_two_sat_problem(self, antipode_function):
     '''
@@ -1365,7 +1396,7 @@ class Digraph(object):
       #test on the names of the vertices
       list_of_vertices = list(self.get_vertices())
       while list_of_vertices:
-        vertex = list_of_vertices.pop():
+        vertex = list_of_vertices.pop()
         try:
           antipode_vertex = antipode_vertex_function(vertex)
         except:
@@ -1379,7 +1410,7 @@ class Digraph(object):
       # This is called the contrapositive
       list_of_arrows = list(self.get_arrows())
       while list_of_arrows:
-        arrow = list_of_arrows.pop():
+        arrow = list_of_arrows.pop()
         # Arrows must be unweighted, both original and contrapositive
         assert arrow.weight is None, 'Arrows should be unweighted'
         # Operations below certainly work; tested while testing on vertices

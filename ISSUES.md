@@ -353,5 +353,7 @@ That is, the problem of getting strongly connected components of a digraph.
 ## ISSUE #0054 ONGOING
 
 Solve the 2-SAT problem (that is, tell whether a solution exist and present it if possible).
-This can be done using get_scc() (that is, strongly connectec components of digraph).
+This can be done using get_scc() (that is, strongly connected components of digraph).
 Need concept of "antipode" vertices which represent a variable and its negation.
+
+Current method only presents whether there is a solution, it doesn't find one if there is.
