@@ -1447,95 +1447,6 @@ class Digraph(object):
         print('Current try: {}. New minimum reached: {}'.format(try_idx, minimal_cut))
     return minimal_cut
 
-  def k_clustering(self, k):
-    '''
-    Finds the optimal k-clustering (k >= 1) of the graph.
-    
-    Requires a complete, weighted graph.
-    
-    Note: for k = 1 it produces a minimum spanning tree vias Kruskal's algorithm.
-    '''
-    # We need a weighted, undirected, simple [i.e. non-multigraph] graph
-    # Being undirected, we have access to self._edges
-    assert self.is_digraph_undirected(), 'Need undirected graph'
-    assert self.is_digraph_weighted(), 'Need weighted graph'
-    assert self.is_digraph_simple(), 'Need simple graph (cannot be multigraph)'
-    # (We don't really require complete. When the graph is not complete,
-    #this reduces to the Kruskal algorithm, essentially)
-    n = self.get_number_of_vertices()
-    assert n >= k, 'Need at least k starting vertices to form k clusters'
-    # First we start up the clusters using a union-find structure
-    # By cluster we mean: each vertex will have a leader, and vertices
-    #of same leader belong to the same cluster
-    # But we do lazy union, so we have a parent relation, and we need to
-    #transverse it up to finder the leader
-    # Also, we do path compression, so we update one's parents to be
-    #one's leaders when given the opportunity
-    parents = {vertex:vertex for vertex in self.get_vertices()}
-    ranks = {vertex:0 for vertex in self.get_vertices()}
-    # We put all edges in a heap. We order them by weight, reordering it
-    edges_heap = [(edge.weight, edge.first, edge.second) for edge in self._edges]
-    heapq_heapify(edges_heap)
-    # We need to do n-k union-operations
-    # But we later do one special operation, which is part of the main loop
-    # So we really do n-k+1, interrupting one
-    for idx in range(n-k+1):
-      # Locate the smallest edge which is a bridge between two clusters
-      while True:
-        # If graph is not complete there might be an error in the following
-        # Nonetheless, we don't want the try/except overhead for exceptions
-        new_edge = heapq_heappop(edges_heap)
-        # Call the vertices u and v. Recall the order of the information
-        weight, u, v = new_edge
-        # Get the leaders of u and v. This is a find-operation
-        # (Do path-compression while at it)
-        local_leaders = {item:None for item in [u, v]}
-        for vertex in [u, v]:
-          # We save the path to do path compression
-          # Idea is to keep appending the parents until leader is found
-          accumulated_path = [vertex]
-          # We loop whiel the leader of the root is not found
-          while accumulated_path[-1] != parents[accumulated_path[-1]]:
-            # We don't have a leader yet, so we append the parent to the path
-            accumulated_path.append(parents[accumulated_path[-1]])
-          # Ok, now we have a full path to the leader in accumulated_path
-          # First we do path-compression
-          for item in accumulated_path:
-            parents[item] = accumulated_path[-1]       
-          # We save the result as local_leaders dict, and break
-          local_leaders[vertex] = parents[vertex]
-        # Ok, now we have local_leaders[u] and local_leaders[v]
-        # If they are in the same cluster, we discard the edge and try again
-        # Otherwise we continue with the process
-        if local_leaders[u] != local_leaders[v]:
-          break
-      # We found a good sparating edge.
-      # Now we do the union-operation, except in the last operation
-      #in which we compute a minimal separation between the clusters
-      # And don't proceed, otherwise we would over-cluster the vertices
-      if idx == n-k:
-        minimal_distance_clusters = weight
-      else:
-        # ok, we are still in the process of clustering. So we do an union
-        # We compare the ranks of the leaders.
-        if ranks[local_leaders[u]] == ranks[local_leaders[v]]:
-          # If equal, we add one tree to the other in O(1) operations
-          # Without loss of generality, let's say local_leaders[u] will lead
-          parents[local_leaders[v]] == local_leaders[u]
-          # We also adjust the rank of local_leaders[u]
-          ranks[local_leaders[u]] += 1
-        elif ranks[local_leaders[u]] < ranks[local_leaders[v]]:
-          # If different, the smaller/shallower tree is appended to the larger
-          parents[local_leaders[u]] = local_leaders[v]
-        else:
-          parents[local_leaders[v]] = local_leaders[u]
-    # Ok. Not the loop has finalized and we have k clusters (given by parents)
-    #as well as a last execution which givs the minimal distance
-    # We want to output parents (which indirectly give the clusters)
-    # But we also output the objective distance, the minimal possible distance
-    #between two points in different clusters
-    return (parents, minimal_distance_clusters)
-
 ########################################################################
 # Class WeightedDigraph
 ########################################################################
@@ -1595,6 +1506,236 @@ class WeightedDigraph(Digraph):
     else:
       return selected_class(data = data, data_type = data_type,
           cast_as_class = selected_class)
+
+  def apply_kruskal_algorithm(self, intended_number_of_clusters = None,
+      skip_checks = False):
+    '''
+    Applies Kruskal's algorithm on the edges of the (weighted, undirected) graph
+    to produce, among the spanning trees (trees of maximal size: the number of vertices
+    minus the number of connected components) with minimum total edge weight.
+
+    If intended_number_of_clusters is None, it goes as far as it can
+    to produce a spanning tree, producing as many clusters are there are
+    connected components
+    
+    If intended_number_of_clusters is a number, it stops early, producing
+    disjoint trees (including single points) which can be interpreted
+    as clusters. 
+    
+    Returns a list of the edges used (in the order they are used) and the
+    clusterings of vertices remaining by the concept of parents/leaders,
+    as well as the spacing of that clustering (0 if single cluster).
+    
+    SEE ALSO: get_k_clustering, get_minimal_spanning_tree
+    '''
+    # Basic renaming
+    n = self.get_number_of_vertices()
+    k = intended_number_of_clusters # For short
+    # If k is None, we proceed until we can't divide into any further trees/clusters
+    # Set k = 1 as default. Add a trigger to safely break if there are
+    #multiple connected components
+    if k is None:
+      k = 1
+      allow_more_clusters = True
+    else:
+      # In this case we expect to produce an error if is not possible
+      #to produce k trees/clusters
+      allow_more_clusters = False
+    if skip_checks:
+      assert n >= k, 'Cannot have more clusters than vertices'
+    # First we start up the clusters using a union-find structure
+    parents = {vertex:vertex for vertex in self.get_vertices()}
+    ranks = {vertex:0 for vertex in self.get_vertices()}
+    # By cluster we mean: each vertex will have a leader, and vertices
+    #of same leader belong to the same cluster
+    # But we do lazy union, so we have a parent relation, and we need to
+    #transverse it up (iterate parent calls) to finder the real leader of a vertex
+    # When two vertices have same leader, they are in the same cluster
+    # A leader is a vertex which is its owen leader (and thus own parent)
+    # Also, during the process we do "path compression", so we update one's parents
+    #to be one's leaders when given the opportunity, so reading the leader
+    #of that vertex is more direct than hoping from parent to parent until leader  
+    # This can be consolidated in a function
+    def find_leader_from_parent_information(parents, vertex, do_path_compression = False):
+      '''
+      Given information on a dictionary giving parents for the vertices,
+      returns the leader of that vertex.
+      
+      Has option to also do path compression in the process; in the case,
+      all of the vertex consecutive parents will have as leader the final leader.
+      In this case, information is updated on dictionary of parents.
+      '''
+      path_to_leader = []
+      path_to_leader.append(vertex)
+      # We loop while the leader of the root is not found
+      while path_to_leader[-1] != parents[path_to_leader[-1]]:
+        # We don't have a leader yet, so we append the parent to the path
+        path_to_leader.append(parents[path_to_leader[-1]])
+      # Ok, now we have a full path to the leader in path_to_leader
+      #(which is the last element)
+      leader_of_vertex = path_to_leader[-1]
+      # Optional path compression (otherwise parents is unaltered)
+      if do_path_compression:
+        for item in path_to_leader:
+          parents[item] = leader_of_vertex   
+      return parents, vertex
+      # End of function
+    # We put all edges in a heap. We order them by weight, reordering it
+    edges_heap = [(edge.weight, edge.first, edge.second) for edge in self._edges]
+    heapq_heapify(edges_heap)
+    # We need to do n-k union-operations [done through identifying the two
+    #vertices in an edge]
+    # But we later do one special operation, which starts similarly to those
+    #n-k operations
+    # To write less, we merge this special operation into the main n-k operations
+    for idx in range(n-k+1):
+      # Locate the smallest edge which is a bridge between two clusters
+      while True:
+        # If graph is not complete there might be an error in the following
+        # We prepare an exception for it
+        try:
+          new_edge = heapq_heappop(edges_heap)
+        except IndexError:
+          # Not enough edges
+          if allow_more_clusters:
+            # In this case simply break, making it clear that no edge was produced
+            found_good_edge = False
+            break
+          else:
+            ###########
+            # WORK HERE
+            # idx = n-k is different...
+            ###########
+            raise ValueError('Not enough edges to produce required clusterings')
+        # Call the vertices u and v. Recall the order of the information
+        weight, u, v = new_edge
+        # Get the leaders of u and v. This is a find-operation
+        # Also update parents doing path compression
+        parents, current_leader_u = find_leader_from_parent_information(
+            parents = parents,
+            vertex = u,
+            do_path_compression = True)
+        parents, current_leader_v = find_leader_from_parent_information(
+            parents = parents,
+            vertex = v,
+            do_path_compression = True)
+        # If they are in the same cluster, we discard the edge and try again
+        # Otherwise we continue with the process of popping out the edges
+        #(and keep the path compressions!) until we break out of the while loop
+        if current_leader_u != current_leader_v:
+          found_good_edge = True
+          break
+      # Now we split depending on having found a good edge
+      if found_good_edge:
+      
+      
+        # Now we do the union-operation, except in the last operation
+        #in which we compute a minimal separation between the clusters
+        # And don't proceed, otherwise we would over-cluster the vertices
+        if idx == n-k:
+          minimal_distance_clusters = weight
+        else:
+          # ok, we are still in the process of clustering. So we do an union
+          # We compare the ranks of the leaders.
+          if ranks[local_leaders[u]] == ranks[local_leaders[v]]:
+            # If equal, we add one tree to the other in O(1) operations
+            # Without loss of generality, let's say local_leaders[u] will lead
+            parents[local_leaders[v]] == local_leaders[u]
+            # We also adjust the rank of local_leaders[u]
+            ranks[local_leaders[u]] += 1
+          elif ranks[local_leaders[u]] < ranks[local_leaders[v]]:
+            # If different, the smaller/shallower tree is appended to the larger
+            parents[local_leaders[u]] = local_leaders[v]
+          else:
+            parents[local_leaders[v]] = local_leaders[u]
+            
+      else:
+        if k == 1:
+          # We might just consider this case...
+          pass
+        
+        
+    # Ok. Not the loop has finalized and we have k clusters (given by parents)
+    #as well as a last execution which gives the minimal distance
+    # We want to output parents (which indirectly give the clusters)
+    # But we also output the objective distance, the minimal possible distance
+    #between two points in different clusters
+    return (parents, minimal_distance_clusters)    
+    
+    
+    
+    
+    #################################
+    # But we later do one special operation, which is part of the main loop
+    # So we really do n-k+1, interrupting one to do something different
+    for idx in range(n-k+1):
+      # Locate the smallest edge which is a bridge between two clusters
+      while True:
+        # If graph is not complete there might be an error in the following
+        # Nonetheless, we don't want the try/except overhead for exceptions
+        new_edge = heapq_heappop(edges_heap)
+        # Call the vertices u and v. Recall the order of the information
+        weight, u, v = new_edge
+        # Get the leaders of u and v. This is a find-operation
+        # (Do path-compression while at it)
+        local_leaders = {item:None for item in [u, v]}
+        for vertex in [u, v]:
+          # We save the path to do path compression
+          # Idea is to keep appending the parents until leader is found
+          accumulated_path = [vertex]
+          # We loop whiel the leader of the root is not found
+          while accumulated_path[-1] != parents[accumulated_path[-1]]:
+            # We don't have a leader yet, so we append the parent to the path
+            accumulated_path.append(parents[accumulated_path[-1]])
+          # Ok, now we have a full path to the leader in accumulated_path
+          # First we do path-compression
+          for item in accumulated_path:
+            parents[item] = accumulated_path[-1]       
+          # We save the result as local_leaders dict, and break
+          local_leaders[vertex] = parents[vertex]
+        # Ok, now we have local_leaders[u] and local_leaders[v]
+        # If they are in the same cluster, we discard the edge and try again
+        # Otherwise we continue with the process
+        if local_leaders[u] != local_leaders[v]:
+          break
+      # We found a good sparating edge.
+      # Now we do the union-operation, except in the last operation
+      #in which we compute a minimal separation between the clusters
+      # And don't proceed, otherwise we would over-cluster the vertices
+      if idx == n-k:
+        minimal_distance_clusters = weight
+      else:
+        # ok, we are still in the process of clustering. So we do an union
+        # We compare the ranks of the leaders.
+        if ranks[local_leaders[u]] == ranks[local_leaders[v]]:
+          # If equal, we add one tree to the other in O(1) operations
+          # Without loss of generality, let's say local_leaders[u] will lead
+          parents[local_leaders[v]] == local_leaders[u]
+          # We also adjust the rank of local_leaders[u]
+          ranks[local_leaders[u]] += 1
+        elif ranks[local_leaders[u]] < ranks[local_leaders[v]]:
+          # If different, the smaller/shallower tree is appended to the larger
+          parents[local_leaders[u]] = local_leaders[v]
+        else:
+          parents[local_leaders[v]] = local_leaders[u]
+    # Ok. Not the loop has finalized and we have k clusters (given by parents)
+    #as well as a last execution which gives the minimal distance
+    # We want to output parents (which indirectly give the clusters)
+    # But we also output the objective distance, the minimal possible distance
+    #between two points in different clusters
+    return (parents, minimal_distance_clusters)
+
+  def get_k_clustering(self, k, skip_checks = False):
+    '''
+    Finds the optimal k-clustering (k >= 1) of the graph. By
+    
+    Requires a complete, weighted graph.
+    '''
+    kruskal_info = self.apply_kruskal_algorithm(
+        intended_number_of_clusters = k,
+        skip_checks = skip_checks)
+    edges_in_tree, vertex_hierarchy, clustering_spacing = kruskal_info
+    return vertex_hierarchy, clustering_spacing
 
   def get_single_source_shortest_path_via_Dijkstras(self, base_vertex):
     '''

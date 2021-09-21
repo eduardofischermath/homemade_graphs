@@ -357,3 +357,8 @@ This can be done using get_scc() (that is, strongly connected components of digr
 Need concept of "antipode" vertices which represent a variable and its negation.
 
 Current method only presents whether there is a solution, it doesn't find one if there is.
+
+## ISSUE #0055 ONGOING
+
+Work with Kruskal's and Prim's Algorithm for minimum spanning trees, and merge
+the same approach (at least Kruskal's) for k-clustering.
