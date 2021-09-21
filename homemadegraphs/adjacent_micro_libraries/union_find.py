@@ -42,11 +42,12 @@ class UnionFind(object):
   Every objects has a leader. Two elements are in the same cluster if and only if
   they have the same leader.
   
-  This information is controlled by a dictionary (whose keys are all objects)
-  which points to the parents of the objects. A parent of an objects is another object.
-  A leader will be its own parent. The leader of any object can be obtained
-  by reading the parents (parent, then parent of parent, then parent of parent
-  of parent, and so on) until arriving at a leader.
+  Following the approach of "lazy unions", this information is controlled
+  by a dictionary (whose keys are all objects) which points to the "parents"
+  of the objects. A parent of an objects is another object. A leader
+  will be its own parent. The leader of any object can be obtained by reading
+  the parents (parent, then parent of parent, then parent of parent of parent,
+  and so on) until arriving at a leader.
   
   [This parent operation logically cannot contain any cycles.]
   
@@ -75,7 +76,7 @@ class UnionFind(object):
     else:  
       raise ValueError('Invalid data type for initialization.')
 
-  @abstractmethod
+  @staticmethod
   def _create_dictionary_of_led_by(parents):
     '''
     Given a dictionary representing the parenting relationship, returns
