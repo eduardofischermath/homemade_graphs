@@ -1507,17 +1507,40 @@ class WeightedDigraph(Digraph):
       return selected_class(data = data, data_type = data_type,
           cast_as_class = selected_class)
 
-  def get_k_clustering(self, k, skip_checks = False):
+  def apply_kruskal_algorithm(self, intended_number_of_clusters = None,
+      skip_checks = False):
     '''
-    Finds the optimal k-clustering (k >= 1) of the graph. By
+    Returns all information derived from applying Kruskal Algorithm to the graph.
+    '''
+    # Outsource the work to the class
+    # (Note this method is functional, while the method of same name
+    #in StateGraphKruskalAlgorithm is stateful)
+    state = StateGraphKruskalAlgorithm(graph = self)
+    kruskal_info = state.apply_kruskal_algorithm(
+        intended_number_of_clusters = intended_number_of_clusters,
+        skip_checks = skip_checks)
+    return kruskal_info
+
+  def get_k_clustering(self, k, output_as, skip_checks = False):
+    '''
+    Finds the optimal k-clustering (k >= 1) of the graph. Can return either
+    the clustering itself, the spacing between clusters, or both.
     
     Requires a complete, weighted graph.
     '''
     kruskal_info = self.apply_kruskal_algorithm(
         intended_number_of_clusters = k,
         skip_checks = skip_checks)
-    edges_in_tree, vertex_hierarchy, clustering_spacing = kruskal_info
-    return vertex_hierarchy, clustering_spacing
+    edges_in_tree, partitions, clustering_spacing = kruskal_info
+    output_as = output_as.lower()
+    if output_as == 'partitions_and_spacing':
+      return (partitions, clustering_spacing)
+    elif output_as == 'partitions':
+      return partitions
+    elif output_as == 'spacing':
+      return clustering_spacing
+    else:
+      raise ValueError('Option for output not recognized.')
 
   def get_single_source_shortest_path_via_Dijkstras(self, base_vertex):
     '''

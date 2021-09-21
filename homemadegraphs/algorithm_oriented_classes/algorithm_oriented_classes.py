@@ -279,9 +279,10 @@ class StateGraphKruskalAlgorithm(object):
     disjoint trees (including single points) which can be interpreted
     as clusters. 
     
-    Returns a list of the edges used (in the order they are used) and the
+    Returns a list of the edges used (in the order they are used), the
     clusterings of vertices remaining by the concept of parents/leaders,
-    as well as the spacing of that clustering (0 if single cluster).
+    as well as the spacing of that clustering (or infinity if spacing
+    cannot be inferred).
     
     SEE ALSO: get_k_clustering, get_minimal_spanning_tree
     '''
@@ -300,6 +301,8 @@ class StateGraphKruskalAlgorithm(object):
       #to produce k trees/clusters
       allow_more_clusters = False
     if skip_checks:
+      # Note conditions below rule out empty graph
+      assert k >= 1, 'Need to have at least one cluster'
       assert n >= k, 'Cannot have more clusters than vertices'
     # First we start up the clusters using a union-find structure
     # We need to do n-k union-operations [done through identifying the two
