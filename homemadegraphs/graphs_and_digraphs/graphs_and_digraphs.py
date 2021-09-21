@@ -38,7 +38,7 @@ from random import choices as random_choices
 # Internal imports
 ########################################################################
 
-from homemadegraphs.algorithm_oriented_classes import StateGraphGetCC, StateDigraphGetSCC, StateDigraphSolveTSP
+from homemadegraphs.algorithm_oriented_classes import StateGraphGetCC, StateDigraphGetSCC, StateGraphKruskalAlgorithm, StateDigraphSolveTSP
 from homemadegraphs.paths_and_cycles import VertexPath, VertexCycle
 from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 

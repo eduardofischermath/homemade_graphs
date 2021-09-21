@@ -154,7 +154,7 @@ class UnionFind(object):
     # We loop while the leader is not found
     while not self.is_leader(path_to_leader[-1]):
       # We don't have a leader yet, so we append the parent to the path
-      path_to_leader.append(parents[path_to_leader[-1]])
+      path_to_leader.append(self.parents[path_to_leader[-1]])
       if not skip_checks:
         # To avoid a case of an infinite loop:
         if len(path_to_leader) > len(self):
@@ -168,7 +168,7 @@ class UnionFind(object):
     if also_do_path_compression:
       for item in path_to_leader:
         # Note it is not needed to update self.led_by as the leaders don't change
-        parents[item] = leader_of_obj   
+        self.parents[item] = leader_of_obj   
     return leader_of_obj
     
   def union_from_objects(self, obj_1, obj_2, require_different_clusters = False,
@@ -188,8 +188,8 @@ class UnionFind(object):
     later in the process.)
     '''
     if not skip_checks:
-      assert obj in self, 'Object must be in union-find data structure'
-      assert obj in self, 'Object must be in union-find data structure'
+      assert obj_1 in self, 'Object must be in union-find data structure'
+      assert obj_2 in self, 'Object must be in union-find data structure'
     leader_obj_1 = self.find_leader(
         obj = obj_1,
         also_do_path_compression = also_do_path_compression,
@@ -200,7 +200,7 @@ class UnionFind(object):
         skip_checks = skip_checks)
     if leader_obj_1 != leader_obj_2:
       # Determine which is smaller and which is larger (merge smaller into larger)
-      if len(led_by[leader_obj_1]) >= len(led_by[leader_obj_2]):
+      if len(self.led_by[leader_obj_1]) >= len(self.led_by[leader_obj_2]):
         smaller_following = leader_obj_2
         larger_following = leader_obj_1
       else:

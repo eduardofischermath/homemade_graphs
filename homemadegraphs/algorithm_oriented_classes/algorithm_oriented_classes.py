@@ -261,7 +261,7 @@ class StateGraphKruskalAlgorithm(object):
     heapq_heapify(self.scrambled_edges_heap)
     # We also control clustering through union-find, which changes as the methods are called
     self.vertex_partition = UnionFind(
-        data = self.get_vertices(),
+        data = self.graph.get_vertices(),
         data_type = 'objects')
 
   def apply_kruskal_algorithm(self, intended_number_of_clusters = None,
@@ -300,14 +300,14 @@ class StateGraphKruskalAlgorithm(object):
       # In this case we expect to produce an error if is not possible
       #to produce k trees/clusters
       allow_more_clusters = False
-    if skip_checks:
+    if not skip_checks:
       # Note conditions below rule out empty graph
       assert k >= 1, 'Need to have at least one cluster'
-      assert n >= k, 'Cannot have more clusters than vertices'
+      assert self.n >= k, 'Cannot have more clusters than vertices'
     # First we start up the clusters using a union-find structure
     # We need to do n-k union-operations [done through identifying the two
     #vertices in an edge]
-    for idx in range(n-k):
+    for idx in range(self.n-k):
       # Locate the smallest edge which is a bridge between two distinct clusters
       scrambled_edge = self.pop_shortest_edge_crossing_clusters(
           also_do_path_compression = True, # Good for processing time
@@ -344,7 +344,7 @@ class StateGraphKruskalAlgorithm(object):
         output_as = 'list',
         output_clusters_as = 'list')
     # We also output the spacing between the trees/clusters
-    # Note the scrambled_edges_heap is at the right place for this operation
+    # Note the self.scrambled_edges_heap is at the right place for this operation
     last_scrambled_edge = self.pop_shortest_edge_crossing_clusters(
         also_do_path_compression = True,
         skip_checks = skip_checks)
@@ -366,7 +366,7 @@ class StateGraphKruskalAlgorithm(object):
     '''
     while True:
       try:
-        new_scrambled_edge = heapq_heappop(scrambled_edges_heap)
+        new_scrambled_edge = heapq_heappop(self.scrambled_edges_heap)
       except IndexError:
         # Not enough edges
         return None
@@ -374,11 +374,11 @@ class StateGraphKruskalAlgorithm(object):
       weight, u, v = new_scrambled_edge
       # Get the leaders of u and v. This is a find-operation
       # (Also update parents doing path compression, if requested)
-      current_leader_u = self.edges_heap.find_leader(
+      current_leader_u = self.vertex_partition.find_leader(
           obj = u,
           also_do_path_compression = also_do_path_compression,
           skip_checks = skip_checks)
-      current_leader_v = self.edges_heap.find_leader(
+      current_leader_v = self.vertex_partition.find_leader(
           obj = v,
           also_do_path_compression = also_do_path_compression,
           skip_checks = skip_checks)
