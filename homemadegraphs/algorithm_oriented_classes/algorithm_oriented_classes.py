@@ -255,10 +255,10 @@ class StateGraphKruskalAlgorithm(object):
     '''
     self.graph = graph
     self.n = self.graph.get_number_of_vertices()
-    # Create the heap for the edges
+    # Create the heap for the edges (but they are scrambled to have their weight foremost)
     # (This is a state class, and the heap changes according to the processes called)
-    self.edges_heap = [(edge.weight, edge.first, edge.second) for edge in self.graph.get_edges()]
-    heapq_heapify(self.edges_heap)
+    self.scrambled_edges_heap = [(edge.weight, edge.first, edge.second) for edge in self.graph.get_edges()]
+    heapq_heapify(self.scrambled_edges_heap)
     # We also control clustering through union-find, which changes as the methods are called
     self.vertex_partition = UnionFind(
         data = self.get_vertices(),
@@ -285,12 +285,13 @@ class StateGraphKruskalAlgorithm(object):
     
     SEE ALSO: get_k_clustering, get_minimal_spanning_tree
     '''
-    # Basic renaming
-    n = self.get_number_of_vertices()
-    k = intended_number_of_clusters # For short
+    # Basic renaming, for short
+    k = intended_number_of_clusters
+    # To keep and manage tree information
+    edges_in_trees = []
     # If k is None, we proceed until we can't divide into any further trees/clusters
     # Set k = 1 as default. Add a trigger to safely break if there are
-    #multiple connected components
+    #multiple connected components (instead of raising an error)
     if k is None:
       k = 1
       allow_more_clusters = True
@@ -301,159 +302,88 @@ class StateGraphKruskalAlgorithm(object):
     if skip_checks:
       assert n >= k, 'Cannot have more clusters than vertices'
     # First we start up the clusters using a union-find structure
-    # Each vertex starts at its own cluster
-    union_find = UnionFind(
-        data = self.get_vertices(),
-        data_type = 'objects')
-    # We put all edges in a heap. We order them by weight, reordering it
-    edges_heap = [(edge.weight, edge.first, edge.second) for edge in self._edges]
-    heapq_heapify(edges_heap)
     # We need to do n-k union-operations [done through identifying the two
     #vertices in an edge]
     for idx in range(n-k):
-      # Locate the smallest edge which is a bridge between two clusters
-      while True:
-        # If graph is not complete there might be an error in the following
-        # We prepare an exception for it
-        try:
-          new_edge = heapq_heappop(edges_heap)
-        except IndexError:
-          # Not enough edges
-          if allow_more_clusters:
-            # In this case simply break, making it clear that no edge was produced
-            found_good_edge = False
-            break
-          else:
-            raise ValueError('Not enough edges to produce required clusterings')
-        # Call the vertices u and v. Recall the order of the information
-        weight, u, v = new_edge
-        # Get the leaders of u and v. This is a find-operation
-        # Also update parents doing path compression
-        parents, current_leader_u = find_leader_from_parent_information(
-            parents = parents,
-            vertex = u,
-            do_path_compression = True)
-        parents, current_leader_v = find_leader_from_parent_information(
-            parents = parents,
-            vertex = v,
-            do_path_compression = True)
-        # If they are in the same cluster, we discard the edge and try again
-        # Otherwise we continue with the process of popping out the edges
-        #(and keep the path compressions!) until we break out of the while loop
-        if current_leader_u != current_leader_v:
-          found_good_edge = True
+      # Locate the smallest edge which is a bridge between two distinct clusters
+      scrambled_edge = self.pop_shortest_edge_crossing_clusters(
+          also_do_path_compression = True, # Good for processing time
+          skip_checks = skip_checks)
+      if scrambled_edge is None:
+        if allow_more_clusters:
+          # Ran out of cluster-crossing edges, so simply break
           break
-      # Now we split depending on having found a good edge
-      if found_good_edge:
-      
-      
-        # Now we do the union-operation, except in the last operation
-        #in which we compute a minimal separation between the clusters
-        # And don't proceed, otherwise we would over-cluster the vertices
-        if idx == n-k:
-          minimal_distance_clusters = weight
         else:
-          # ok, we are still in the process of clustering. So we do an union
-          # We compare the ranks of the leaders.
-          if ranks[local_leaders[u]] == ranks[local_leaders[v]]:
-            # If equal, we add one tree to the other in O(1) operations
-            # Without loss of generality, let's say local_leaders[u] will lead
-            parents[local_leaders[v]] == local_leaders[u]
-            # We also adjust the rank of local_leaders[u]
-            ranks[local_leaders[u]] += 1
-          elif ranks[local_leaders[u]] < ranks[local_leaders[v]]:
-            # If different, the smaller/shallower tree is appended to the larger
-            parents[local_leaders[u]] = local_leaders[v]
-          else:
-            parents[local_leaders[v]] = local_leaders[u]
-            
+          raise ValueError('Could not reach specified number of clusters')
       else:
-        if k == 1:
-          # We might just consider this case...
-          pass
-        
-        
-    # Ok. Not the loop has finalized and we have k clusters (given by parents)
-    #as well as a last execution which gives the minimal distance
-    # We want to output parents (which indirectly give the clusters)
-    # But we also output the objective distance, the minimal possible distance
-    #between two points in different clusters
-    return (parents, minimal_distance_clusters)    
-    
-    
-    
-    #################################
-    # OLD BELOW
-    #################################
-    # But we later do one special operation, which is part of the main loop
-    # So we really do n-k+1, interrupting one to do something different
-    for idx in range(n-k+1):
-      # Locate the smallest edge which is a bridge between two clusters
-      while True:
-        # If graph is not complete there might be an error in the following
-        # Nonetheless, we don't want the try/except overhead for exceptions
-        new_edge = heapq_heappop(edges_heap)
-        # Call the vertices u and v. Recall the order of the information
-        weight, u, v = new_edge
-        # Get the leaders of u and v. This is a find-operation
-        # (Do path-compression while at it)
-        local_leaders = {item:None for item in [u, v]}
-        for vertex in [u, v]:
-          # We save the path to do path compression
-          # Idea is to keep appending the parents until leader is found
-          accumulated_path = [vertex]
-          # We loop whiel the leader of the root is not found
-          while accumulated_path[-1] != parents[accumulated_path[-1]]:
-            # We don't have a leader yet, so we append the parent to the path
-            accumulated_path.append(parents[accumulated_path[-1]])
-          # Ok, now we have a full path to the leader in accumulated_path
-          # First we do path-compression
-          for item in accumulated_path:
-            parents[item] = accumulated_path[-1]       
-          # We save the result as local_leaders dict, and break
-          local_leaders[vertex] = parents[vertex]
-        # Ok, now we have local_leaders[u] and local_leaders[v]
-        # If they are in the same cluster, we discard the edge and try again
-        # Otherwise we continue with the process
-        if local_leaders[u] != local_leaders[v]:
-          break
-      # We found a good sparating edge.
-      # Now we do the union-operation, except in the last operation
-      #in which we compute a minimal separation between the clusters
-      # And don't proceed, otherwise we would over-cluster the vertices
-      if idx == n-k:
-        minimal_distance_clusters = weight
-      else:
-        # ok, we are still in the process of clustering. So we do an union
-        # We compare the ranks of the leaders.
-        if ranks[local_leaders[u]] == ranks[local_leaders[v]]:
-          # If equal, we add one tree to the other in O(1) operations
-          # Without loss of generality, let's say local_leaders[u] will lead
-          parents[local_leaders[v]] == local_leaders[u]
-          # We also adjust the rank of local_leaders[u]
-          ranks[local_leaders[u]] += 1
-        elif ranks[local_leaders[u]] < ranks[local_leaders[v]]:
-          # If different, the smaller/shallower tree is appended to the larger
-          parents[local_leaders[u]] = local_leaders[v]
-        else:
-          parents[local_leaders[v]] = local_leaders[u]
-    # Ok. Not the loop has finalized and we have k clusters (given by parents)
-    #as well as a last execution which gives the minimal distance
-    # We want to output parents (which indirectly give the clusters)
-    # But we also output the objective distance, the minimal possible distance
-    #between two points in different clusters
-    return (parents, minimal_distance_clusters)
-    #################################
-    # OLD ABOVE
-    #################################
+        # Have functional cluster crossing edge, so we do the union operation
+        weight, u, v = scrambled_edge
+        # Save it
+        edge = OperationsVAE.sanitize_arrow_or_edge(
+            use_edges_instead_of_arrows = True,
+            tuplee = (u, v, weight),
+            require_namedtuple = False,
+            request_vertex_sanitization = False,
+            require_vertex_namedtuple = False)
+        edges_in_trees.append(edge)
+        # Note pop_shortest_edge_crossing_clusters should have done path compression,
+        #making it very easy to reach the leaders of u and v
+        self.vertex_partition.union_from_objects(
+            obj_1 = u,
+            obj_2 = v,
+            require_different_clusters = True,
+            also_do_path_compression = True,
+            skip_checks = skip_checks)
+    # Depending on the goal of the call, different information might be sought
+    # We output the edges used [edges_in_trees, relevant for spanning tree formation]
+    #as well as the partitions [relevant for k-clustering].
+    partitions_as_lists = self.vertex_partition.present_partition(
+        output_as = 'list',
+        output_clusters_as = 'list')
+    # We also output the spacing between the trees/clusters
+    # Note the scrambled_edges_heap is at the right place for this operation
+    last_scrambled_edge = self.pop_shortest_edge_crossing_clusters(
+        also_do_path_compression = True,
+        skip_checks = skip_checks)
+    if last_scrambled_edge is None:
+      # Logic says to set distance to be math.inf
+      spacing_between_clusters = math_inf
+    else:
+      weight, u, v = last_scrambled_edge
+      spacing_between_clusters = weight
+    return (edges_in_trees, partitions_as_lists, spacing_between_clusters)
 
-  def pop_shortest_edge_crossing_clusters(self):
+  def pop_shortest_edge_crossing_clusters(self, also_do_path_compression = False,
+      skip_checks = False):
     '''
     Returns the shortest edge still in the heap which crosses clusters
     (removing it from the heap), or None if none exists.
+    
+    Note edge info is scrambled as (edge.weight, edge.first, edge.second).
     '''
-    pass
-
+    while True:
+      try:
+        new_scrambled_edge = heapq_heappop(scrambled_edges_heap)
+      except IndexError:
+        # Not enough edges
+        return None
+      # Call the vertices u and v. Recall the order of the information
+      weight, u, v = new_scrambled_edge
+      # Get the leaders of u and v. This is a find-operation
+      # (Also update parents doing path compression, if requested)
+      current_leader_u = self.edges_heap.find_leader(
+          obj = u,
+          also_do_path_compression = also_do_path_compression,
+          skip_checks = skip_checks)
+      current_leader_v = self.edges_heap.find_leader(
+          obj = v,
+          also_do_path_compression = also_do_path_compression,
+          skip_checks = skip_checks)
+      # If they are in the same cluster, we discard the edge (by popping another)
+      #and try again with another heapq.heappop
+      # Otherwise can output them as shortest [scrambled] edge crossing clusters
+      if current_leader_u != current_leader_v:
+        return new_scrambled_edge
 
 ########################################################################
 # Class StateDigraphSolveTSP

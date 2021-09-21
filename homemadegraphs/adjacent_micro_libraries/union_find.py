@@ -176,11 +176,11 @@ class UnionFind(object):
     '''
     Unites the clusters corresponding to two vertices.
     
-    Returns nothing. The leader of the cluster of the first object becomes
-    also the leader of the cluster of the second object.
+    Returns nothing. The objects determine two clusters; the leader of the
+    larger cluster becomes the leader of the smaller cluster.
     
     This is done by updating the parent of the leader (soon to be an ex-leader)
-    of the second object to be the leader of first object. The information
+    of the smaller to be the leader of larger cluster. The information
     of the objects led by them is also updated.
     
     Has option to do path compression within the "find" operations.
@@ -199,10 +199,17 @@ class UnionFind(object):
         also_do_path_compression = also_do_path_compression,
         skip_checks = skip_checks)
     if leader_obj_1 != leader_obj_2:
-      # Update self.parents and self.led_by
-      self.parents[leader_obj_2] = leader_obj_1
-      self.led_by[leader_obj_1] += self.led_by[leader_obj_2]
-      self.led_by[leader_obj_2] = []
+      # Determine which is smaller and which is larger (merge smaller into larger)
+      if len(led_by[leader_obj_1]) >= len(led_by[leader_obj_2]):
+        smaller_following = leader_obj_2
+        larger_following = leader_obj_1
+      else:
+        smaller_following = leader_obj_1
+        larger_following = leader_obj_2
+      # Merge smaller into larger. Update self.parents and self.led_by
+      self.parents[smaller_following] = larger_following
+      self.led_by[larger_following] += self.led_by[smaller_following]
+      self.led_by[smaller_following] = []
     else:
       if require_different_clusters:
         raise ValueError('Objects must belong to different clusters to execute union')
