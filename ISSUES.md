@@ -363,7 +363,17 @@ Current method only presents whether there is a solution, it doesn't find one if
 Work with Kruskal's and Prim's Algorithm for minimum spanning trees, and merge
 the same approach (at least Kruskal's) for k-clustering.
 
-## ISSUE #0056 OPEN
+## ISSUE #0056 COMPLETE
 
 Create separate code for adjacent, auxiliary structures and micro-libraries.
 First example is an implementation of the Union-Find data structure.
+
+## ISSUE #0057 OPEN
+
+Implement more options for starting the union-find structure. For example,
+a list of the clusters (derive any leader), or maybe even the information
+provided by led_by (easy to set the parents).
+
+## ISSUE #0058 OPEN
+
+Write interface for union-find structure.
