@@ -214,7 +214,7 @@ class UnionFind(object):
       if require_different_clusters:
         raise ValueError('Objects must belong to different clusters to execute union')
       else:
-        # Nothing needs to be done
+        # No union is possible. Nothing will be done.
         pass
 
   def present_partition(self, output_as = 'dict', output_clusters_as = 'list'):

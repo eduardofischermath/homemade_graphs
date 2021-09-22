@@ -363,6 +363,8 @@ Current method only presents whether there is a solution, it doesn't find one if
 Work with Kruskal's and Prim's Algorithm for minimum spanning trees, and merge
 the same approach (at least Kruskal's) for k-clustering.
 
+Currently need to update the Prim's version.
+
 ## ISSUE #0056 COMPLETE
 
 Create separate code for adjacent, auxiliary structures and micro-libraries.
