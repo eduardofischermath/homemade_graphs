@@ -24,6 +24,8 @@
 # External imports
 ########################################################################
 
+from heapq import heapify as heapq_heapify
+from heapq import heappop as heapq_heappop
 from itertools import chain as itertools_chain
 from itertools import product as itertools_product
 from math import inf as math_inf
@@ -44,6 +46,7 @@ else:
 # Internal imports
 ########################################################################
 
+from homemadegraphs.adjacent_micro_libraries import UnionFind
 from homemadegraphs.paths_and_cycles import VertexPath, VertexCycle
 from homemadegraphs.vertices_arrows_and_edges import OperationsVAE
 
@@ -233,6 +236,157 @@ class StateGraphGetCC(object):
       if self.components[other_vertex] is None:
         self.dfs_inner_loop(other_vertex)
     # We don't return anything, only change self
+
+########################################################################
+# Class StateGraphKruskalAlgorithm
+########################################################################
+
+class StateGraphKruskalAlgorithm(object):
+  '''
+  Used to process Kruskal's Algorithm, useful in computing minimum spanning
+  trees and for k-clustering.
+  
+  SEE ALSO: apply_kruskal_algorithm
+  '''
+
+  def __init__(self, graph):
+    '''
+    Magic method. Initializes the instance.
+    '''
+    self.graph = graph
+    self.n = self.graph.get_number_of_vertices()
+    # Create the heap for the edges (but they are scrambled to have their weight foremost)
+    # (This is a state class, and the heap changes according to the processes called)
+    self.scrambled_edges_heap = [(edge.weight, edge.first, edge.second) for edge in self.graph.get_edges()]
+    heapq_heapify(self.scrambled_edges_heap)
+    # We also control clustering through union-find, which changes as the methods are called
+    self.vertex_partition = UnionFind(
+        data = self.graph.get_vertices(),
+        data_type = 'objects')
+
+  def apply_kruskal_algorithm(self, intended_number_of_clusters = None,
+      skip_checks = False):
+    '''
+    Applies Kruskal's algorithm on the edges of the (weighted, undirected) graph
+    to produce, among the spanning trees (trees of maximal size: the number of vertices
+    minus the number of connected components) with minimum total edge weight.
+
+    If intended_number_of_clusters is None, it goes as far as it can
+    to produce a spanning tree, producing as many clusters are there are
+    connected components
+    
+    If intended_number_of_clusters is a number, it stops early, producing
+    disjoint trees (including single points) which can be interpreted
+    as clusters. 
+    
+    Returns a list of the edges used (in the order they are used), the
+    clusterings of vertices remaining by the concept of parents/leaders,
+    as well as the spacing of that clustering (or infinity if spacing
+    cannot be inferred).
+    
+    SEE ALSO: get_k_clustering, get_minimal_spanning_tree
+    '''
+    # Basic renaming, for short
+    k = intended_number_of_clusters
+    # To keep and manage tree information
+    edges_in_trees = []
+    # If k is None, we proceed until we can't divide into any further trees/clusters
+    # Set k = 1 as default. Add a trigger to safely break if there are
+    #multiple connected components (instead of raising an error)
+    if k is None:
+      k = 1
+      allow_more_clusters = True
+    else:
+      # In this case we expect to produce an error if is not possible
+      #to produce k trees/clusters
+      allow_more_clusters = False
+    if not skip_checks:
+      # Note conditions below rule out empty graph
+      assert k >= 1, 'Need to have at least one cluster'
+      assert self.n >= k, 'Cannot have more clusters than vertices'
+    # First we start up the clusters using a union-find structure
+    # We need to do n-k union-operations [done through identifying the two
+    #vertices in an edge]
+    for idx in range(self.n-k):
+      # Locate the smallest edge which is a bridge between two distinct clusters
+      scrambled_edge = self.pop_shortest_edge_crossing_clusters(
+          also_do_path_compression = True, # Good for processing time
+          skip_checks = skip_checks)
+      if scrambled_edge is None:
+        if allow_more_clusters:
+          # Ran out of cluster-crossing edges, so simply break
+          break
+        else:
+          raise ValueError('Could not reach specified number of clusters')
+      else:
+        # Have functional cluster crossing edge, so we do the union operation
+        weight, u, v = scrambled_edge
+        # Save it
+        edge = OperationsVAE.sanitize_arrow_or_edge(
+            use_edges_instead_of_arrows = True,
+            tuplee = (u, v, weight),
+            require_namedtuple = False,
+            request_vertex_sanitization = False,
+            require_vertex_namedtuple = False)
+        edges_in_trees.append(edge)
+        # Note pop_shortest_edge_crossing_clusters should have done path compression,
+        #making it very easy to reach the leaders of u and v
+        self.vertex_partition.union_from_objects(
+            obj_1 = u,
+            obj_2 = v,
+            require_different_clusters = True,
+            also_do_path_compression = True,
+            skip_checks = skip_checks)
+    # Depending on the goal of the call, different information might be sought
+    # We output the edges used [edges_in_trees, relevant for spanning tree formation]
+    #as well as the partitions [relevant for k-clustering].
+    partitions_as_lists = self.vertex_partition.present_partition(
+        output_as = 'list',
+        output_clusters_as = 'list')
+    # We also output the spacing between the trees/clusters
+    # Note the self.scrambled_edges_heap is at the right place for this operation
+    last_scrambled_edge = self.pop_shortest_edge_crossing_clusters(
+        also_do_path_compression = True,
+        skip_checks = skip_checks)
+    if last_scrambled_edge is None:
+      # Logic says to set distance to be math.inf
+      spacing_between_clusters = math_inf
+    else:
+      weight, u, v = last_scrambled_edge
+      spacing_between_clusters = weight
+    return (edges_in_trees, partitions_as_lists, spacing_between_clusters)
+
+  def pop_shortest_edge_crossing_clusters(self, also_do_path_compression = False,
+      skip_checks = False):
+    '''
+    Returns the shortest edge still in the heap which crosses clusters
+    (removing it from the heap), or None if none exists.
+    
+    Note edge info is scrambled as (edge.weight, edge.first, edge.second).
+    '''
+    while True:
+      try:
+        new_scrambled_edge = heapq_heappop(self.scrambled_edges_heap)
+      except IndexError:
+        # Not enough edges
+        return None
+      # Call the vertices u and v. Recall the order of the information
+      weight, u, v = new_scrambled_edge
+      # Get the leaders of u and v. This is a find-operation
+      # (Also update parents doing path compression, if requested)
+      current_leader_u = self.vertex_partition.find_leader(
+          obj = u,
+          also_do_path_compression = also_do_path_compression,
+          skip_checks = skip_checks)
+      current_leader_v = self.vertex_partition.find_leader(
+          obj = v,
+          also_do_path_compression = also_do_path_compression,
+          skip_checks = skip_checks)
+      # If they are in the same cluster, we discard the edge (by popping another)
+      #and try again with another heapq.heappop
+      # Otherwise can output them as shortest [scrambled] edge crossing clusters
+      if current_leader_u != current_leader_v:
+        return new_scrambled_edge
 
 ########################################################################
 # Class StateDigraphSolveTSP

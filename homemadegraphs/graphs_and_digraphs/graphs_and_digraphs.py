@@ -38,7 +38,7 @@ from random import choices as random_choices
 # Internal imports
 ########################################################################
 
-from homemadegraphs.algorithm_oriented_classes import StateGraphGetCC, StateDigraphGetSCC, StateDigraphSolveTSP
+from homemadegraphs.algorithm_oriented_classes import StateGraphGetCC, StateDigraphGetSCC, StateGraphKruskalAlgorithm, StateDigraphSolveTSP
 from homemadegraphs.paths_and_cycles import VertexPath, VertexCycle
 from homemadegraphs.vertices_arrows_and_edges import Vertex, Arrow, Edge, OperationsVAE
 
@@ -1447,95 +1447,6 @@ class Digraph(object):
         print('Current try: {}. New minimum reached: {}'.format(try_idx, minimal_cut))
     return minimal_cut
 
-  def k_clustering(self, k):
-    '''
-    Finds the optimal k-clustering (k >= 1) of the graph.
-    
-    Requires a complete, weighted graph.
-    
-    Note: for k = 1 it produces a minimum spanning tree vias Kruskal's algorithm.
-    '''
-    # We need a weighted, undirected, simple [i.e. non-multigraph] graph
-    # Being undirected, we have access to self._edges
-    assert self.is_digraph_undirected(), 'Need undirected graph'
-    assert self.is_digraph_weighted(), 'Need weighted graph'
-    assert self.is_digraph_simple(), 'Need simple graph (cannot be multigraph)'
-    # (We don't really require complete. When the graph is not complete,
-    #this reduces to the Kruskal algorithm, essentially)
-    n = self.get_number_of_vertices()
-    assert n >= k, 'Need at least k starting vertices to form k clusters'
-    # First we start up the clusters using a union-find structure
-    # By cluster we mean: each vertex will have a leader, and vertices
-    #of same leader belong to the same cluster
-    # But we do lazy union, so we have a parent relation, and we need to
-    #transverse it up to finder the leader
-    # Also, we do path compression, so we update one's parents to be
-    #one's leaders when given the opportunity
-    parents = {vertex:vertex for vertex in self.get_vertices()}
-    ranks = {vertex:0 for vertex in self.get_vertices()}
-    # We put all edges in a heap. We order them by weight, reordering it
-    edges_heap = [(edge.weight, edge.first, edge.second) for edge in self._edges]
-    heapq_heapify(edges_heap)
-    # We need to do n-k union-operations
-    # But we later do one special operation, which is part of the main loop
-    # So we really do n-k+1, interrupting one
-    for idx in range(n-k+1):
-      # Locate the smallest edge which is a bridge between two clusters
-      while True:
-        # If graph is not complete there might be an error in the following
-        # Nonetheless, we don't want the try/except overhead for exceptions
-        new_edge = heapq_heappop(edges_heap)
-        # Call the vertices u and v. Recall the order of the information
-        weight, u, v = new_edge
-        # Get the leaders of u and v. This is a find-operation
-        # (Do path-compression while at it)
-        local_leaders = {item:None for item in [u, v]}
-        for vertex in [u, v]:
-          # We save the path to do path compression
-          # Idea is to keep appending the parents until leader is found
-          accumulated_path = [vertex]
-          # We loop whiel the leader of the root is not found
-          while accumulated_path[-1] != parents[accumulated_path[-1]]:
-            # We don't have a leader yet, so we append the parent to the path
-            accumulated_path.append(parents[accumulated_path[-1]])
-          # Ok, now we have a full path to the leader in accumulated_path
-          # First we do path-compression
-          for item in accumulated_path:
-            parents[item] = accumulated_path[-1]       
-          # We save the result as local_leaders dict, and break
-          local_leaders[vertex] = parents[vertex]
-        # Ok, now we have local_leaders[u] and local_leaders[v]
-        # If they are in the same cluster, we discard the edge and try again
-        # Otherwise we continue with the process
-        if local_leaders[u] != local_leaders[v]:
-          break
-      # We found a good sparating edge.
-      # Now we do the union-operation, except in the last operation
-      #in which we compute a minimal separation between the clusters
-      # And don't proceed, otherwise we would over-cluster the vertices
-      if idx == n-k:
-        minimal_distance_clusters = weight
-      else:
-        # ok, we are still in the process of clustering. So we do an union
-        # We compare the ranks of the leaders.
-        if ranks[local_leaders[u]] == ranks[local_leaders[v]]:
-          # If equal, we add one tree to the other in O(1) operations
-          # Without loss of generality, let's say local_leaders[u] will lead
-          parents[local_leaders[v]] == local_leaders[u]
-          # We also adjust the rank of local_leaders[u]
-          ranks[local_leaders[u]] += 1
-        elif ranks[local_leaders[u]] < ranks[local_leaders[v]]:
-          # If different, the smaller/shallower tree is appended to the larger
-          parents[local_leaders[u]] = local_leaders[v]
-        else:
-          parents[local_leaders[v]] = local_leaders[u]
-    # Ok. Not the loop has finalized and we have k clusters (given by parents)
-    #as well as a last execution which givs the minimal distance
-    # We want to output parents (which indirectly give the clusters)
-    # But we also output the objective distance, the minimal possible distance
-    #between two points in different clusters
-    return (parents, minimal_distance_clusters)
-
 ########################################################################
 # Class WeightedDigraph
 ########################################################################
@@ -2647,17 +2558,88 @@ class WeightedGraph(WeightedDigraph, Graph):
     new_instance = cls(data = data, data_type = data_type)
     return new_instance
 
-  def get_minimal_spanning_tree_via_Prims(self):
+  def apply_kruskal_algorithm(self, intended_number_of_clusters = None,
+      skip_checks = False):
     '''
-    Returns a minimum spanning tree (a list of edges), plus its cost,
-    using Prim's algorithm.
+    Returns all information derived from applying Kruskal Algorithm to the graph.
+    '''
+    # Outsource the work to the class
+    # (Note this method is functional, while the method of same name
+    #in StateGraphKruskalAlgorithm is stateful)
+    state = StateGraphKruskalAlgorithm(graph = self)
+    kruskal_info = state.apply_kruskal_algorithm(
+        intended_number_of_clusters = intended_number_of_clusters,
+        skip_checks = skip_checks)
+    return kruskal_info
+
+  def get_k_clustering(self, k, output_as, skip_checks = False):
+    '''
+    Finds the optimal k-clustering (k >= 1) of the graph. Can return either
+    the clustering itself, the spacing between clusters, or both.
     
-    Requires a WeightedGraph (undirected, weighted).
+    Requires a complete, weighted graph.
+    '''
+    kruskal_info = self.apply_kruskal_algorithm(
+        intended_number_of_clusters = k,
+        skip_checks = skip_checks)
+    edges_in_tree, partitions, clustering_spacing = kruskal_info
+    output_as = output_as.lower()
+    if output_as == 'partitions_and_spacing':
+      return (partitions, clustering_spacing)
+    elif output_as == 'partitions':
+      return partitions
+    elif output_as == 'spacing':
+      return clustering_spacing
+    else:
+      raise ValueError('Option for output not recognized.')
+
+  def get_minimal_spanning_tree(self, output_as, use_prims_instead_of_kruskals,
+      skip_checks = False):
+    '''
+    Returns a minimum spanning tree generated by the algorithm of choice.
+    
+    Has option to return the total cost/length/weight in addition or in place of the tree.
+    '''
+    if use_prims_instead_of_kruskals:
+      edges_in_tree, total_cost = self._get_minimal_spanning_tree_and_total_cost_via_Prims()
+      if not skip_checks:
+        computed_cost = sum(edge.weight for edge in edges_in_tree)
+        assert total_cost == computed_cost, 'Internal logic error, total cost wrong'
+    else:
+      # Total cost computed only if requested
+      edges_in_tree = self._get_minimal_spanning_tree_via_Kruskals(
+          intended_number_of_clusters = None,
+          skip_checks = skip_checks)
+    output_as = output_as.lower()
+    if output_as == 'tree':
+      return edges_in_tree
+    else:
+      total_cost = sum(edge.weight for edge in edges_in_tree)
+      if output_as == 'total_cost':
+        return total_cost
+      elif output_as == 'tree_and_total_cost':
+        return (edges_in_tree, total_cost)
+
+  def _get_minimal_spanning_tree_via_Kruskals(self, skip_checks = False):
+    '''
+    Returns a minimum spanning tree (a list of edges), plus its total cost,
+    using Kruskal's algorithm.
+    '''
+    kruskal_info = self.apply_kruskal_algorithm(
+        intended_number_of_clusters = k,
+        skip_checks = skip_checks)
+    edges_in_tree, partitions, clustering_spacing = kruskal_info
+    return edges_in_tree
+
+  def _get_minimal_spanning_tree_and_total_cost_via_Prims(self):
+    '''
+    Returns a minimum spanning tree (a list of edges), plus its total cost,
+    using Prim's algorithm.
     '''
     # We need a weighted, undirected graph. Weights may be negative
     # We expect non-multigraphs, but it is not a problem (only the extra time wasted)
     # Graph needs to be connected. We can check it inside the Prim's algorithm
-    assert self.is_nonempty_digraph(), 'Algorithm requires at least one vertex'
+    assert self, 'Algorithm requires at least one vertex'
     # Principe behind Prim's algorithm is to increase, vertex a vertex, a set X
     # Let Y be the complement.
     X = []

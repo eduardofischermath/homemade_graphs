@@ -357,3 +357,25 @@ This can be done using get_scc() (that is, strongly connected components of digr
 Need concept of "antipode" vertices which represent a variable and its negation.
 
 Current method only presents whether there is a solution, it doesn't find one if there is.
+
+## ISSUE #0055 ONGOING
+
+Work with Kruskal's and Prim's Algorithm for minimum spanning trees, and merge
+the same approach (at least Kruskal's) for k-clustering.
+
+Currently need to update the Prim's version.
+
+## ISSUE #0056 COMPLETE
+
+Create separate code for adjacent, auxiliary structures and micro-libraries.
+First example is an implementation of the Union-Find data structure.
+
+## ISSUE #0057 OPEN
+
+Implement more options for starting the union-find structure. For example,
+a list of the clusters (derive any leader), or maybe even the information
+provided by led_by (easy to set the parents).
+
+## ISSUE #0058 OPEN
+
+Write interface for union-find structure.
