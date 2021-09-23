@@ -378,4 +378,18 @@ provided by led_by (easy to set the parents).
 
 ## ISSUE #0058 OPEN
 
-Write interface for union-find structure.
+Optionally, write interface for union-find structure (which hides the idea
+of parents and leaders, and only cares about union and find).
+
+## ISSUE #0059 OPEN
+
+Try to save memory in solve_full_problem in StateDigraphSolveTSP for tabulation
+by using a list instead of a dict. (After all, this dictionary is anyway indexed
+by the enhanced bitmasks which are integers from 0 through (n**2)*(2**n) - 1.
+
+## ISSUE #0060 OPEN
+
+To help with reducing number of arguments in methods of StateDigraphSolveTSP:
+instead of moving around arguments such as skip_checks, omit_minimizing_paths,
+and use_memoization_instead_of_tabulation every time a new function/method call is made,
+make them into instance attributes for the duration of solve_full_problem.

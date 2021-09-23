@@ -1,5 +1,12 @@
 # RELEASES
 
+##  (in preparation)
+
+Improves performance of full solution of Traveling Salesman Problem (TSP).
+Includes heuristic solution for TSP.
+Improved Kruskal's algorithm and how k-clustering and minimal spanning
+trees are derived from it.
+
 ## v0.4.0 (2021.09.12)
 
 Solves Traveling Salesman Problem and finds, when existent, Hamiltonian path and cycles.
