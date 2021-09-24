@@ -389,6 +389,10 @@ Try to save memory in solve_full_problem in StateDigraphSolveTSP for tabulation
 by using a list instead of a dict. (After all, this dictionary is anyway indexed
 by the enhanced bitmasks which are integers from 0 through (n**2)*(2**n) - 1.
 
+Curently the ideal (to save further) would be to overwrite None to deallocate memory
+(for tabulation we only need to preserve the paths one-vertex shorter
+than the ones being computed)
+
 ## ISSUE #0060 COMPLETE
 
 To help with reducing number of arguments in methods of StateDigraphSolveTSP,
@@ -401,8 +405,19 @@ in the subproblem.
 
 Improvements in the order of 5-10% in RAM usage.
 
-## ISSUE #0061 OPEN
+## ISSUE #0061 COMPLETE
 
 Implement a shorter enhanced bitmask in case the initial vertex is fixed.
 This reduces the memory usage by a good factor (exactly the number of vertices
 if paths are to be omitted) in those cases (for example, all cycles).
+
+This can be done by an instance attribute fixed_initial_number, which permeates
+many methods related to enhanced bitmasks (it even changes the way they are
+calculated) and tabulation.
+
+## ISSUE #0062 OPEN
+
+To save memory during tabulation by deallocation of unused resources, rewrite
+StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum to not be cached
+but instead be generated from prior values. (And when they are low enough,
+deallocate them). 
