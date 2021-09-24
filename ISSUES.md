@@ -387,9 +387,14 @@ Try to save memory in solve_full_problem in StateDigraphSolveTSP for tabulation
 by using a list instead of a dict. (After all, this dictionary is anyway indexed
 by the enhanced bitmasks which are integers from 0 through (n**2)*(2**n) - 1.
 
-## ISSUE #0060 OPEN
+## ISSUE #0060 COMPLETE
 
-To help with reducing number of arguments in methods of StateDigraphSolveTSP:
-instead of moving around arguments such as skip_checks, omit_minimizing_paths,
-and use_memoization_instead_of_tabulation every time a new function/method call is made,
+To help with reducing number of arguments in methods of StateDigraphSolveTSP,
+in special the calls of solve_subproblem, instead of moving around the arguments
+(use_memoization_instead_of_tabulation, omit_minimizing_paths, skip_checks)
 make them into instance attributes for the duration of solve_full_problem.
+
+Variable compute_path_instead_of_cycle is not affected because it is not used
+in the subproblem.
+
+Improvements in the order of 5-10% in RAM usage.
