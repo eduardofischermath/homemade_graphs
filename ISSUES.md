@@ -335,13 +335,16 @@ which is not effectively the optimal one).
 
 We implement the "nearest neighbor" strategy.
 
-## ISSUE #0052 OPEN
+## ISSUE #0052 IGNORED
 
 In StateDigraphSolveTSP adopt more interfaces using number/indices instead
 of vertices. For example, in StateDigraphSolveTSP._prepare_initial_and_final_vertices,
 maybe prepare corresponding numbers too. Other examples for potential changes are
 solve_nearest_neighbors_subproblem and solve_full_length_subproblems_for_initial_and_final_vertices
 (which would likely have its name changed).
+
+Not needed with enhanced bitmasks on solve_subproblem. The rest is fine as it is,
+no real speed would be gained.
 
 ## ISSUE #0053 OPEN
 
@@ -377,10 +380,10 @@ provided by led_by (easy to set the parents).
 
 ## ISSUE #0058 OPEN
 
-Optionally, write interface for union-find structure (which hides the idea
+Idea: write interface for union-find structure (which hides the idea
 of parents and leaders, and only cares about union and find).
 
-## ISSUE #0059 OPEN
+## ISSUE #0059 ONGOING
 
 Try to save memory in solve_full_problem in StateDigraphSolveTSP for tabulation
 by using a list instead of a dict. (After all, this dictionary is anyway indexed
