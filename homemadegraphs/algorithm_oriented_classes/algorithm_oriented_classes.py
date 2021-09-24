@@ -655,6 +655,12 @@ class StateDigraphSolveTSP(object):
     return (new_path, modified_unvisited_bitmask)
 
   @functools_cache
+  def solve_subproblem_and_memoize(self, enhanced_bitmask):
+    '''
+    Envelop for caching solve_subproblem.
+    '''
+    return self.solve_subproblem(enhanced_bitmask)
+  
   def solve_subproblem(self, enhanced_bitmask):
     '''
     Computes the minimal path length given specific parameters: given
@@ -753,8 +759,9 @@ class StateDigraphSolveTSP(object):
                   final_number = penultimate_number,
                   presence_bitmask = last_off_presence_bitmask)
             if self.use_memoization_instead_of_tabulation:
-              # In this case we simply call the suproblem method again
-              solution_of_smaller_subproblem = self.solve_subproblem(
+              # In this case we simply call the suproblem method again,
+              #through its memoizing envelop
+              solution_of_smaller_subproblem = self.solve_subproblem_and_memoize(
                   enhanced_bitmask = enhanced_bitmask)
             else:
               # In this case the result should be stored in self._subproblem_solutions_by_size,
@@ -829,8 +836,9 @@ class StateDigraphSolveTSP(object):
         enhanced_bitmask = self.codify_into_enhanced_bitmask(
               initial_number = local_initial_number,
               final_number = local_final_number,
-              presence_bitmask = all_vertices_bitmask)        
-        local_solution = self.solve_subproblem(
+              presence_bitmask = all_vertices_bitmask)
+        # Use memoizing version
+        local_solution = self.solve_subproblem_and_memoize(
             enhanced_bitmask = enhanced_bitmask)
         # Note it works with omit_minizing_path True or False
         solutions[pair_of_vertices] = local_solution
