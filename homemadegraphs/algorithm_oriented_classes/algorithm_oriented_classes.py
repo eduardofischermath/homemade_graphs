@@ -619,7 +619,7 @@ class StateDigraphSolveTSP(object):
       unvisited_bitmask, is_closing_a_cycle_instead_of_extending_path,
       skip_checks = False):
     '''  
-    To be used in the "nearest neighbor algorithm".
+    To be used in the "nearest neighbor heuristic algorithm".
     
     If is_closing_a_cycle_instead_of_extending_path is True, returns the cycle
     formed after appending the arrow to the (necessarily full-length and injective) path,
@@ -644,6 +644,7 @@ class StateDigraphSolveTSP(object):
     new_path = path.append_to_path(
         data = arrow,
         data_type = 'arrow',
+        modify_self = True,
         skip_checks = skip_checks)
     if is_closing_a_cycle_instead_of_extending_path:
       new_cycle = new_path.reformat_path_from_path(
