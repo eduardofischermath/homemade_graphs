@@ -400,3 +400,9 @@ Variable compute_path_instead_of_cycle is not affected because it is not used
 in the subproblem.
 
 Improvements in the order of 5-10% in RAM usage.
+
+## ISSUE #0061 OPEN
+
+Implement a shorter enhanced bitmask in case the initial vertex is fixed.
+This reduces the memory usage by a good factor (exactly the number of vertices
+if paths are to be omitted) in those cases (for example, all cycles).

@@ -764,11 +764,10 @@ class StateDigraphSolveTSP(object):
               solution_of_smaller_subproblem = self.solve_subproblem_and_memoize(
                   enhanced_bitmask = enhanced_bitmask)
             else:
-              # In this case the result should be stored in self._subproblem_solutions_by_size,
+              # In this case the result should be stored in self._subproblem_solutions,
               #indexed by the number of vertices in the last_off_presence_bitmask
               number_of_vertices_in_bitmask = self.count_elements_in_bitmask(last_off_presence_bitmask)
-              solution_of_smaller_subproblem = self._subproblem_solutions_by_size[number_of_vertices_in_bitmask][
-                  enhanced_bitmask]
+              solution_of_smaller_subproblem = self._subproblem_solutions[enhanced_bitmask]
             if self.omit_minimizing_path:
               previous_length = solution_of_smaller_subproblem
             else:
@@ -856,15 +855,13 @@ class StateDigraphSolveTSP(object):
         final_number = self.number_by_vertex[final_vertex]
       # In this case we create the solution of all subproblems, even the
       #ones smaller than full length, making use of tabulation
-      # The table (a dictionary) for the tabulation process
-      # It is first indexed by size (length of path, number of vertices),
-      #and then indexed by initial and final vertices and presence set
-      self._subproblem_solutions_by_size = {}
+      # The table (a list) for the tabulation process
+      # It is indexed by initial and final vertices and presence set,
+      #codified into an enhanced submask, numbers from 0 to n*n*(2**n)-1
+      self._subproblem_solutions = [None]*(self.n*self.n*2**self.n)
       # Note that tabulation is done in increasing order of number of vertices present
-      for length_of_path in range(1, self.n + 1):
-        # Initiate the table for length_of_path
-        self._subproblem_solutions_by_size[length_of_path] = {}
-        # Print to know progress
+      for length_of_path in range(0, self.n + 1):
+        # Print to more easily visualize progress
         print(f'Examining subproblems with {length_of_path} vertices')
         # We find all presence bitmasks of size length_of_path
         right_size_presence_bitmasks = self.produce_bitmasks_with_specific_digit_sum(
@@ -909,8 +906,7 @@ class StateDigraphSolveTSP(object):
                       # We compute the value and store it on the table
                       local_solution = self.solve_subproblem(
                           enhanced_bitmask = enhanced_bitmask)
-                      self._subproblem_solutions_by_size[length_of_path][
-                          enhanced_bitmask] = local_solution
+                      self._subproblem_solutions[enhanced_bitmask] = local_solution
                     else:
                       # For a full-length path, local_final_vertex has to match the final_vertex input
                       is_subproblem_certainly_impossible = True
@@ -930,12 +926,29 @@ class StateDigraphSolveTSP(object):
                   solution = math_inf
                 else:
                   solution = (math_inf, None)
-                self._subproblem_solutions_by_size[length_of_path][
-                    enhanced_bitmask] = solution
+                self._subproblem_solutions[enhanced_bitmask] = solution
         # To save space, we delete the previous (the recurrence is always
         #on having exactly one vertex less)
-        if length_of_path >= 2:
-          del self._subproblem_solutions_by_size[length_of_path - 1]
+        if length_of_path >= 1:
+          # We delete information on the paths which are one vertex shorter
+          # By delete we mean replace the info with None
+          # Since both None and any int or float take 8 bytes, the smallest in Python,
+          #this only liberates space if omit_minimizing_path is False
+          if self.omit_minimizing_path:
+            pass
+          else:
+            print(f'Now to delete info for paths of length {length_of_path - 1}')
+            ######################
+            # WORK HERE
+            # Apparently the garbage collection is not working
+            ######################
+            # It is convenient that self.produce_bitmasks_with_specific_digit_sum is cached
+            smaller_size_presence_bitmasks = self.produce_bitmasks_with_specific_digit_sum(
+              given_length = self.n,
+              given_sum = length_of_path - 1,
+              output_as_generator = False)
+            for smaller_enhanced_bitmask in smaller_size_presence_bitmasks:
+              self._subproblem_solutions[smaller_enhanced_bitmask] = None
       # Read the values from self._subproblem_solutions and store in dict solutions
       for pair_of_vertices in initial_and_final_vertices:
         local_initial_vertex, local_final_vertex = pair_of_vertices
@@ -945,11 +958,11 @@ class StateDigraphSolveTSP(object):
             initial_number = local_initial_index,
             final_number = local_final_index,
             presence_bitmask = all_vertices_bitmask)
-        solutions[pair_of_vertices] = self._subproblem_solutions_by_size[self.n][enhanced_bitmask]
-      # To show everything is complete, delete self._subproblem_solutions_by_size
-      del self._subproblem_solutions_by_size
-    # For code clarity (because there are no practical effects),
-    #revert embedding variables into instance
+        solutions[pair_of_vertices] = self._subproblem_solutions[enhanced_bitmask]
+      # To show everything is complete, delete self._subproblem_solutions
+      del self._subproblem_solutions
+    # For code clarity (because there are no practical effects), revert
+    #the action of embedding variables into instance
     use_memoization_instead_of_tabulation, omit_minimizing_path, skip_checks = self._dismember_instance_attributes_into_variables()
     # In both cases, return the dict solutions
     return solutions
