@@ -655,8 +655,7 @@ class StateDigraphSolveTSP(object):
     return (new_path, modified_unvisited_bitmask)
 
   @functools_cache
-  def solve_subproblem(self, enhanced_bitmask,
-      use_memoization_instead_of_tabulation = False, omit_minimizing_path = False, skip_checks = False):
+  def solve_subproblem(self, enhanced_bitmask):
     '''
     Computes the minimal path length given specific parameters: given
     initial and final vertices and a set of vertices of underlying graph
@@ -674,6 +673,7 @@ class StateDigraphSolveTSP(object):
     (returning infinite distance and None as path) unless this
     initial-and-final-vertex is the only vertex in the subproblem.]
     '''
+    # Decode info from enhanced bitmask
     initial_number, final_number, presence_bitmask = self.decodify_from_enhanced_bitmask(enhanced_bitmask)
     # Our subproblems are: Consider we have a fixed initial vertex
     #(which might be passed as argument as source_vertex), a fixed
@@ -682,7 +682,7 @@ class StateDigraphSolveTSP(object):
     #(if there are such paths), starting at initial and ending on the final
     # We will parametrize these subproblems by initial, final, presence_bitmask,
     #where presence_bitmask is an integer codifying a subset of vertices
-    if not skip_checks:
+    if not self.skip_checks:
       # Since vertices are numbered from 0 to self.n - 1
       assert presence_bitmask <= 2**self.n - 1, 'Internal logic error, presence_bitmask cannot be longer than number of vertices'
       # Check that initial_vertex and final_vertex are present [i. e. True]
@@ -703,11 +703,11 @@ class StateDigraphSolveTSP(object):
             underlying_digraph = self.digraph,
             data = [initial_vertex],
             data_type = 'vertices',
-            verify_validity_on_initialization = not skip_checks)
+            verify_validity_on_initialization = not self.skip_checks)
         # [This is a nondegenerate path, and works fine with arrow addition]
         # If only lengths are asked, we produce None instead of [], for consistency
         #print(f'Solution (one-vertex path): {0}')
-        if omit_minimizing_path:
+        if self.omit_minimizing_path:
           return 0
         else:
           return (0, quasi_empty_path)
@@ -715,7 +715,7 @@ class StateDigraphSolveTSP(object):
         # In this case there are more than one vertex, thus making it impossible
         #to provide a solution to the subproblem
         #print(f'Solution (impossible set): {math_inf}')
-        if omit_minimizing_path:
+        if self.omit_minimizing_path:
           return math_inf
         else:
           return (math_inf, None)
@@ -752,20 +752,17 @@ class StateDigraphSolveTSP(object):
                   initial_number = initial_number,
                   final_number = penultimate_number,
                   presence_bitmask = last_off_presence_bitmask)
-            if use_memoization_instead_of_tabulation:
+            if self.use_memoization_instead_of_tabulation:
               # In this case we simply call the suproblem method again
               solution_of_smaller_subproblem = self.solve_subproblem(
-                  enhanced_bitmask = enhanced_bitmask,
-                  use_memoization_instead_of_tabulation = True,
-                  omit_minimizing_path = omit_minimizing_path,
-                  skip_checks = skip_checks)
+                  enhanced_bitmask = enhanced_bitmask)
             else:
               # In this case the result should be stored in self._subproblem_solutions_by_size,
               #indexed by the number of vertices in the last_off_presence_bitmask
               number_of_vertices_in_bitmask = self.count_elements_in_bitmask(last_off_presence_bitmask)
               solution_of_smaller_subproblem = self._subproblem_solutions_by_size[number_of_vertices_in_bitmask][
                   enhanced_bitmask]
-            if omit_minimizing_path:
+            if self.omit_minimizing_path:
               previous_length = solution_of_smaller_subproblem
             else:
               previous_length, previous_path = solution_of_smaller_subproblem
@@ -773,7 +770,7 @@ class StateDigraphSolveTSP(object):
             # Update the minimal distance, if it is minimal
             if this_distance < min_among_all_last_arrows:
               min_among_all_last_arrows = this_distance
-              if omit_minimizing_path:
+              if self.omit_minimizing_path:
                 # To save memory during execution, we don't compute path info
                 pass
               else:
@@ -783,11 +780,11 @@ class StateDigraphSolveTSP(object):
                     data = last_arrow,
                     data_type = 'arrow',
                     modify_self = False,
-                    skip_checks = skip_checks)
+                    skip_checks = self.skip_checks)
       # With the loop ended, the best should be recorded [unless omit_minimizing_path
       #is True, in which case whole_path_as_arrows is ignored]
       #print(f'Solution (after recurrence): {min_among_all_last_arrows}')
-      if omit_minimizing_path:
+      if self.omit_minimizing_path:
         return min_among_all_last_arrows
       else:
         return (min_among_all_last_arrows, whole_path_as_arrows)
@@ -805,11 +802,21 @@ class StateDigraphSolveTSP(object):
     
     SEE ALSO: solve_subproblem
     '''
+    # Embed variables into instance to reduce overhead in calling solve_subproblem
+    # This will be reverted at the end of this method
+    self._integrate_variables_into_instance_attributes(
+        use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation,
+        omit_minimizing_path = omit_minimizing_path,
+        skip_checks = skip_checks)
+    # For clarity, delete the variables (keeping the attributes, of course)
+    del use_memoization_instead_of_tabulation
+    del omit_minimizing_path
+    del skip_checks
     # Useful construct
     all_vertices_bitmask = self.produce_complete_bitmask()
     # Create empty dict
     solutions = {}
-    if use_memoization_instead_of_tabulation:
+    if self.use_memoization_instead_of_tabulation:
       # In this case initial_vertex and final_vertex are not needed, only the pairs
       del initial_vertex, final_vertex
       for pair_of_vertices in initial_and_final_vertices:
@@ -824,10 +831,7 @@ class StateDigraphSolveTSP(object):
               final_number = local_final_number,
               presence_bitmask = all_vertices_bitmask)        
         local_solution = self.solve_subproblem(
-            enhanced_bitmask = enhanced_bitmask,
-            use_memoization_instead_of_tabulation = True,
-            omit_minimizing_path = omit_minimizing_path,
-            skip_checks = skip_checks)
+            enhanced_bitmask = enhanced_bitmask)
         # Note it works with omit_minizing_path True or False
         solutions[pair_of_vertices] = local_solution
     else:
@@ -896,10 +900,7 @@ class StateDigraphSolveTSP(object):
                         final_number is None or local_final_index == final_number):
                       # We compute the value and store it on the table
                       local_solution = self.solve_subproblem(
-                          enhanced_bitmask = enhanced_bitmask,
-                          use_memoization_instead_of_tabulation = False,
-                          omit_minimizing_path = omit_minimizing_path,
-                          skip_checks = skip_checks)
+                          enhanced_bitmask = enhanced_bitmask)
                       self._subproblem_solutions_by_size[length_of_path][
                           enhanced_bitmask] = local_solution
                     else:
@@ -917,7 +918,7 @@ class StateDigraphSolveTSP(object):
               # We store (math.inf, None) in the table to indicate unsolvable subproblem
               #(for subproblems marked unsolvable), math math.inf if omitting paths
               if is_subproblem_certainly_impossible:
-                if omit_minimizing_path:
+                if self.omit_minimizing_path:
                   solution = math_inf
                 else:
                   solution = (math_inf, None)
@@ -939,6 +940,9 @@ class StateDigraphSolveTSP(object):
         solutions[pair_of_vertices] = self._subproblem_solutions_by_size[self.n][enhanced_bitmask]
       # To show everything is complete, delete self._subproblem_solutions_by_size
       del self._subproblem_solutions_by_size
+    # For code clarity (because there are no practical effects),
+    #revert embedding variables into instance
+    use_memoization_instead_of_tabulation, omit_minimizing_path, skip_checks = self._dismember_instance_attributes_into_variables()
     # In both cases, return the dict solutions
     return solutions
 
@@ -1233,6 +1237,43 @@ class StateDigraphSolveTSP(object):
         initial_and_final_vertices.append((initial_vertex, neighbor))
     # We return initial_and_final vertices as well as the sanitized inputs (which might be None)
     return (initial_vertex, final_vertex, initial_and_final_vertices)
+
+  def _integrate_variables_into_instance_attributes(self, use_memoization_instead_of_tabulation,
+      omit_minimizing_path, skip_checks):
+    '''
+    To be used in method solve_full_problem.
+    
+    Imbues instance with attributes representing certain variables
+    (use_memoization_instead_of_tabulation, omit_minimizing_path, skip_checks).
+    
+    Modifies the instance, returns None
+    '''
+    # For "decontamination", we ensure these attributes don't exist
+    assert not hasattr(self, 'use_memoization_instead_of_tabulation'), 'Attribute should not have been present'
+    assert not hasattr(self, 'omit_minimizing_path'), 'Attribute should not have been present'
+    assert not hasattr(self, 'skip_checks'), 'Attribute should not have been present'
+    self.use_memoization_instead_of_tabulation = use_memoization_instead_of_tabulation
+    self.omit_minimizing_path = omit_minimizing_path
+    self.skip_checks = skip_checks
+    return None
+  
+  def _dismember_instance_attributes_into_variables(self):
+    '''
+    To be used in method solve_full_problem.
+    
+    Returns certain variables (use_memoization_instead_of_tabulation,
+    omit_minimizing_path, skip_checks) obtainable from the instance attributes,
+    and delete those attributes from the instance.
+    '''
+    use_memoization_instead_of_tabulation = self.use_memoization_instead_of_tabulation
+    omit_minimizing_path = self.omit_minimizing_path
+    skip_checks = self.skip_checks
+    # For "decontamination", we ensure to delete those attributes
+    del self.use_memoization_instead_of_tabulation
+    del self.omit_minimizing_path
+    del self.skip_checks
+    return (use_memoization_instead_of_tabulation, omit_minimizing_path, skip_checks)
+  
 
   def _solve_full_problem_for_paths(self, initial_vertex, final_vertex,
       initial_and_final_vertices, use_memoization_instead_of_tabulation,
