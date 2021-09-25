@@ -281,7 +281,8 @@ so it's important to downsize also the memory consumption.
 
 Change option of omit_minimizing_path in StateDigraphSolveTSP to not produce
 the path at all (instead of producing the token None as path).
-Goal: to save RAM, since each None.__sizeof__() is 16 bytes.
+Goal: to save RAM, since each None.__sizeof__() is 16 bytes, the smallest of all
+in plain Python.
 
 ## ISSUE #0046 COMPLETE
 
@@ -423,4 +424,13 @@ StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum to not be cached
 but instead be generated from prior values. (And when they are low enough,
 deallocate them).
 
-Estimate: for 25 vertices, those cached results occupy about 1.6 GB RAM.
+Estimate: for 25 vertices, those cached results used to occupy about 1.6 GB RAM.
+New method is slightly smaller (1.3 GB RAM), but other changes allow for
+deallocation after bitmasks of smaller size are no longer useful.
+
+## ISSUE #0063 OPEN
+
+To improve StateDigraphSolveTSP further on memory consumption, use
+built-in array or Numpy's array to store data with tabulation process
+(when omitting minimizing path).
+In this case, would need a way to deal with infinity, maybe a second, Boolean array.

@@ -775,9 +775,9 @@ class StateDigraphSolveTSP(object):
             # [It's probably easier than build a VertexPath instance every time]
             penultimate_number = self.number_by_vertex[last_arrow.source]
             enhanced_bitmask = self.codify_into_enhanced_bitmask(
-                  initial_number = initial_number,
-                  final_number = penultimate_number,
-                  presence_bitmask = last_off_presence_bitmask)
+                initial_number = initial_number,
+                final_number = penultimate_number,
+                presence_bitmask = last_off_presence_bitmask)
             if self.use_memoization_instead_of_tabulation:
               # In this case we simply call the suproblem method again,
               #through its memoizing envelop
