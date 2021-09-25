@@ -281,7 +281,8 @@ so it's important to downsize also the memory consumption.
 
 Change option of omit_minimizing_path in StateDigraphSolveTSP to not produce
 the path at all (instead of producing the token None as path).
-Goal: to save RAM, since each None.__sizeof__() is 16 bytes.
+Goal: to save RAM, since each None.__sizeof__() is 16 bytes, the smallest of all
+in plain Python.
 
 ## ISSUE #0046 COMPLETE
 
@@ -423,4 +424,33 @@ StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum to not be cached
 but instead be generated from prior values. (And when they are low enough,
 deallocate them).
 
-Estimate: for 25 vertices, those cached results occupy about 1.6 GB RAM.
+Estimate: for 25 vertices, those cached results used to occupy about 1.6 GB RAM.
+New method is slightly smaller (1.3 GB RAM), but other changes allow for
+deallocation after bitmasks of smaller size are no longer useful.
+
+## ISSUE #0063 OPEN
+
+For large lists, a list of Nones occupies about 8 bytes of RAM times length,
+(and it is all used for the pointer information in the list as None is unique object)
+and a list of floats or ints about 40 bytes of RAM times length.
+
+Estimate of memory consumption for tabulation of graph with 25 vertices
+when omitting minimizing paths: table for storage starts with 25*(2**25) Nones
+which means 6.71 GB. In the middle of process, some are converted into floats,
+in peak being at 12 and 13 vertices, meaning 25*(5200300+5200300) = 260,015,000
+Nones replaced by floats which gives extra 8.32 GB. At that moment, the
+possible (not enhanced) bitmasks of that size which are not deleted yet,
+are about half of total, thus aroud (2**25)/2 = 16,777,216 bitmasks
+which take up about 0.67 GB. Total Gigabytes: 6.71 + 8.32 + 0.67 = 15.7.
+(One Gigabyte, GB, is 10**9 bytes; one Gibibyte, GiB, is 2**30 bytes.)
+
+To improve StateDigraphSolveTSP further on memory consumption, use
+built-in array or Numpy's array to store data with tabulation process
+(when omitting minimizing path).
+In this case, would need a way to deal with infinity; maybe a second, Boolean array.
+
+## ISSUE #0064 OPEN
+
+In StateDigraphSolveTSP.solve_full_length_subproblems_for_initial_and_final_vertices,
+during tabulation, write separate method to compute all possible enhanced bitmasks
+(and derive information such as vertices) for each possible presence bitmask.
