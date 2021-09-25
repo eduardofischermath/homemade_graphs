@@ -456,7 +456,7 @@ class StateDigraphSolveTSP(object):
   In case a initial vertex is fixed throughout (say labeled j, which might or not be 0),
   the enhanced bitmask becomes
   
-  (j, k, b) -> k*(2**n) + b    (that is, j is considered as 0)
+  (j, k, b) -> k*(2**n) + b    (that is, as if j was considered as 0 in previous formula)
   
   This is also a bijective transformation over all possible values of k and b.
   '''
@@ -532,7 +532,8 @@ class StateDigraphSolveTSP(object):
     '''
     Given a number, counts the number of '1's in its binary representation.
     
-    If the number is a bitmask, it counts the number of objects which are present.
+    If the number is a bitmask, it counts the number of objects which are present
+    in the subset it represents.
     '''
     count = 0
     while number:
@@ -541,51 +542,34 @@ class StateDigraphSolveTSP(object):
     return count
 
   @staticmethod
-  @functools_cache
-  def produce_bitmasks_with_specific_digit_sum(given_length, given_sum,
-      output_as_generator = False):
+  def produce_all_bitmasks_classified_according_to_digit_sum(given_length,
+      output_items_as_generators = False):
     '''
-    Produces all bitmask of specified length have a specified number of '1's,
-    that is, of objects marked as present in the bitmask.
+    Returns all bitmasks of given length classified according to the sum
+    of their digits [in base 2], which is equivalent to the number of
+    elements present in the subset they represent.
     
-    Can produce them as a list or as a generator.
+    Result is a list of length given_length+1, each of them containing
+    the bitmask whose digit sum equals the index of the item.
+    
+    Has option to produce a list of given_length+1 generators for the bitmasks
+    instead of a list of given_length+1 lists of bitmasks.
     '''
-    if given_length <= 0:
-      # Should be 0 if given_length and given_sum are 0, and nothing otherwise
-      # [Note number 0 count as list of any length]
-      if given_length == 0 and given_sum == 0:
-        generator = (0 for index in range(1))
-      else:
-        generator = (None for index in range(0))
-      if output_as_generator:
-        return generator
-      else:
-        return list(generator)
+    all_bitmasks = range(1 << given_length) # From 0 to 2**given_length - 1
+    # Tradeoff: outputting items as generators takes almost no memory,
+    #but using it implies testing each bitmask once against each possible digit sum
+    #(at the time when the generator is used)
+    if output_items_as_generators:
+      # Create a filter for each possible digit sum/number of elements
+      list_of_generators = [filter(StateDigraphSolveTSP.count_elements_in_bitmask(bitmask) == index, all_bitmasks)
+          for index in range(given_length + 1)]
+      return list_of_generators
     else:
-      # Recurse on the bitmasks of given_length one unit smaller
-      to_add_leftmost_one = StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum(
-          given_length = given_length - 1,
-          given_sum = given_sum - 1,
-          output_as_generator = output_as_generator)
-      to_add_leftmost_zero = StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum(
-          given_length = given_length - 1,
-          given_sum = given_sum,
-          output_as_generator = output_as_generator)
-      # Add 0 or 1 to the start of the number (done as bit operation), then output
-      leftmost_index = given_length-1
-      if output_as_generator:
-        ##############
-        # WORK HERE
-        # Fix bug. Problem is that generators get exhausted, so it goes badly with functools_cache
-        ##############
-        raise NotImplementedError('Not working correctly; use lists instead.')
-        with_leftmost_digit_one = (number | (1 << leftmost_index) for number in to_add_leftmost_one)
-        with_leftmost_digit_zero = to_add_leftmost_zero
-        return itertools_chain(with_leftmost_digit_one, with_leftmost_digit_zero)
-      else:
-        with_leftmost_digit_one = [number | (1 << leftmost_index) for number in to_add_leftmost_one]
-        with_leftmost_digit_zero = to_add_leftmost_zero
-        return with_leftmost_digit_one + with_leftmost_digit_zero
+      # Scan all bitmasks, determining their digit sum and appending it to correct basket
+      list_of_lists = [[]]*(given_length + 1)
+      for bitmask in all_bitmasks:
+        list_of_lists[StateDigraphSolveTSP.count_elements_in_bitmask(bitmask)].append(bitmask)
+      return list_of_lists
 
   def produce_minimization_constructs(self):
     '''
@@ -905,14 +889,15 @@ class StateDigraphSolveTSP(object):
       #(either n*(2**n) or n*n*(2**n) depending on self.fixed_initial_number being None)
       self._subproblem_solutions = [None]*self.produce_number_of_enhanced_bitmasks()
       # Note that tabulation is done in increasing order of number of vertices present
+      # To control that, we produce_all_bitmasks_classified_according_to_digit_sum
+      all_bitmasks_by_size = self.produce_all_bitmasks_classified_according_to_digit_sum(
+          given_length = self.n,
+          output_items_as_generators = False)
       for length_of_path in range(0, self.n + 1):
         # Print to more easily visualize progress
         print(f'Examining subproblems with {length_of_path} vertices')
         # We find all presence bitmasks of size length_of_path
-        right_size_presence_bitmasks = self.produce_bitmasks_with_specific_digit_sum(
-            given_length = self.n,
-            given_sum = length_of_path,
-            output_as_generator = False)
+        right_size_presence_bitmasks = all_bitmasks_by_size[length_of_path]
         for presence_bitmask in right_size_presence_bitmasks:
           # To determine initial_vertex and final_vertex passed to subproblem
           #[note final_vertex is not the same as the one or None given to
@@ -986,23 +971,20 @@ class StateDigraphSolveTSP(object):
         if length_of_path >= 1:
           # We delete information on the paths which are one vertex shorter
           # By delete we mean replace the info with None
-          # Since both None and any int or float take 8 bytes, the smallest in Python,
-          #this only liberates space if omit_minimizing_path is False
-          if self.omit_minimizing_path:
-            pass
-          else:
-            print(f'Now to delete info for paths of length {length_of_path - 1}')
-            ######################
-            # WORK HERE
-            # Apparently the garbage collection is not working
-            ######################
-            # It is convenient that self.produce_bitmasks_with_specific_digit_sum is cached
-            smaller_size_presence_bitmasks = self.produce_bitmasks_with_specific_digit_sum(
-              given_length = self.n,
-              given_sum = length_of_path - 1,
-              output_as_generator = False)
-            for smaller_enhanced_bitmask in smaller_size_presence_bitmasks:
-              self._subproblem_solutions[smaller_enhanced_bitmask] = None
+          # Since None is a bit smaller than a float, this only liberates space
+          print(f'Now to delete info for paths of length {length_of_path - 1}')
+          ######################
+          # WORK HERE
+          # Apparently the garbage collection is not working
+          # Or maybe it is, it just needs the right event to be triggered
+          # Actually, problem is confusing bitmasks and enhanced bitmasks
+          ######################
+          # It is convenient that self.produce_bitmasks_with_specific_digit_sum is cached
+          smaller_size_presence_bitmasks = all_bitmasks_by_size[length_of_path - 1]
+          for smaller_enhanced_bitmask in smaller_size_presence_bitmasks:
+            self._subproblem_solutions[smaller_enhanced_bitmask] = None
+          # Remove info on those smaller bitmasks as well to save further
+          all_bitmasks_by_size[length_of_path - 1] = None
       # Read the values from self._subproblem_solutions and store in dict solutions
       for pair_of_vertices in initial_and_final_vertices:
         local_initial_vertex, local_final_vertex = pair_of_vertices
@@ -1351,7 +1333,6 @@ class StateDigraphSolveTSP(object):
     del self.skip_checks
     return (use_memoization_instead_of_tabulation, omit_minimizing_path, skip_checks)
   
-
   def _solve_full_problem_for_paths(self, initial_vertex, final_vertex,
       initial_and_final_vertices, use_memoization_instead_of_tabulation,
       omit_minimizing_path, skip_checks):
@@ -1588,5 +1569,66 @@ class StateDigraphSolveTSP(object):
         return generator_for_needed_tuples
       else:
         return list(generator_for_needed_tuples)
+
+  # Deprecated
+  # Deprecated in favor of produce_all_bitmasks_classified_according_to_digit_sum,
+  #which produces better results for tabulation for the full TSP
+  @staticmethod
+  @functools_cache
+  def produce_bitmasks_with_specific_digit_sum(given_length, given_sum,
+      use_old_algorithm_instead_of_new, output_as_generator = False):
+    '''
+    Produces all bitmask of specified length have a specified number of '1's,
+    that is, of objects marked as present in the bitmask.
+    
+    Can produce them as a list or as a generator.
+    '''
+    raise DeprecationWarning('Better to use produce_all_bitmasks_classified_according_to_digit_sum instead')
+    # Old approach is coded here, uses top-down dynamic programming and caching
+    # New approach uses produce_all_bitmasks_classified_according_to_digit_sum
+    # Old approach is better for a specific value of given_length, given_sum.
+    # New approach is better that it works regarding the production
+    #of generators, which is bugged (and slightly inferior) for old approach
+    if use_old_algorithm_instead_of_new:
+      if given_length <= 0:
+        # Should be 0 if given_length and given_sum are 0, and nothing otherwise
+        # [Note number 0 count as list of any length]
+        if given_length == 0 and given_sum == 0:
+          generator = (0 for index in range(1))
+        else:
+          generator = (None for index in range(0))
+        if output_as_generator:
+          return generator
+        else:
+          return list(generator)
+      else:
+        # Recurse on the bitmasks of given_length one unit smaller
+        to_add_leftmost_one = StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum(
+            given_length = given_length - 1,
+            given_sum = given_sum - 1,
+            output_as_generator = output_as_generator)
+        to_add_leftmost_zero = StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum(
+            given_length = given_length - 1,
+            given_sum = given_sum,
+            output_as_generator = output_as_generator)
+        # Add 0 or 1 to the start of the number (done as bit operation), then output
+        leftmost_index = given_length-1
+        if output_as_generator:
+          ##############
+          # WORK HERE
+          # Fix bug. Problem is that generators get exhausted, so it goes badly with functools_cache
+          ##############
+          raise NotImplementedError('Not working correctly; use lists instead.')
+          with_leftmost_digit_one = (number | (1 << leftmost_index) for number in to_add_leftmost_one)
+          with_leftmost_digit_zero = to_add_leftmost_zero
+          return itertools_chain(with_leftmost_digit_one, with_leftmost_digit_zero)
+        else:
+          with_leftmost_digit_one = [number | (1 << leftmost_index) for number in to_add_leftmost_one]
+          with_leftmost_digit_zero = to_add_leftmost_zero
+          return with_leftmost_digit_one + with_leftmost_digit_zero
+    else:
+      return StateDigraphSolveTSP.produce_all_bitmasks_classified_according_to_digit_sum(
+          given_length = given_length,
+          output_items_as_generators = output_as_generator)[given_sum]
 
 ########################################################################
