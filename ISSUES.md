@@ -410,14 +410,17 @@ Improvements in the order of 5-10% in RAM usage.
 Implement a shorter enhanced bitmask in case the initial vertex is fixed.
 This reduces the memory usage by a good factor (exactly the number of vertices
 if paths are to be omitted) in those cases (for example, all cycles).
+This was confirmed in practice.
 
 This can be done by an instance attribute fixed_initial_number, which permeates
 many methods related to enhanced bitmasks (it even changes the way they are
 calculated) and tabulation.
 
-## ISSUE #0062 OPEN
+## ISSUE #0062 ONGOING
 
 To save memory during tabulation by deallocation of unused resources, rewrite
 StateDigraphSolveTSP.produce_bitmasks_with_specific_digit_sum to not be cached
 but instead be generated from prior values. (And when they are low enough,
-deallocate them). 
+deallocate them).
+
+Estimate: for 25 vertices, those cached results occupy about 1.6 GB RAM.
