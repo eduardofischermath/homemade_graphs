@@ -1351,13 +1351,10 @@ class StateDigraphSolveTSP(object):
         skip_checks = skip_checks)
     # Simply find the shortest
     for pair_of_vertices in initial_and_final_vertices:
-      initial_number = self.number_by_vertex[pair_of_vertices[0]]
-      final_number = self.number_by_vertex[pair_of_vertices[1]]
-      pair_of_numbers = (initial_number, final_number)
       if omit_minimizing_path:
         local_distance = minimizing_data[pair_of_numbers]
       else:
-        local_distance, local_path = minimizing_data[pair_of_numbers]
+        local_distance, local_path = minimizing_data[pair_of_vertices]
       # Since initial_and_final_vertices might not be a singleton:
       if local_distance < min_distance_overall:
         min_distance_overall = local_distance
