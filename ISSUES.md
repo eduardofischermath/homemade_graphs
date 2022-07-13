@@ -454,3 +454,46 @@ In this case, would need a way to deal with infinity; maybe a second, Boolean ar
 In StateDigraphSolveTSP.solve_full_length_subproblems_for_initial_and_final_vertices,
 during tabulation, write separate method to compute all possible enhanced bitmasks
 (and derive information such as vertices) for each possible presence bitmask.
+
+## ISSUE #0065 OPEN
+
+Create a class solving the problem of Kami (a video game involving origamis
+and, indirectly, graphs with colored vertices).
+
+In Kami the starting point is a graph with colored vertices. Then every
+two adjacent vertices are considered to be a blob with the same color
+(or maybe more technically a union-find structure). The goal is
+to make all vertices have the same color after certain number of clicks.
+A click means a choice of a blob (represented or not by a vertex) and a color.
+After the click, the clicked blob/vertice becomes of the chosen color,
+and thus, after re-blobblig by the new colors, a potentially larger blob
+may be formed.
+
+Idea: start with a graph with colored vertex. Use a union-find structure
+to unite vertices into blobs into colors; this way, no adjacent unions
+have the same color.
+
+Explore all possible clicks (click is a choice of blob and of color).
+In each click, the clicked glob will absorb the adjacent globs of the clicked
+color.
+
+Find ways to reduce the graph to a single blob in the least number of clicks.
+It can be either open-ended, in which all possibilities are explored, or
+a specified number of clicks can be given, and the class will search for
+a sequence of clicks which
+
+To maintain history (and reconstitute the clicks after all re-blobbing),
+the union-find information can be kept on a list. For example, if the
+union-find structure is implemented with leaders for each vertex,
+each new step/click may append a leader to the list of leaders of that vertex.
+
+## ISSUE #0066 OPEN
+
+Given that Kami puzzles are often in a grid, create a method which creates
+a Kami problem without specifying vertices and edges (since they are
+obvious in the grid format), but only a string with a char for each color
+in position. For example, for colors coded 'a', 'b', 'c':
+
+aaabbc
+acabbc
+aaabbc
